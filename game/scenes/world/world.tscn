@@ -43,7 +43,7 @@ color = Color(0.267, 0.443, 0.235, 1)
 
 [node name="Player" type="Sprite2D" parent="."]
 position = Vector2(640, 360)
-scale = Vector2(3, 3)
+scale = Vector2(1.5, 1.5)
 texture_filter = 1
 
 [node name="RemotePlayers" type="Node2D" parent="."]

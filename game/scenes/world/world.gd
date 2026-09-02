@@ -361,7 +361,7 @@ func _ensure_remote_sprite(id: int) -> Sprite2D:
 	if _remote_sprites.has(id):
 		return _remote_sprites[id]
 	var sprite := Sprite2D.new()
-	sprite.scale = Vector2(3, 3)
+	sprite.scale = Vector2(1.5, 1.5)
 	sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	remote_players_root.add_child(sprite)
 	_remote_sprites[id] = sprite

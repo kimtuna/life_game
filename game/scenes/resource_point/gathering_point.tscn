@@ -16,7 +16,7 @@ prompt_text = "F: 채집 (벼 씨앗)"
 texture_path = "res://assets/sprites/gathering_point/gathering_point.png"
 
 [node name="Sprite" type="Sprite2D" parent="."]
-scale = Vector2(2.2, 2.2)
+scale = Vector2(1.1, 1.1)
 texture_filter = 1
 
 [node name="Prompt" type="Label" parent="."]
