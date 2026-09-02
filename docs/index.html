@@ -19,18 +19,18 @@
 </head>
 <body>
   <h1>auto-loop 진행 상황</h1>
-  <p class="updated">마지막 갱신: 2026-09-02 21:01:27</p>
+  <p class="updated">마지막 갱신: 2026-09-02 21:05:20</p>
   <div class="row">
-    <div class="card"><div class="label">남은 항목</div><div class="num">4</div></div>
-    <div class="card"><div class="label">완료된 항목</div><div class="num">20</div></div>
+    <div class="card"><div class="label">남은 항목</div><div class="num">3</div></div>
+    <div class="card"><div class="label">완료된 항목</div><div class="num">21</div></div>
   </div>
   <div class="card">
     <div class="label">지금 처리 중 / 다음으로 처리할 항목</div>
-    <div>#21 인벤토리를 슬롯 기반으로 새로 만든다. 지금 `scripts/inventory_data.gd`는 아이템별 개수만 세는 딕셔너리 방식인데, 이걸 슬롯 배열 방식으로 바꾼다: 일반 슬롯 18칸(그중 인덱스 0~8인 맨 위 9칸이 핫바를 겸함), 그와 별개로 장비 슬롯 9칸(모자1/상의1/하의1/신발1/목걸이2/반지2/가방1). 지금 있는 아이템(rice_seed, rice, iron, captured_deer 등 `all_counts()`로 보이는 것들)은 일반 슬롯에 스택으로 들어가도록 마이그레이션한다. E 키를 누르면 인벤토리 창(일반 18칸 + 장비 9칸 그리드)이 열리고 닫힌다. 이번 항목은 슬롯/UI/데이터 구조까지만 만들면 되고, 장비 슬롯에 넣은 아이템의 실제 효과는 만들지 않아도 된다(DESIGN.md 범위 밖).</div>
+    <div>#22 도구를 실제 아이템으로 만든다. 총(기존 기본 소총), 도끼, 곡괭이, 낫, 낚싯대 — 이 5개를 인벤토리에 들어가는 아이템으로 만든다(아직 없는 도끼/곡괭이/낫/낚싯대는 새 아이템으로 추가하고 PixelLab로 아이콘/스프라이트를 만든다). 숫자키 1~9로 핫바(#21에서 만든 일반 슬롯의 맨 위 9칸) 중 하나를 고르면 그 칸의 아이템을 플레이어가 손에 든 것으로 표시하고(스프라이트 전환), 이후 좌클릭이 그 도구의 동작을 수행하게 만든다(예: 총이면 기존 발사 로직 그대로, 다른 도구는 다음 항목 #23에서 실제 동작을 연결). 핫바 슬롯이 비어있거나 도구가 아닌 아이템이면 아무것도 들지 않은 빈손 상태로 둔다.</div>
   </div>
   <div class="card">
     <div class="label">마지막 작업 커밋</div>
-    <div><code>0e08cf1 슬롯 인벤토리/도구/드롭 아이템을 큐에 등록 (#21~#24)</code></div>
+    <div><code>9740c53 [INBOX #21] STATUS.md/INBOX.md 갱신</code></div>
   </div>
 </body>
 </html>
