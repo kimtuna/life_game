@@ -9,3 +9,7 @@ node_modules/
 dist/
 build/
 *.log
+
+# Godot
+game/.godot/
+game/export_presets.cfg
