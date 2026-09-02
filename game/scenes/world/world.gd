@@ -221,7 +221,6 @@ func _physics_process(delta: float) -> void:
 ## 조준 방향에 반동(위로 튐)과 탄퍼짐(이동 중이면 커짐)을 섞어서 총알을 하나 쏜다.
 func _fire() -> void:
 	_fire_cooldown = GUN_FIRE_INTERVAL
-	_recoil = minf(GUN_RECOIL_MAX, _recoil + GUN_RECOIL_PER_SHOT)
 
 	var aim := get_global_mouse_position() - player_sprite.global_position
 	if aim.length() < 1.0:
@@ -230,6 +229,8 @@ func _fire() -> void:
 	aim = (aim + Vector2.UP * _recoil).normalized()
 	var spread_deg := GUN_SPREAD_MOVE_DEG if _is_moving else GUN_SPREAD_IDLE_DEG
 	aim = aim.rotated(deg_to_rad(randf_range(-spread_deg * 0.5, spread_deg * 0.5)))
+
+	_recoil = minf(GUN_RECOIL_MAX, _recoil + GUN_RECOIL_PER_SHOT)
 
 	var bullet := BulletScene.instantiate()
 	bullet.global_position = player_sprite.global_position
