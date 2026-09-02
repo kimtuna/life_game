@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.kdw240.autoloop</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/opt/homebrew/bin/bash</string>
+        <string>/Users/tuna/Desktop/auto-loop/loop/loop.sh</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/tuna/Desktop/auto-loop</string>
+
+    <!-- 자동 실행 환경은 평소 터미널의 PATH 를 물려받지 않는다.
+         여기 빠뜨리면 claude/git/timeout 을 못 찾고 조용히 죽는다. -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/Users/tuna/.local/bin:/opt/homebrew/bin:/opt/homebrew/sbin:/opt/local/bin:/opt/local/sbin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <key>HOME</key>
+        <string>/Users/tuna</string>
+    </dict>
+
+    <!-- 로그인하면 시작 -->
+    <key>RunAtLoad</key>
+    <true/>
+
+    <!-- 정상 종료(exit 0: STOP 파일 또는 MAX_LAPS 도달)면 그대로 둔다.
+         비정상 종료(0이 아닌 exit, 크래시)면 재시작한다. -->
+    <key>KeepAlive</key>
+    <dict>
+        <key>SuccessfulExit</key>
+        <false/>
+    </dict>
+
+    <key>StandardOutPath</key>
+    <string>/Users/tuna/Desktop/auto-loop/logs/launchd.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/tuna/Desktop/auto-loop/logs/launchd.err.log</string>
+</dict>
+</plist>
