@@ -5,10 +5,50 @@
 
 ## 마지막 갱신
 
-바퀴 44 / 2026-09-03 (INBOX #41 완료 — 로컬 플레이어 AnimatedSprite2D 전환)
+바퀴 47 / 2026-09-03 (INBOX #42 완료 — 총을 캐릭터 애니메이션 프레임에 통합)
 
 ## 끝난 것 (지금까지의 스냅샷 — 바퀴별 상세 이력은 git 커밋 메시지 `[INBOX #N] ...`에 있음)
 
+- INBOX #42 완료 (바퀴 47): 총의 "들고 있는"/"발사하는" 모션을 `_held_item_sprite` 옆
+  아이콘 오버레이 대신 캐릭터 애니메이션 프레임 자체(`gun_idle_<dir>`/`gun_fire_<dir>`,
+  DESIGN.md "캐릭터 애니메이션")로 통합했다. **바퀴 46이 `/tmp/gun_gen/`에 남겨둔 생성물이
+  이 머신에서 세션이 지나도 지워지지 않는다는 것을 다시 확인했다** — 그 디렉터리에 이미
+  green(전 방향 idle/fire, inpaint+rotate 결과) 전체와 blue/red의 south/east/north까지
+  생성돼 있었다. west만 빠져 있어서 PIL로 east를 좌우반전해 만들고(캐릭터 west 텍스처를
+  만들 때 쓰던 것과 같은 방식), blue/red 콘택트시트를 새로 만들어 직접 눈으로 검수했다 —
+  둘 다 green과 같은 수준으로 자연스러웠고(총과 손이 자연스럽게 붙어 있음, 발사 시 총구
+  불꽃 뚜렷), red의 대머리(짧은 스포츠머리)도 기존 `red_south.png` 베이스 캐릭터와
+  일치해 이질감이 없었다. 최종 24장(3색×4방향×idle/fire)을
+  `game/assets/sprites/character/gun/{variant}_{dir}_{idle,fire}.png`로 복사하고
+  `godot --headless --path . --import`로 강제 재임포트했다.
+  - 코드: `world.gd`의 `_build_player_sprite_frames()`에 방향별
+    `gun_idle_<dir>`/`gun_fire_<dir>` 애니메이션(각 1프레임)을 추가했고,
+    `_current_animation_name()`이 `_held_tool == "gun"`이면 `_tool_use_flash_timer`
+    값(발사 직후 0.12초 동안 >0)에 따라 이 둘 중 하나를 반환하도록 바꿨다.
+    `_select_hotbar()`는 총을 선택했을 때 `_held_item_sprite`를 아예 숨기도록(총 전용
+    분기) 바꾸고, `_fire()`에서 옆 아이콘 텍스처를 바꾸던 코드를 지우고 타이머만 설정하게
+    했다. `TOOL_USE_ICONS`에서 `"gun"` 항목(구 `gun_firing.png` 참조)을 제거했다 —
+    INBOX #42 원문이 명시한 "총에 한해 제거" 범위를 지켰다(도끼/곡괭이낫/낚싯대는 여전히
+    `_held_item_sprite` 오버레이 방식 그대로, #43~#45 몫).
+  - **걷는 동안 총을 든 상태 처리(바퀴 46이 결론 못 낸 부분)는 옵션A로 결정해 구현했다**:
+    걷기 전용 총 프레임(walk_gun, 그림 24장 추가 필요)은 만들지 않고, 이동 중에도
+    `gun_idle_<dir>` 프레임을 그대로 쓴다(다리 애니메이션은 멈추지만 총은 계속 보임).
+    근거: DESIGN.md "도구 동작 표현"이 총에 대해 "들고 있기/발사" 두 상태만 명시하고
+    walk-with-gun은 언급이 없어 임의로 확장하지 않았고, 최소한 이전 오버레이 방식(이동
+    중에도 총이 계속 보이던 것)과 같은 수준을 유지해 회귀를 막는 것을 우선했다. 나중에
+    지시가 오면 walk_gun 프레임을 추가로 그려 넣는 방향으로 확장할 수 있다(아래 "다음에
+    할 것"에 #43~#45용 레시피로 재사용 가능하다고 남김).
+  - 검증: `game/_verify_gun_motion.gd`(커밋 전 삭제)로 world 씬을 실제 렌더링 드라이버로
+    띄운 뒤 `set_physics_process(false)`로 마우스 추종을 끄고 `_facing`/`_held_tool`/
+    `_tool_use_flash_timer`을 직접 설정 → `_update_player_animation()` 호출 → 3프레임
+    대기 → 캡처를 green 기준 4방향×{idle,fire} 8장에 대해 반복했다. 콘솔에 찍힌
+    `anim=gun_idle_south`/`gun_fire_south` 등으로 애니메이션 이름 전환이 코드대로
+    동작하는 것도 함께 확인했다. 스크린샷을 크롭해 콘택트시트로 합쳐 직접 눈으로 봤을 때
+    4방향 모두 총과 손이 자연스럽게 붙어 있고, 발사 프레임에서 총구 불꽃이 뚜렷했다 —
+    합격 기준(①) 통과로 판단했다. 예산 문제로 blue/red는 게임 내 스크린샷 대신 위
+    콘택트시트(PixelLab 원본 이미지 직접 비교)로만 검수했다.
+  - 변경 파일: `game/scenes/world/world.gd`,
+    `game/assets/sprites/character/gun/*.png`(+`.import`, 신규 48개 파일).
 - INBOX #41 완료 (바퀴 44): 로컬 플레이어(`world.tscn`의 `Player` 노드)를 `Sprite2D`에서
   `AnimatedSprite2D`로 바꿨다. `world.gd`에 `_build_player_sprite_frames(variant)`를
   추가해 방향별(south/north/east/west) idle(기존 정지 이미지 1프레임 재사용)과
@@ -66,67 +106,42 @@
 
 ## 다음에 할 것
 
-- **다음 바퀴는 INBOX #42(총 통합)부터 시작할 것.** #41이 완료되어 `AnimatedSprite2D`
-  구조가 갖춰졌으니, PixelLab 성공 레시피(`description` 필수, `action="walk"`처럼
-  짧은 지시만, guidance scale은 기본값 — 위 "끝난 것" 참고)를 그대로 재사용해 총을
-  든 idle/발사 프레임을 캐릭터 그림 자체에 그려 넣으면 된다. 기존 `_held_item_sprite`
-  총 아이콘 코드는 #42에서 총에 한해 제거 대상이다(INBOX #42 원문 참고).
-- (바퀴 43 잔여 메모, 옛 실패 기록 — 이제 참고용) 바퀴 43은 INBOX #41(AnimatedSprite2D 구조 개편) 착수했으나 코드는 한 줄도 바꾸지
-  않고 미완료로 남겼다.** 이유: PixelLab `/animate-with-text`로 south/north(정면/후면)
-  걷기 애니메이션을 5차례 다른 파라미터로 시도했지만 전부 ①(품질 기준) 미달이었다 —
-  다리가 안 움직이거나(정지 이미지와 다를 바 없음), 움직이면 캐릭터가 옆모습으로
-  돌아가버리거나 팔레트가 변색됐다(아래 상세). 세션 예산이 이 시행착오만으로 거의
-  소진돼($2 중 약 $1.6 사용) 실제 구현/커밋까지 갈 여유가 없었다 — 품질 미달 상태로
-  커밋하지 않는 것이 PROMPT.md ①/④ 규칙이라 그대로 따랐다. **다음 바퀴는 아래 조사
-  결과를 그대로 재사용해서 바로 구현으로 들어갈 것 — 같은 파라미터 실험을 반복하지
-  말 것.**
-  - **API 사실 확인 (다음 바퀴가 바로 쓸 수 있음)**: `POST https://api.pixellab.ai/v1/animate-with-text`,
-    인증은 `Authorization: Bearer $PIXELLAB_API_KEY`. `image_size`는 반드시 64x64
-    고정(min=max=64, 다른 값 주면 422). 요청 하나당 **정확히 4프레임**을 동기 응답으로
-    반환한다(비동기 폴링 없음, `n_frames` 파라미터는 있어도 무시되고 항상 4장 — API
-    설명 문구에 명시됨). 비용은 호출당 약 $0.01(`usage.generations` 필드로 확인).
-    기존 캐릭터 정지 이미지(68x68)는 `crop((2,2,66,66))`으로 잘라내면(중앙 64x64) 실제
-    캐릭터 콘텐츠(`getbbox()` 확인 결과 x:23~45, y:9~56)가 전혀 잘리지 않고 64x64
-    reference_image로 바로 쓸 수 있다.
-  - **east/west(옆모습)는 됨직하다**: `direction="east"`(또는 west), `view="low
-    top-down"`, `action`에 "left leg steps forward... alternate... feet clearly
-    apart" 식으로 다리를 명시적으로 지시, `image_guidance_scale≈2.0`,
-    `text_guidance_scale≈12.0`로 시도(위 "v3" 테스트)한 결과 다리가 뚜렷하게 번갈아
-    앞뒤로 움직이는 4프레임을 얻었다 — 걷는 느낌 자체는 합격 수준. 다만 이 설정에서
-    옷 색이 원본(초록)에서 올리브/노란색 계열로 번져 나갔다(color_image를
-    reference_image와 동일하게 줬는데도 팔레트가 안 지켜짐) — **다음 바퀴는 이 색
-    번짐부터 먼저 해결할 것**(예: `image_guidance_scale`을 2.0→2.4~2.6 사이로 조금
-    올려 재시도하거나, 생성 후 PIL로 결과 이미지의 팔레트를 원본 12색 팔레트에 최근접
-    매핑으로 강제 보정하는 후처리 스크립트를 추가하는 방법을 검토).
-  - **south/north(정면/후면)는 5번 시도 전부 실패**: 시도한 조합—
-    (1) `view="high top-down"` 기본 설정: 4프레임이 서로 다른 캐릭터처럼 튀었고 2번째
-    부터 뒷모습으로 돌아섬 — 완전 실패.
-    (2) `image_guidance_scale=3.0`, "walking forward, only legs/arms move" 문구:
-    캐릭터 정체성은 유지됐지만 다리는 그대로고 팔만 유령처럼 양옆으로 뻗은 잔상이
-    생김 — 다리 움직임 없음.
-    (3) `image_guidance_scale=2.0`, `text_guidance_scale=12.0`, east와 같은 "다리
-    번갈아" 문구: 다리는 움직였지만 캐릭터가 옆모습으로 돌아서버림(south인데 profile
-    로 그려짐) — 방향 요구사항 위반.
-    (4) `image_guidance_scale=3.5`, `text_guidance_scale=6.0`, "gentle walking bob"
-    (약한 문구): 색/정체성/정면 유지는 완벽했지만 4프레임이 사실상 똑같아서(다리 차이
-    거의 안 보임) 움직이는 것처럼 안 보임.
-    (5) `image_guidance_scale=2.8`, `text_guidance_scale=8.0`, "small visible
-    stagger between legs" 절충 문구: (4)와 마찬가지로 정면/색은 유지되지만 다리
-    스태거가 거의 안 보임(콘택트시트로 직접 확인, 프레임 간 차이가 팔 잔상 정도뿐).
-    → **결론**: 텍스트 지시만으로는 이 레퍼런스 이미지에서 "정면을 유지하면서 다리를
-    뚜렷하게 벌리는" 균형점을 못 찾았다. 다음 바퀴가 시도해볼 만한 것(아직 안 해봄):
-    `/estimate-skeleton`으로 레퍼런스의 스켈레톤을 뽑은 뒤 다리 keypoint만 살짝
-    벌어지게 좌표를 수정해서 `/animate-with-skeleton`(정확히 3프레임 필요)으로
-    생성하는 방식 — 텍스트보다 자세를 직접 제어할 수 있어 더 나을 가능성이 큼. 그래도
-    안 되면, 스타듀밸리류 게임의 실제 관례대로 "남/북은 약한 bob+팔 스윙 정도만"을
-    합격 기준으로 잡는 것도 검토할 것(완전한 좌우 다리 분리가 아니어도 "걷는 느낌"은
-    낼 수 있음) — 단, 이건 임의로 낮추는 기준이라 실제로 스크린샷 QA에서 어색해
-    보이면 안 된다.
-  - 테스트 중 생성된 이미지들은 `/tmp/pl_test/`에 있었는데 세션 종료와 함께 사라지는
-    임시 디렉터리라 다음 바퀴에서는 접근할 수 없다 — 위에 적은 파라미터/문구를 그대로
-    다시 쓰면 거의 동일한 결과가 재현될 것이다(seed 미지정이라 완전히 똑같지는 않음).
-  - INBOX #41은 `- [ ]`로 그대로 두었다(미완료) — #42~#45(도구 통합)는 #41이 실제로
-    커밋되기 전까지는 착수하지 말 것(선행 구조 변경에 의존함).
+- **다음 바퀴는 INBOX #43(도끼 통합)부터 시작할 것.** #42(총)가 캐릭터 프레임 통합의
+  첫 사례로 끝났으니, 같은 절차를 도끼에 그대로 반복하면 된다:
+  1. PixelLab `/inpaint`로 기존 `axe_south.png`류가 아니라 **맨몸 idle_south.png(64x64
+     크롭)를 `inpainting_image`로, 손 부위를 마스킹**해서 도끼를 쥔 손을 그려 넣는다
+     (총과 같은 마스크 좌표대 x:10-56,y:18-42 근처에서 시작해보고, 도끼 형태에 맞게
+     조정). `description`은 도끼를 쥔 모습으로("hands holding a wood axe, pixel art"
+     류), `text_guidance_scale=9` 근처에서 시작.
+  2. "패는" 모션은 그 결과를 다시 `inpainting_image`로 삼아 도끼날 쪽만 마스킹하고
+     "axe swinging down, mid-chop pose, pixel art"류로 2차 inpaint.
+  3. east/north는 south 결과를 `/rotate`(`from_view=to_view="low top-down"`)로,
+     west는 east를 PIL `ImageOps.mirror`로 반전 — 이번 바퀴에 이 조합으로 3색×4방향
+     24장을 실제로 문제없이 만들었다(green은 순수 inpaint, blue/red는 같은 파라미터에
+     `seed`만 다르게 줘서 재현). **`seed`를 반드시 고정할 것** — 안 주면 색상별로 결과가
+     들쭉날쭉해진다(바퀴 45가 겪은 실패 원인).
+  4. 3색×4방향×{idle,use} 콘택트시트를 직접 눈으로 검수(합격 기준 ①) → 통과한 것만
+     `game/assets/sprites/character/axe/{variant}_{dir}_{idle,use}.png`로 저장 →
+     `godot --headless --path . --import` 강제 재임포트.
+  5. `world.gd`에 `_build_player_sprite_frames()`의 총 처리(방향별
+     `gun_idle_<dir>`/`gun_fire_<dir>` 애니메이션 추가, `_current_animation_name()`이
+     `_held_tool`을 보고 분기, `_select_hotbar()`가 해당 도구일 때 `_held_item_sprite`를
+     숨김)를 그대로 본떠 도끼용으로 복제한다. 도끼는 "쓰는" 순간이 `_play_tool_swing()`
+     (탄창처럼 발사 즉시가 아니라 좌클릭 즉시 스윙)이므로, 총의 `_tool_use_flash_timer`
+     타이머 재사용 방식을 그대로 쓰되 지속 시간은 `AXE_CHOP_FLASH_DURATION`(0.25초,
+     기존 상수)을 쓰면 된다.
+  6. 이동 중 도끼를 든 상태는 총과 같은 옵션A(정적 idle 프레임 유지, walk 전용 프레임은
+     안 만듦)로 통일해서 일관성을 유지할 것 — 이번 바퀴에 총에서 이미 그렇게 결정했다
+     (DESIGN.md에 walk-with-tool 명시가 없어 확장하지 않기로 함, 아래 결정 로그 참고).
+  7. 검증은 `game/_verify_*.gd`(커밋 전 삭제) 헤드리스 스크린샷 스크립트를
+     `set_physics_process(false)` → 상태 강제 설정 → 몇 프레임 대기 → 캡처 패턴으로
+     재사용할 것(이번 바퀴 `_verify_gun_motion.gd` 참고, 커밋 전 삭제했으므로 파일 자체는
+     없지만 위 절차를 그대로 다시 작성하면 됨).
+  - #44(곡괭이낫: 들고 있기/채광/채집 세 모션), #45(낚싯대: 들고 있기/낚시)도 각각 같은
+    절차를 반복하면 된다. #45를 끝으로 더 이상 안 쓰이는 `_held_item_sprite`/
+    `HELD_ITEM_OFFSETS`/`HELD_ITEM_BEHIND_FACINGS`를 정리하라는 것이 INBOX #45 원문
+    지시다 — #43/#44에서는 아직 다른 도구(곡괭이낫/낚싯대)가 오버레이 방식을 쓰고
+    있으니 이 상수들을 미리 지우지 말 것.
 - 다음 지시가 들어오면 참고할 만한 백로그(강제 사항 아님, 아래 "막힌 것/보류"·"오래된
   메모" 참고):
   - 멀티플레이 실제 두 클라이언트 접속/동기화를 실기기로 아직 검증 못함.
@@ -135,14 +150,8 @@
   - 도끼/낚싯대는 여전히 "드는/쓰는 모션" 그림까지만 있고 실제 결과물(벌목/낚시)이
     없음(DESIGN.md "범위 밖"에 명시돼 있어 의도된 상태) — #38/#40에서 모션은 전부
     끝났고, 실제 낚시 스팟·벌목 대상 나무는 여전히 범위 밖이다.
-- 다음 지시가 들어오면 참고할 만한 백로그(강제 사항 아님, 아래 "막힌 것/보류"·"오래된
-  메모" 참고):
-  - 멀티플레이 실제 두 클라이언트 접속/동기화를 실기기로 아직 검증 못함.
-  - 농사 성장 시간(60초)이 여전히 실시간 초 단위(게임 내 날짜 기준 아님).
-  - 목장 개체 수 제한/재포획(다시 꺼내기) 기능 없음.
-  - 도끼/낚싯대는 여전히 "드는/쓰는 모션" 그림까지만 있고 실제 결과물(벌목/낚시)이
-    없음(DESIGN.md "범위 밖"에 명시돼 있어 의도된 상태) — #38/#40에서 모션은 전부
-    끝났고, 실제 낚시 스팟·벌목 대상 나무는 여전히 범위 밖이다.
+  - 총을 든 채 이동할 때 다리 걷기 애니메이션이 멈춘다(옵션A, 위 결정 로그 참고) —
+    지시가 오면 walk_gun 프레임(그림 24장 추가)을 그려서 옵션B로 확장할 수 있다.
   - 스크립트로 world.gd의 `_facing`을 강제 조작하며 검증할 때는 **반드시
     `world_node.set_physics_process(false)`를 먼저 호출할 것** — 안 하면 마우스 추종
     로직이 매 프레임 `_facing`을 덮어써서 4방향 스크린샷이 전부 같은 방향으로 찍힌다
@@ -261,6 +270,14 @@
 ## 결정 로그
 
 (바퀴 중 내린 크고 작은 결정과 이유. 다음 바퀴가 되돌리지 않도록)
+
+- 바퀴 47: 총을 든 채 이동할 때는 걷기 전용 프레임(walk_gun)을 만들지 않고 `gun_idle_<dir>`
+  정적 프레임을 그대로 쓰기로 함(옵션A, STATUS.md "다음에 할 것" 참고). 근거: DESIGN.md
+  "도구 동작 표현"이 총에 대해 "들고 있기/발사" 두 상태만 명시하고 이동 중 상태는
+  언급이 없어 임의로 확장하지 않았다 — 다리가 안 움직이는 것은 아쉽지만, 최소한 이전
+  오버레이 방식(이동 중에도 총이 계속 보이던 것)과 같은 수준은 유지해 회귀를 막는 것을
+  우선했다. #43~#45(도끼/곡괭이낫/낚싯대)도 같은 옵션A로 통일해서 도구마다 처리가
+  갈리지 않게 할 것.
 
 - 바퀴 1: Godot 프로젝트를 저장소 루트가 아니라 `game/` 하위 디렉터리에
   만들었다. 근거: repo 루트에는 이미 `docs/`, `loop/`, `logs/`가 있어서

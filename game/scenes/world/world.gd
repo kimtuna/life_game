@@ -72,12 +72,12 @@ const TOOL_ICONS := {
 
 ## 도구별 "실제로 쓰는 모션" 그림 (INBOX #37/#38/#40, DESIGN.md "도구 동작 표현"). TOOL_ICONS는
 ## "들고 있는" 정적 자세고, 이 딕셔너리에 있는 도구는 사용하는 순간 잠깐 이 텍스처로
-## 바뀐다(총은 발사 시 반동으로 총구가 들리고 총열 전체가 발사열로 빛나는 모습, 도끼는
-## 날이 바닥/나무에 박히고 나무 조각이 튀는 모습, 낚싯대는 줄이 팽팽해지며 바늘이 드리워진
-## 모습). 곡괭이낫은 채광/채집 두 모션이 서로 달라야 해서 여기 대신 아래 PICKAXE_USE_ICONS를
-## 따로 쓴다(INBOX #39).
+## 바뀐다(도끼는 날이 바닥/나무에 박히고 나무 조각이 튀는 모습, 낚싯대는 줄이 팽팽해지며
+## 바늘이 드리워진 모습). 곡괭이낫은 채광/채집 두 모션이 서로 달라야 해서 여기 대신 아래
+## PICKAXE_USE_ICONS를 따로 쓴다(INBOX #39). **총은 INBOX #42부터 여기 없다** — 옆 아이콘
+## 오버레이 방식을 버리고 캐릭터 애니메이션 프레임 자체(gun_idle_*/gun_fire_*, DESIGN.md
+## "캐릭터 애니메이션")에 통합됐다.
 const TOOL_USE_ICONS := {
-	"gun": preload("res://assets/sprites/tools/gun_firing.png"),
 	"axe": preload("res://assets/sprites/tools/axe_chopping.png"),
 	"fishing_rod": preload("res://assets/sprites/tools/fishing_rod_fishing.png"),
 }
@@ -266,7 +266,8 @@ func _physics_process(delta: float) -> void:
 		_fire_cooldown -= delta
 	if _tool_use_flash_timer > 0.0:
 		_tool_use_flash_timer -= delta
-		if _tool_use_flash_timer <= 0.0 and _held_item_sprite != null and TOOL_ICONS.has(_held_tool):
+		if _tool_use_flash_timer <= 0.0 and _held_item_sprite != null and _held_tool != "gun" \
+				and TOOL_ICONS.has(_held_tool):
 			_held_item_sprite.texture = TOOL_ICONS[_held_tool]
 	if _is_reloading:
 		_reload_timer -= delta
@@ -291,12 +292,12 @@ func _fire() -> void:
 	_ammo_in_magazine[_ammo_type] -= 1
 	_update_ammo_label()
 
-	## "들고 있는" 정적 총 텍스처를 잠깐 "발사하는" 텍스처(반동으로 총구가 들리고
-	## 총열이 발사열로 빛나는 그림)로 바꿔서 들기/쏘기가 서로 다른 그림으로 보이게 한다
-	## (INBOX #37, DESIGN.md "도구 동작 표현").
-	if _held_item_sprite != null and TOOL_USE_ICONS.has("gun"):
-		_held_item_sprite.texture = TOOL_USE_ICONS["gun"]
-		_tool_use_flash_timer = GUN_MUZZLE_FLASH_DURATION
+	## "들고 있는" 캐릭터 애니메이션(gun_idle_*)을 잠깐 "발사하는" 애니메이션(gun_fire_*,
+	## 총구 불꽃이 그려진 프레임)으로 바꿔서 들기/쏘기가 서로 다른 그림으로 보이게 한다
+	## (INBOX #37→#42, DESIGN.md "캐릭터 애니메이션" — 옆 아이콘이 아니라 캐릭터 프레임
+	## 자체가 바뀐다). _current_animation_name()/_physics_process의 애니메이션 갱신 체크가
+	## 이 타이머를 보고 다음 프레임에 실제로 애니메이션을 바꾼다.
+	_tool_use_flash_timer = GUN_MUZZLE_FLASH_DURATION
 
 	var aim := get_global_mouse_position() - player_sprite.global_position
 	if aim.length() < 1.0:
@@ -572,13 +573,19 @@ func _select_hotbar(index: int) -> void:
 	var slot = general_slots[index] if index < general_slots.size() else null
 	if slot != null and TOOL_ICONS.has(slot["item"]):
 		_held_tool = slot["item"]
-		_held_item_sprite.texture = TOOL_ICONS[_held_tool]
-		_held_item_sprite.visible = true
-		_update_held_item_transform()
+		if _held_tool == "gun":
+			## 총은 INBOX #42부터 옆 아이콘 오버레이를 쓰지 않는다 — 캐릭터 애니메이션
+			## 프레임(gun_idle_*/gun_fire_*) 자체가 총을 든 모습을 보여준다.
+			_held_item_sprite.visible = false
+		else:
+			_held_item_sprite.texture = TOOL_ICONS[_held_tool]
+			_held_item_sprite.visible = true
+			_update_held_item_transform()
 	else:
 		_held_tool = ""
 		_held_item_sprite.visible = false
 	_refresh_hotbar()
+	_update_player_animation()
 
 
 ## 인벤토리 내용이 바뀔 때마다(드래그로 슬롯이 비워지거나 아이템이 바뀌는 등) 지금
@@ -720,10 +727,27 @@ func _build_player_sprite_frames(variant: String) -> SpriteFrames:
 		frames.set_animation_speed(walk_anim, PLAYER_WALK_ANIM_FPS)
 		for i in range(4):
 			frames.add_frame(walk_anim, load("res://assets/sprites/character/walk/%s_%s_walk_%d.png" % [variant, direction, i]))
+
+		## 총(INBOX #42, DESIGN.md "캐릭터 애니메이션"): 옆에 아이콘을 띄우는 대신 "들고
+		## 있는"/"발사하는" 모션 자체를 캐릭터가 총을 쥔 손 모양까지 포함해 다시 그린
+		## 프레임으로 갈아끼운다. 걷는 동안 총을 든 전용 walk 프레임은 아직 없어서(그림
+		## 24장 추가 필요, STATUS.md 옵션A) 이동 중에도 gun_idle 프레임을 그대로 쓴다 —
+		## 다리는 안 움직이지만 총이 사라지는 회귀보다는 낫다.
+		var gun_idle_anim := "gun_idle_%s" % direction
+		frames.add_animation(gun_idle_anim)
+		frames.set_animation_speed(gun_idle_anim, 1.0)
+		frames.add_frame(gun_idle_anim, load("res://assets/sprites/character/gun/%s_%s_idle.png" % [variant, direction]))
+
+		var gun_fire_anim := "gun_fire_%s" % direction
+		frames.add_animation(gun_fire_anim)
+		frames.set_animation_speed(gun_fire_anim, 1.0)
+		frames.add_frame(gun_fire_anim, load("res://assets/sprites/character/gun/%s_%s_fire.png" % [variant, direction]))
 	return frames
 
 
 func _current_animation_name() -> String:
+	if _held_tool == "gun":
+		return ("gun_fire_" if _tool_use_flash_timer > 0.0 else "gun_idle_") + _facing
 	return ("walk_" if _is_moving else "idle_") + _facing
 
 
