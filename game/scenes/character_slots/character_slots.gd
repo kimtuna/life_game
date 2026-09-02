@@ -25,7 +25,7 @@ func _refresh_slot_button(slot_index: int) -> void:
 func _on_slot_pressed(slot_index: int) -> void:
 	CharacterData.active_slot_index = slot_index
 	if CharacterData.has_character(slot_index):
-		get_tree().change_scene_to_file("res://scenes/world/world.tscn")
+		get_tree().change_scene_to_file("res://scenes/multiplayer_lobby/multiplayer_lobby.tscn")
 	else:
 		get_tree().change_scene_to_file("res://scenes/character_customization/character_customization.tscn")
 

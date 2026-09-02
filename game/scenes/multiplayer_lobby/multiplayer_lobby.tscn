@@ -1,0 +1,147 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scenes/multiplayer_lobby/multiplayer_lobby.gd" id="1_script"]
+[ext_resource type="Theme" path="res://theme/main_theme.tres" id="2_theme"]
+
+[node name="MultiplayerLobby" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("2_theme")
+script = ExtResource("1_script")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.098, 0.114, 0.106, 1)
+
+[node name="CenterContainer" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="CenterContainer"]
+layout_mode = 2
+theme_override_constants/separation = 20
+alignment = 1
+
+[node name="Title" type="Label" parent="CenterContainer/VBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_font_sizes/font_size = 34
+text = "멀티플레이"
+horizontal_alignment = 1
+
+[node name="SinglePlayerButton" type="Button" parent="CenterContainer/VBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 4
+custom_minimum_size = Vector2(320, 0)
+text = "싱글플레이로 입장"
+
+[node name="Spacer1" type="Control" parent="CenterContainer/VBoxContainer"]
+custom_minimum_size = Vector2(0, 4)
+layout_mode = 2
+
+[node name="HostSection" type="VBoxContainer" parent="CenterContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 8
+alignment = 1
+
+[node name="HostButton" type="Button" parent="CenterContainer/VBoxContainer/HostSection"]
+layout_mode = 2
+size_flags_horizontal = 4
+custom_minimum_size = Vector2(320, 0)
+text = "방 만들기"
+
+[node name="HostCodeLabel" type="Label" parent="CenterContainer/VBoxContainer/HostSection"]
+visible = false
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_font_sizes/font_size = 22
+horizontal_alignment = 1
+text = ""
+
+[node name="HostStatusLabel" type="Label" parent="CenterContainer/VBoxContainer/HostSection"]
+visible = false
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_font_sizes/font_size = 16
+theme_override_colors/font_color = Color(0.7, 0.75, 0.72, 1)
+horizontal_alignment = 1
+autowrap_mode = 2
+custom_minimum_size = Vector2(320, 0)
+text = ""
+
+[node name="HostEnterButton" type="Button" parent="CenterContainer/VBoxContainer/HostSection"]
+visible = false
+layout_mode = 2
+size_flags_horizontal = 4
+custom_minimum_size = Vector2(320, 0)
+text = "입장하기"
+
+[node name="Spacer2" type="Control" parent="CenterContainer/VBoxContainer"]
+custom_minimum_size = Vector2(0, 4)
+layout_mode = 2
+
+[node name="JoinSection" type="VBoxContainer" parent="CenterContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 8
+alignment = 1
+
+[node name="JoinLabel" type="Label" parent="CenterContainer/VBoxContainer/JoinSection"]
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_font_sizes/font_size = 20
+theme_override_colors/font_color = Color(0.7, 0.75, 0.72, 1)
+horizontal_alignment = 1
+text = "코드로 참가하기"
+
+[node name="CodeInput" type="LineEdit" parent="CenterContainer/VBoxContainer/JoinSection"]
+layout_mode = 2
+size_flags_horizontal = 4
+custom_minimum_size = Vector2(320, 0)
+placeholder_text = "방 코드 입력"
+horizontal_alignment = 1
+max_length = 14
+
+[node name="JoinButton" type="Button" parent="CenterContainer/VBoxContainer/JoinSection"]
+layout_mode = 2
+size_flags_horizontal = 4
+custom_minimum_size = Vector2(320, 0)
+text = "참가하기"
+
+[node name="JoinStatusLabel" type="Label" parent="CenterContainer/VBoxContainer/JoinSection"]
+visible = false
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_font_sizes/font_size = 16
+horizontal_alignment = 1
+autowrap_mode = 2
+custom_minimum_size = Vector2(320, 0)
+text = ""
+
+[node name="Spacer3" type="Control" parent="CenterContainer/VBoxContainer"]
+custom_minimum_size = Vector2(0, 4)
+layout_mode = 2
+
+[node name="BackButton" type="Button" parent="CenterContainer/VBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 4
+custom_minimum_size = Vector2(220, 0)
+text = "뒤로"
+
+[connection signal="pressed" from="CenterContainer/VBoxContainer/SinglePlayerButton" to="." method="_on_single_player_pressed"]
+[connection signal="pressed" from="CenterContainer/VBoxContainer/HostSection/HostButton" to="." method="_on_host_pressed"]
+[connection signal="pressed" from="CenterContainer/VBoxContainer/HostSection/HostEnterButton" to="." method="_on_host_enter_pressed"]
+[connection signal="pressed" from="CenterContainer/VBoxContainer/JoinSection/JoinButton" to="." method="_on_join_pressed"]
+[connection signal="pressed" from="CenterContainer/VBoxContainer/BackButton" to="." method="_on_back_pressed"]

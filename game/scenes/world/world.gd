@@ -50,12 +50,20 @@ const ITEM_LABELS := {
 	"captured_deer": "포획된 사슴",
 }
 
+## 다른 플레이어에게 내 위치/방향을 보내는 주기 (INBOX #14). 매 물리 프레임(60Hz)마다
+## 보내면 LAN 기준으로도 낭비라, 10Hz로 줄인다 — 위치는 unreliable 채널이라 중간에
+## 패킷이 빠져도 다음 것으로 자연히 보정된다.
+const STATE_BROADCAST_INTERVAL := 0.1
+
 @onready var player_sprite: Sprite2D = $Player
+@onready var remote_players_root: Node2D = $RemotePlayers
 @onready var camera: Camera2D = $Camera2D
 @onready var pause_menu: Control = $UI/PauseMenu
 @onready var ammo_label: Label = $UI/HUD/AmmoPanel/AmmoLabel
 @onready var inventory_label: Label = $UI/HUD/InventoryPanel/InventoryLabel
 @onready var time_label: Label = $UI/HUD/TimePanel/TimeLabel
+@onready var net_panel: PanelContainer = $UI/HUD/NetPanel
+@onready var net_label: Label = $UI/HUD/NetPanel/NetLabel
 @onready var day_night_modulate: CanvasModulate = $DayNightModulate
 @onready var rain_overlay: ColorRect = $UI/RainOverlay
 
@@ -66,6 +74,11 @@ var _ammo_type: String = "normal"
 var _fire_cooldown: float = 0.0
 var _recoil: float = 0.0
 var _is_moving: bool = false
+var _state_broadcast_timer: float = 0.0
+## peer id -> 그 플레이어를 대신 그리는 Sprite2D (INBOX #14, remote_players_root의 자식).
+var _remote_sprites: Dictionary = {}
+## peer id -> 마지막으로 그 스프라이트에 로드한 텍스처 경로 (매 프레임 load()하지 않기 위한 캐시).
+var _remote_tex_paths: Dictionary = {}
 
 
 func _ready() -> void:
@@ -84,6 +97,7 @@ func _ready() -> void:
 	TimeData.weather_changed.connect(_on_time_weather_changed)
 	_update_time_label()
 	rain_overlay.visible = TimeData.is_raining
+	_setup_networking()
 
 
 func _process(_delta: float) -> void:
@@ -133,6 +147,12 @@ func _physics_process(delta: float) -> void:
 		_fire_cooldown -= delta
 	if Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT) and _fire_cooldown <= 0.0:
 		_fire()
+
+	if NetworkSession.is_active():
+		_state_broadcast_timer -= delta
+		if _state_broadcast_timer <= 0.0:
+			_state_broadcast_timer = STATE_BROADCAST_INTERVAL
+			_receive_state.rpc(player_sprite.position, _facing, _variant)
 
 
 ## 조준 방향에 반동(위로 튐)과 탄퍼짐(이동 중이면 커짐)을 섞어서 총알을 하나 쏜다.
@@ -288,4 +308,75 @@ func _on_settings_pressed() -> void:
 
 
 func _on_quit_pressed() -> void:
+	NetworkSession.leave()
 	get_tree().change_scene_to_file("res://scenes/main_menu/main_menu.tscn")
+
+
+## 멀티플레이 세션(INBOX #14)이 열려 있으면(NetworkSession.host_room/join_room을 거쳐
+## 들어온 경우) 다른 플레이어의 접속/해제를 반영하고 위치 방송을 시작한다. 싱글플레이로
+## 곧장 들어온 경우(NetworkSession.is_active() == false)는 아무것도 하지 않아 기존 동작과
+## 완전히 동일하다.
+func _setup_networking() -> void:
+	if not NetworkSession.is_active():
+		return
+	net_panel.visible = true
+	_update_net_label()
+	multiplayer.peer_connected.connect(_on_multiplayer_peer_connected)
+	multiplayer.peer_disconnected.connect(_on_multiplayer_peer_disconnected)
+	multiplayer.server_disconnected.connect(_on_server_disconnected)
+	for id in multiplayer.get_peers():
+		_ensure_remote_sprite(id)
+
+
+func _update_net_label() -> void:
+	var player_count := multiplayer.get_peers().size() + 1
+	if NetworkSession.is_host:
+		net_label.text = "방 코드: %s (접속 %d명)" % [
+			NetworkSession.format_room_code(NetworkSession.room_code), player_count
+		]
+	else:
+		net_label.text = "참가 중 (접속 %d명)" % player_count
+
+
+func _on_multiplayer_peer_connected(id: int) -> void:
+	_ensure_remote_sprite(id)
+	_update_net_label()
+
+
+func _on_multiplayer_peer_disconnected(id: int) -> void:
+	if _remote_sprites.has(id):
+		_remote_sprites[id].queue_free()
+		_remote_sprites.erase(id)
+		_remote_tex_paths.erase(id)
+	_update_net_label()
+
+
+## 호스트가 세션을 닫으면(방 나가기/종료) 참가자는 더 이상 할 게 없으니 메인 메뉴로 보낸다.
+func _on_server_disconnected() -> void:
+	NetworkSession.leave()
+	get_tree().change_scene_to_file("res://scenes/main_menu/main_menu.tscn")
+
+
+func _ensure_remote_sprite(id: int) -> Sprite2D:
+	if _remote_sprites.has(id):
+		return _remote_sprites[id]
+	var sprite := Sprite2D.new()
+	sprite.scale = Vector2(3, 3)
+	sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	remote_players_root.add_child(sprite)
+	_remote_sprites[id] = sprite
+	return sprite
+
+
+## 다른 플레이어(호스트든 참가자든)로부터 위치/방향/외형을 받아 그 자리에 있는 스프라이트를
+## 옮긴다. 브로드캐스트 RPC라 나를 보낸 사람도 포함해 모두에게 도착하지만, `call_local`을
+## 안 붙였으므로 내 클라이언트에서는 내가 보낸 것이 다시 나에게 실행되지 않는다.
+@rpc("any_peer", "unreliable_ordered")
+func _receive_state(pos: Vector2, facing: String, variant: String) -> void:
+	var sender_id := multiplayer.get_remote_sender_id()
+	var sprite := _ensure_remote_sprite(sender_id)
+	sprite.position = pos
+	var tex_path := "res://assets/sprites/character/%s_%s.png" % [variant, facing]
+	if _remote_tex_paths.get(sender_id, "") != tex_path:
+		sprite.texture = load(tex_path)
+		_remote_tex_paths[sender_id] = tex_path

@@ -41,7 +41,7 @@ func _on_confirm_pressed() -> void:
 		"variant": variant,
 		"label": VARIANT_LABELS[variant],
 	})
-	get_tree().change_scene_to_file("res://scenes/world/world.tscn")
+	get_tree().change_scene_to_file("res://scenes/multiplayer_lobby/multiplayer_lobby.tscn")
 
 
 func _on_back_pressed() -> void:

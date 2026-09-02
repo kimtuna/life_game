@@ -46,6 +46,8 @@ position = Vector2(640, 360)
 scale = Vector2(3, 3)
 texture_filter = 1
 
+[node name="RemotePlayers" type="Node2D" parent="."]
+
 [node name="Camera2D" type="Camera2D" parent="."]
 position = Vector2(640, 360)
 
@@ -106,6 +108,27 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 20
 horizontal_alignment = 2
 text = "봄 1일차 · 낮"
+
+[node name="NetPanel" type="PanelContainer" parent="UI/HUD"]
+visible = false
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 0.0
+anchor_right = 1.0
+anchor_bottom = 0.0
+offset_left = -260.0
+offset_top = 62.0
+offset_right = -16.0
+offset_bottom = 100.0
+grow_horizontal = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_hud_panel")
+
+[node name="NetLabel" type="Label" parent="UI/HUD/NetPanel"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+horizontal_alignment = 2
+text = ""
 
 [node name="RainOverlay" type="ColorRect" parent="UI"]
 visible = false
