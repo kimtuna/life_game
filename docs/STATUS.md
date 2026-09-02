@@ -5,13 +5,39 @@
 
 ## 마지막 갱신
 
-바퀴 51 / 2026-09-03 (INBOX #43 계속 시도 — **idle 4방향(green/blue/red) 완성 확인 +
-chop을 south/north는 완성했지만 east/west에서 `/rotate` 결함을 발견해 예산 소진으로
-코드 통합 없이 중단**. 아래 "다음에 할 것" 참고. 코드는 건드리지 않음, 게임 자체는
-변경 없음, 에셋은 아직 `/tmp/axe_gen/`에만 있고 `game/`에는 복사하지 않았다.)
+바퀴 52 / 2026-09-03 (**INBOX #43 완료.** 세션을 열어보니 `git status`에 이미
+`game/assets/sprites/character/axe/`(24개 PNG, 3색×4방향×idle/chop)와
+`game/scenes/world/world.gd` 수정분이 커밋 안 된 채로 남아 있었다 — 바퀴 51 이후 어떤
+세션이 east/west `/rotate` 결함을 실제로 풀어서 통합 작업까지 다 끝내놓고 STATUS/INBOX
+갱신·커밋 전에 예산 초과로 죽은 것으로 보인다(바퀴 3 때와 같은 패턴, 결정 로그 참고).
+새로 그림을 그리지 않고 이 상태를 그대로 검수했다: 남은 PNG를 확대해서 직접 눈으로
+봤을 때 east/west chop이 더 이상 다리가 겹쳐 보이지 않고 자연스러운 옆모습 내려찍기
+자세였고, `world.gd` diff도 총(#42) 패턴을 그대로 따르고 있었다. 실제 게임을 헤드리스
+스크린샷으로 8방향×상태(idle/chop × south/east/north/west) 전부 렌더링해 재확인했고
+전부 합격 기준(①) 통과로 판단해 커밋했다.)
 
 ## 끝난 것 (지금까지의 스냅샷 — 바퀴별 상세 이력은 git 커밋 메시지 `[INBOX #N] ...`에 있음)
 
+- INBOX #43 완료 (바퀴 52): 도끼의 "들고 있는"/"패는" 모션을 `_held_item_sprite` 오버레이
+  대신 캐릭터 애니메이션 프레임(`axe_idle_<dir>`/`axe_chop_<dir>`)에 통합했다(총(#42)과
+  동일한 패턴). **작업 자체는 이전 바퀴(51 이후, STATUS에 기록되지 않은 세션)가 이미
+  east/west `/rotate` 결함을 풀고 24장(3색×4방향×idle/chop)을
+  `game/assets/sprites/character/axe/`에 복사 + `world.gd` 통합까지 끝내놓았으나, 커밋/
+  문서 갱신 전에 예산 초과로 죽어서 미커밋 상태로 남아 있었다** — 이번 바퀴는 이 상태를
+  검수만 하고 커밋했다(그림을 새로 만들지 않음). 검수 내용: (1) 24장 PNG를 확대해 직접
+  검사 — south/north는 물론 이전에 결함(다리 겹침)이 있었던 east/west chop도 자연스러운
+  옆모습 내려찍기 자세였다(3색 전부), (2) `world.gd` diff가 `_build_player_sprite_frames`/
+  `_current_animation_name`/`_select_hotbar`/`_unhandled_input`/`TOOL_USE_ICONS`를 총(#42)
+  패턴 그대로 따르고 있음을 확인, (3) `game/_verify_axe_motion.gd`(커밋 전 삭제)로 world
+  씬을 실제 렌더링 드라이버로 띄우고 `set_physics_process(false)` 후 `_facing`/
+  `_held_tool="axe"`/`_tool_use_flash_timer`를 강제 설정 → `_update_player_animation()` →
+  4프레임 대기 → 캡처를 8가지 상태(south/east/north/west × idle/chop, green)에 대해
+  반복해 실제 게임 렌더링으로 재확인 — 콘솔에 찍힌 `anim=axe_idle_south` 등으로 애니메이션
+  전환도 코드대로 동작함을 확인했다. 8장을 크롭해 콘택트시트로 합쳐 직접 눈으로 봤을 때
+  전부 자연스러웠다 — 합격 기준(①) 통과로 판단. blue/red는 게임 내 스크린샷 대신 PNG
+  확대 검수로만 확인했다(예산 절약, #42/#47 때와 같은 방식).
+  - 변경 파일: `game/scenes/world/world.gd`,
+    `game/assets/sprites/character/axe/*.png`(+`.import`, 신규 48개 파일, 이전 세션 생성).
 - INBOX #42 완료 (바퀴 47): 총의 "들고 있는"/"발사하는" 모션을 `_held_item_sprite` 옆
   아이콘 오버레이 대신 캐릭터 애니메이션 프레임 자체(`gun_idle_<dir>`/`gun_fire_<dir>`,
   DESIGN.md "캐릭터 애니메이션")로 통합했다. **바퀴 46이 `/tmp/gun_gen/`에 남겨둔 생성물이
@@ -109,180 +135,60 @@ chop을 south/north는 완성했지만 east/west에서 `/rotate` 결함을 발�
 
 ## 다음에 할 것
 
-- **다음 바퀴는 INBOX #43(도끼 통합)부터 계속할 것. 바퀴 51 결론: idle은 3색×4방향 전부
-  합격, chop은 south/north만 합격, east/west가 `/rotate` API 결함으로 막혀 있다.**
-  - **idle 완성 (합격, 재검수 완료)**: `/tmp/axe_gen/{color}_south_idle_final.png`(south),
-    `grip_east_v1.png`(green east), `green_idle_north.png`(north), `green_idle_west.png`(west),
-    `{color}_east_idle_final.png`/`{color}_north_idle_final.png`/`{color}_west_idle_final.png`
-    (blue/red, 이번 바퀴 rotate+mirror로 생성). `contact_idle_all.png`로 12장 전부 직접
-    검수했다 — 손이 자루를 자연스럽게 쥐고 있고 색상/얼굴이 각 색의 기존 베이스 캐릭터와
-    일치했다. **합격.**
-  - **chop south/north 완성 (합격)**: `{color}_south_chop.png`(파이썬 PIL로
-    `axe_chopping.png`를 26x26 리사이즈해 `(30,34)`에 `alpha_composite`, **인페인트 없이
-    그대로 사용** — 이전 바퀴들이 겪은 "인페인트가 도끼머리를 지워버리는" 문제를 피하려고
-    이번엔 손이 이미 도끼에 가려지는 이 합성 결과가 그 자체로 자연스러워 보여서(직접 확대해
-    확인함, `crop_junction.png`) 인페인트 단계를 생략했다), `{color}_north_chop_final.png`
-    (south에서 `/rotate` south→north, 문제 없음). `contact_chop_all.png`의 1열(south)·3열
-    (north)이 이 결과다 — 도끼머리가 뚜렷하고 다리도 정상. **합격.**
-  - **chop east/west 불합격 (새로 발견한 결함, 아직 안 풀림)**: south chop을 `/rotate`로
-    south→east 변환하면(`{color}_east_chop_final.png`) **도끼와 다리가 좌우로 겹쳐서 두
-    벌 그려지는 결함**이 3색 전부에서 나왔다(`contact_chop_all.png`의 2열/4열,
-    `green_east_chop_final_big.png`로 확대 확인). west는 이 깨진 east를 그대로 미러링한
-    것이라 당연히 같이 깨졌다. **원인 추정**: south chop 이미지 하단(y≈53~58)에 바닥에
-    흩어진 나뭇조각/흙 파편(`axe_chopping.png` 자체 그림의 일부, 캐릭터 몸통에서 떨어진
-    독립된 픽셀 덩어리)이 있는데, 이게 idle(도끼가 몸에 딱 붙어 있어 이런 흩어진 요소가
-    없음)과 달리 rotate 모델이 "좌우 대칭으로 있어야 할 요소"로 잘못 해석해 반대편에도
-    복제해 넣는 것으로 보인다(idle은 이 문제가 전혀 없었다는 점이 원인 추정의 근거) —
-    **아직 검증 안 된 가설**이다.
-  - **다음 바퀴가 시도해볼 것 (예산 소진으로 이번 바퀴는 시도 전에 중단)**: south chop
-    이미지에서 흩어진 파편 부분(y≈52 이하, 몸통에서 떨어진 픽셀)을 투명하게 지운 "파편
-    없는" 버전을 만들어 그걸로 `/rotate`를 다시 시도하고(파편이 원인이 맞다면 east가
-    깨끗하게 나올 것), 성공하면 파편은 east/west에서는 그냥 생략하거나(south/north만
-    있어도 이상하지 않음) 좌표를 눈대중으로 다시 PIL로 붙여넣을 것. 이 가설이 틀리면
-    대안으로 (a) south chop 대신 이미 성공한 east idle 베이스(`grip_east_v1.png` 계열)
-    위에 axe_chopping을 직접 다른 좌표로 합성하는 방식(rotate를 아예 안 쓰는 방식)을
-    시도할 것.
-  - **이번 바퀴도 코드/게임 파일은 전혀 건드리지 않았다** — east/west chop이 합격 기준을
-    통과 못해서 `world.gd` 통합이나 `game/assets/` 복사를 하지 않기로 판단했다(4방향 중
-    2방향만 되는 상태로 통합하면 실제 플레이 중 동/서를 볼 때 깨진 그림이 그대로 노출되어
-    ①을 통과 못한다). 다음 바퀴가 east/west를 해결하면 idle+chop 24장(3색×4방향×2포즈)을
-    한 번에 `world.gd`(총(#42) 패턴 그대로: `_build_player_sprite_frames`/
-    `_current_animation_name`/`_select_hotbar`/`TOOL_USE_ICONS`에서 `"axe"` 제거)에
-    연결할 것. 이번 바퀴 생성물은 전부 `/tmp/axe_gen/`에 남아있다(이 머신은 세션이 지나도
-    `/tmp`가 지워지지 않는다).
-  - (아래는 바퀴 50이 남긴 기존 메모 — idle 부분은 위 내용으로 이미 확정됐으니 참고만 하고,
-    chop 부분은 위 새 발견(east/west rotate 결함)으로 대체됐다고 보고 읽을 것.)
-  - **새 발견 (바퀴 50, 중요): inpaint 호출 시 `no_background: true`를 반드시 줘야 한다.**
-    `no_background`를 안 주거나 false로 두면(바퀴 49는 이 값을 명시 안 함) blue/red에서
-    캐릭터 뒤에 불투명 회색 사각형 배경이 생기는 결함이 나왔다(green만 우연히 깨끗했던
-    것으로 보임). `no_background: true`로 재생성하니 사라졌다 — `blue_grip_v2.png`/
-    `red_grip_v2.png`(둘 다 `/tmp/axe_gen/`)가 이 값으로 만든 정상 결과다. **idle 포즈는
-    이 수정으로 green(기존)+blue_grip_v2+red_grip_v2 3색 south 전부 합격 수준이고, green은
-    east(rotate)/north(rotate)/west(mirror)까지 4방향 완성했다** (`green_idle_north.png`,
-    `grip_east_v1.png`, `green_idle_west.png`, 전부 `/tmp/axe_gen/`). blue/red는 아직 south만
-    있고 east/north/west 회전은 안 했다(idle은 문제 없으니 다음 바퀴가 green과 같은 방식으로
-    rotate만 돌리면 됨 — 저렴함, 회당 API 비용 매우 낮음).
-  - **새로 발견한 문제 (chop 포즈, 아직 안 풀림): south chop에서 도끼 머리가 안 보인다.**
-    직접 확대해서 보니(`chop_v1_huge.png`) 손에 쥔 게 그냥 나무 막대(지팡이/삽자루처럼
-    보임)이고 은색 도끼날이 전혀 안 보인다 — green/blue/red 전부 같은 증상
-    (`chop_v1.png`, `blue_chop_v2.png`, `red_chop_v2.png`). 원인 확인함: 합성 좌표
-    `axe_chopping.png`를 26x26로 리사이즈해 `(30,34)`에 붙이면 도끼 머리가 캔버스
-    x:30-40,y:34-43 부근에 오는데, 캐릭터 원래 손(주먹) 위치도 거의 같은 자리(x:22-41,
-    y:33-40)라서 **grip 마스크가 손을 포함하려면 필연적으로 도끼 머리 영역도 같이
-    덮게 된다** — 인페인트가 마스크 안을 통째로 다시 그리면서 도끼 머리를 "매끈한
-    막대"로 지워버린 것으로 보인다(마스크를 오른쪽으로 옮겨 머리를 피하면(`mask_chop_v2.png`
-    시도, x:40-58,y:40-58) 이번엔 원래 손이 마스크 밖에 남아 허공에 붕 뜬 채 손이
-    핸들에 안 붙어버린다 — `mask_chop_v2_overlay.png`로 확인, 아직 API 호출 전에
-    기각). **다음 바퀴가 시도해볼 것**: (a) `axe_chopping.png`를 붙이는 좌표 자체를
-    바꿔서(예: 더 오른쪽/아래로) 도끼 머리와 원래 손 위치가 겹치지 않게 하되, 땅에
-    떨어지는 나무조각 위치가 발밑에서 너무 멀어지지 않는 범위를 같이 확인할 것,
-    또는 (b) 마스크를 사각형이 아니라 손~머리 사이 좁은 대각선 띠 모양으로 만들어서
-    머리 픽셀은 최대한 보존하고 손-핸들 연결부만 좁게 다시 그리게 할 것, 또는 (c)
-    프롬프트에 "do not change the axe head, preserve the metallic axe blade shape
-    exactly"를 더 강하게/앞쪽에 배치해서 마스크가 머리를 일부 덮더라도 모델이 머리를
-    다시 그리도록 유도해볼 것(아직 시도 안 함, 예산 소진으로 중단). **idle 포즈는
-    이 문제가 없다** — idle은 도끼 머리(파스 좌표 (35,8), y:8-20대)가 손 위치(y:26-46대)와
-    충분히 떨어져 있어서 마스크가 겹치지 않았다.
-  - **이번 바퀴 코드/게임 파일은 전혀 건드리지 않았다** — chop 포즈가 합격 기준을 통과 못해서
-    `world.gd` 통합이나 `game/assets/`로의 파일 복사를 하지 않기로 판단했다(PROMPT.md ①
-    기준 미달 상태에서 코드 통합까지 하면 나중에 되돌리는 비용이 더 크다고 판단). 다음
-    바퀴가 chop을 해결하면 그때 idle+chop 세트를 한 번에 `world.gd`(총(#42) 패턴 그대로)에
-    연결할 것.
-  - 이전 바퀴(49)가 아래에 남긴 레시피/파일 목록은 idle 포즈에는 여전히 유효하다. chop
-    포즈 부분("남은 작업" 절의 rotate/west 관련 서술)은 위 새 발견으로 대체됐다고 보고
-    읽을 것.
-- (바퀴 49 노트, idle 포즈 한정으로는 여전히 유효) 다음 바퀴는 INBOX #43(도끼 통합)부터
-  계속할 것. 아래 레시피를 그대로 재사용하면 된다.
-  아래 레시피를 그대로 재사용하면 된다.** (이전 바퀴 48이 5회 시도한 "텍스트 설명만으로
-  마스크 안에 도끼를 그리게 하는" 접근은 전부 실패했었다 — 대칭 마스크→도끼 2자루,
-  좁은 마스크→도끼 누락/블롭, 넓은 마스크→캐릭터 정체성 붕괴. 이번 바퀴가 이 접근을
-  6번 더 반복 확인했고(`green_south_idle_v6~v11.png`, 전부 `/tmp/axe_gen/`) 역시
-  실패했다 — 마스크 크기를 아무리 조정해도 "정체성 보존"과 "도끼 모양 인식성"이
-  트레이드오프였다.)
-  - **성공한 레시피 (돌파구)**: 텍스트만으로 도끼를 그리게 하지 말고, **이미 있는
-    검증된 도끼 그림을 그대로 합성**한 뒤 손 연결부만 인페인트로 다듬는다.
-    1. `game/assets/sprites/tools/axe.png`(들고 있기용, 32x32, #38에서 이미 PixelLab로
-       만들어져 있고 아이콘 자체 품질은 이미 합격)를 PIL로 리사이즈해 캐릭터 베이스
-       이미지(`base_south_64.png`, 64x64) 위에 `alpha_composite`로 그냥 붙여넣는다
-       (idle: 24x24로 리사이즈, 좌표 (35,8)에 붙임 — 도끼머리가 어깨~머리 높이,
-       자루가 허리 쪽으로 내려오게).
-    2. 손이 자루를 쥔 것처럼 안 보이므로(합성 직후엔 그냥 공중에 떠 보임), **자루
-       하단~손 연결부만** 작은 마스크(예: x:32-54,y:26-46)로 인페인트한다. 프롬프트:
-       "character's hand gripping a wooden axe handle, seamlessly connect hand/arm to
-       handle, do not change the axe head, keep [색] shirt/pants" (tgs=9, seed=101).
-       마스크가 도끼머리 영역을 건드리지 않으므로 이미 검증된 도끼 그림이 그대로
-       보존되고, 캐릭터 얼굴/머리카락도 마스크 밖이라 정체성이 그대로 유지된다.
-    3. 같은 방식으로 `axe_chopping.png`(패기용, 32x32, 도끼가 땅에 박히고 나뭇조각이
-       튀는 그림, 역시 #38 기존 자산)를 26x26로 리사이즈해 좌표 (30,34)에 합성 →
-       그립 마스크(x:28-54,y:22-50)로 인페인트 → 자연스러운 "내려찍는" 자세 완성.
-    4. 결과: `/tmp/axe_gen/grip_v1.png`(south idle, green)와
-       `/tmp/axe_gen/chop_v1.png`(south chop, green) — 둘 다 직접 눈으로 봤을 때
-       손과 도끼가 자연스럽게 붙어 있고, 도끼머리가 뚜렷이 도끼 모양이며, 머리카락/
-       셔츠/바지 색이 베이스 캐릭터와 정확히 일치했다. **합격 기준(①) 통과로 판단.**
-    5. `/rotate`도 이 합성+인페인트 결과 위에서 정상 동작하는 것을 확인했다:
-       `rotate(grip_v1.png, "south"→"east")` → `/tmp/axe_gen/grip_east_v1_big.png` —
-       옆모습에서도 도끼가 손에 쥐어진 채 자연스럽게 회전됐다(총(#42) 때와 동일한
-       패턴, 추가 조치 불필요).
-  - **이 레시피가 왜 되는가**: 도끼는 이미 `axe.png`/`axe_chopping.png`로 모양과 색이
-    완성돼 있으니 AI가 "도끼가 어떻게 생겼는지"를 텍스트만으로 추측할 필요가 없다 —
-    인페인트가 풀어야 할 문제를 "도끼를 그려라"(어려움, 반복 실패)에서 "이미 있는
-    도끼와 손을 자연스럽게 이어붙여라"(훨씬 쉬움, 1~2회 만에 성공)로 축소한 것이
-    핵심이다. **#44(곡괭이낫)·#45(낚싯대)도 이미 승인된 기존 아이콘이 있다**
-    (`pickaxe_mining.png`/`pickaxe_gathering.png`, `fishing_rod.png`/
-    `fishing_rod_fishing.png`) — 같은 합성+그립 인페인트 레시피를 그대로 적용해볼 것,
-    처음부터 텍스트 설명으로 새로 그리게 하지 말 것.
-  - **남은 작업(예산 소진으로 이번 바퀴는 여기서 멈춤)**: south chop을 east/north로
-    rotate(2회), west는 PIL `ImageOps.mirror`로 east 반전(무료), 이렇게 green 4방향
-    idle+chop 완성 → blue/red도 각 색의 베이스 64x64 이미지(walk/gun 때 이미
-    만든 크롭 방식 재사용, 없으면 `character/idle` 또는 기존 정지 이미지에서 새로
-    크롭)에 대해 위 1~5 과정을 그대로 반복(같은 좌표/마스크, seed는 101로 고정해도
-    되고 색마다 결과가 이상하면 그때 바꿀 것 — 이번엔 도끼 모양이 합성으로 고정되므로
-    총/걷기 애니메이션 때처럼 seed에 민감하지 않을 가능성이 높다, 검증 안 됨). 이후
-    3색×4방향×{idle,chop} 콘택트시트를 직접 검수 → 통과한 것만
-    `game/assets/sprites/character/axe/{variant}_{dir}_{idle,chop}.png`로 저장 →
-    `godot --headless --path . --import` 강제 재임포트 → `world.gd`의
-    `_build_player_sprite_frames()`/`_current_animation_name()`/`_select_hotbar()`를
-    총(#42) 패턴 그대로 도끼용으로 복제(`_tool_use_flash_timer` 지속시간은
-    `AXE_CHOP_FLASH_DURATION` 재사용, `_play_tool_swing()`이 이미 스윙을 트리거하고
-    있음). 이동 중 정적 idle 프레임 유지(옵션A)도 총과 동일하게 적용. `TOOL_USE_ICONS`에서
-    `"axe"` 항목 제거. 검증은 `game/_verify_*.gd`(커밋 전 삭제) 헤드리스 스크린샷
-    스크립트를 `set_physics_process(false)` → 상태 강제 설정 → 몇 프레임 대기 → 캡처
-    패턴으로 재사용할 것.
-  - #44(곡괭이낫: 들고 있기/채광/채집 세 모션), #45(낚싯대: 들고 있기/낚시)도 각각 같은
-    절차(합성+그립 인페인트)를 반복하면 된다. #45를 끝으로 더 이상 안 쓰이는
-    `_held_item_sprite`/`HELD_ITEM_OFFSETS`/`HELD_ITEM_BEHIND_FACINGS`를 정리하라는
-    것이 INBOX #45 원문 지시다 — #43/#44에서는 아직 다른 도구(곡괭이낫/낚싯대)가
-    오버레이 방식을 쓰고 있으니 이 상수들을 미리 지우지 말 것.
-  - 이번 바퀴 생성물은 전부 `/tmp/axe_gen/`에 남아있다(이 머신은 세션이 지나도 `/tmp`가
-    지워지지 않는다는 게 바퀴 47/48에서 이미 확인됨). 핵심 파일: `grip_v1.png`/
-    `_big.png`(south idle 완성), `chop_v1.png`/`_big.png`(south chop 완성),
-    `grip_east_v1.png`/`_big.png`(rotate 검증), `composite_v2.png`/`composite_chop_v1.png`
-    (인페인트 전 합성 중간 결과, 재사용 가능), `mask_grip_v1.png`/`mask_chop_v1.png`
-    (그립 인페인트용 마스크).
+- **다음 바퀴는 INBOX #44(곡괭이낫 통합)부터 시작할 것.** #43(도끼)이 총(#42)과 완전히
+  같은 패턴으로 끝났으니, #44/#45도 같은 절차를 반복하면 된다:
+  1. 기존에 이미 합격한 도구 아이콘(`pickaxe_mining.png`/`pickaxe_gathering.png`,
+     `fishing_rod.png`/`fishing_rod_fishing.png`, 전부 `game/assets/sprites/tools/`에
+     있음)을 PIL로 캐릭터 베이스 이미지 위에 합성한 뒤 손 연결부만 인페인트하는
+     레시피(바퀴 49~50이 도끼로 검증, 아래 "성공한 레시피" 문단 참고)를 3색×4방향에
+     반복 적용한다.
+  2. 곡괭이낫은 "들고 있기/채광하기/채집하기" 세 모션(#44), 낚싯대는 "들고 있기/낚시하기"
+     두 모션(#45)이 필요하다 — 도끼(idle/chop 2모션)보다 곡괭이낫이 하나 더 많다는 점을
+     빼면 절차는 동일하다.
+  3. `/rotate`로 south→east/north를 만들고 west는 PIL 좌우반전 — **다만 이번에 도끼
+     east/west chop에서 실제로 겪었던 "다리/도구 겹침" 결함이 재발할 수 있으니, rotate
+     결과가 나오면 반드시 확대해서 직접 눈으로 겹침 여부부터 확인할 것.** (도끼 건은
+     이전 세션이 어떻게 해결했는지 STATUS/커밋에 상세 원인 규명이 남아있지 않다 — 이번에
+     같은 문제가 나오면 소스 이미지에서 몸통과 분리된 흩어진 픽셀(나뭇조각/광물 파편 등)을
+     rotate 전에 지우는 방법을 먼저 시도해볼 것, 바퀴 51 가설 참고.)
+  4. 완성한 PNG는 `game/assets/sprites/character/pickaxe/`(#44)·
+     `game/assets/sprites/character/fishing_rod/`(#45)에 저장 →
+     `godot --headless --path . --import` 강제 재임포트 → `world.gd`의
+     `_build_player_sprite_frames`/`_current_animation_name`/`_select_hotbar`/
+     `_unhandled_input`/`TOOL_USE_ICONS`를 총(#42)/도끼(#43) 패턴 그대로 복제.
+  5. 검증은 `game/_verify_*.gd`(커밋 전 삭제) 헤드리스 스크린샷 스크립트를
+     `set_physics_process(false)` → 상태 강제 설정 → 몇 프레임 대기 → 캡처 패턴으로
+     재사용할 것(이번 바퀴 `_verify_axe_motion.gd`가 최신 예시).
+  - **#45를 끝으로** 더 이상 안 쓰이는 `_held_item_sprite`/`HELD_ITEM_OFFSETS`/
+    `HELD_ITEM_BEHIND_FACINGS`를 정리(삭제)하라는 것이 INBOX #45 원문 지시다 — #44에서는
+    아직 낚싯대가 오버레이 방식을 쓰고 있으니 이 상수들을 미리 지우지 말 것.
+  - **성공한 레시피 (도끼 idle/chop, #43에서 검증된 것 — 바퀴 49~52 요약)**: 텍스트만으로
+    도구를 그리게 하지 말고, 이미 있는 검증된 도구 아이콘을 그대로 합성한 뒤 손 연결부만
+    인페인트로 다듬는다. 도끼는 idle(24x24로 리사이즈해 (35,8)에 합성) + chop(26x26로
+    리사이즈해 (30,34)에 합성) 좌표를 썼다 — 곡괭이낫/낚싯대는 아이콘 크기가 다를 수
+    있으니 캐릭터 손 위치(대략 x:22-41,y:33-40)와 안 겹치는 좌표를 눈대중으로 다시 잡을 것.
+  - 이번 바퀴(#43) 생성물은 `/tmp/axe_gen/`에 남아있다(이 머신은 세션이 지나도 `/tmp`가
+    지워지지 않는다) — #44/#45 작업 시 새 폴더(예: `/tmp/pickaxe_gen/`, `/tmp/rod_gen/`)를
+    쓸 것을 권장.
 - 다음 지시가 들어오면 참고할 만한 백로그(강제 사항 아님, 아래 "막힌 것/보류"·"오래된
   메모" 참고):
   - 멀티플레이 실제 두 클라이언트 접속/동기화를 실기기로 아직 검증 못함.
   - 농사 성장 시간(60초)이 여전히 실시간 초 단위(게임 내 날짜 기준 아님).
   - 목장 개체 수 제한/재포획(다시 꺼내기) 기능 없음.
-  - 도끼/낚싯대는 여전히 "드는/쓰는 모션" 그림까지만 있고 실제 결과물(벌목/낚시)이
-    없음(DESIGN.md "범위 밖"에 명시돼 있어 의도된 상태) — #38/#40에서 모션은 전부
-    끝났고, 실제 낚시 스팟·벌목 대상 나무는 여전히 범위 밖이다.
-  - 총을 든 채 이동할 때 다리 걷기 애니메이션이 멈춘다(옵션A, 위 결정 로그 참고) —
-    지시가 오면 walk_gun 프레임(그림 24장 추가)을 그려서 옵션B로 확장할 수 있다.
+  - 총을 든 채 이동할 때 다리 걷기 애니메이션이 멈춘다(옵션A, 도끼도 동일하게 적용됨) —
+    지시가 오면 walk_gun/walk_axe 프레임(그림 추가)을 그려서 옵션B로 확장할 수 있다.
   - 스크립트로 world.gd의 `_facing`을 강제 조작하며 검증할 때는 **반드시
     `world_node.set_physics_process(false)`를 먼저 호출할 것** — 안 하면 마우스 추종
-    로직이 매 프레임 `_facing`을 덮어써서 4방향 스크린샷이 전부 같은 방향으로 찍힌다
-    (바퀴 37에서 이미 발견했던 문제인데 바퀴 42에서 다시 빠뜨렸다가 재확인 — 이 문서
-    "헤드리스 CLI 검증" 절에도 같은 내용이 있으니 다음엔 거기부터 확인할 것).
+    로직이 매 프레임 `_facing`을 덮어써서 4방향 스크린샷이 전부 같은 방향으로 찍힌다.
 - **아직 남아 있는 오래된 메모(여전히 유효)**:
   - 멀티플레이 실제 두 클라이언트 간 연결/동기화를 실기기(스크린샷 등)로 아직 검증하지
     못했다(바퀴 17부터 이월 — 아래 "막힌 것/보류", "헤드리스 CLI 검증" 참고).
   - 농사(farm_plot)의 성장 시간(60초)은 여전히 게임 내 날짜 기준이 아니라 실시간 초
-    단위다 — DESIGN.md에 기준이 명시돼 있지 않아 임의로 바꾸지 않고 있다. 다음 지시가
+    단위다 — DESIGN.md에 기준이 명시되어 있지 않아 임의로 바꾸지 않고 있다. 다음 지시가
     오면 그때 정할 것.
   - 목장은 여전히 개체 수 제한이나 "다시 꺼내기" 기능이 없다.
-  - 도끼/낚싯대는 좌클릭 시 최소 스윙 애니메이션만 있고 실제 결과물(벌목/낚시)이 없다
-    (DESIGN.md "범위 밖"에 명시돼 있어 의도된 상태).
+  - 곡괭이낫/낚싯대는 좌클릭 시 최소 스윙 애니메이션만 있고 실제 결과물(채광·채집은
+    있음, 낚시는 없음)이 없다(DESIGN.md "범위 밖"에 명시돼 있어 의도된 상태).
   - **새 배경/바닥용 스프라이트를 world.tscn에 추가할 때는 `Ground`(z_index=-2)보다는
     위, `Player`(기본값 0)보다는 아래인 `z_index=-1`을 기본으로 줄 것.**
   - **낮/밤에 따라 화면 밝기가 바뀌는 게 정상 동작이다** — 스크린샷 QA에서 화면이 어둡게
@@ -292,11 +198,10 @@ chop을 south/north는 완성했지만 east/west에서 `/rotate` 결함을 발�
     강제 재임포트한 뒤 스크린샷으로 재검증할 것.**
   - **F키 상호작용 방식은 사용자가 명시적으로 거부했다 — 새 상호작용 오브젝트도
     좌클릭+`get_held_tool()`/`get_held_item()` 패턴을 쓸 것, F키로 되돌리지 말 것.**
-  - `game/project.godot`의 `window/stretch/aspect="keep"`은 이번 바퀴 확인 결과 정상
-    유지되고 있다(이전 메모의 "삭제된 채 미커밋"은 더 이상 사실이 아니어서 이번에
-    제거함) — 그래도 `--import`나 에디터를 여는 작업 뒤에는 `git diff game/project.godot`로
-    한 번 더 확인하는 습관은 유지할 것.
-
+  - **세션이 예산 초과로 죽으면 미커밋 변경이 작업 디렉터리에 그대로 남을 수 있다
+    (바퀴 3, 바퀴 51→52 두 차례 확인).** 새 세션을 시작할 때 `git status`로 이미 완료된
+    작업이 미커밋 상태로 남아있지 않은지 먼저 확인하고, 있다면 처음부터 다시 만들지 말고
+    검수만 해서 재활용할 것.
 ## 헤드리스 CLI 검증 시 추가로 확인된 점 (다음 바퀴 참고)
 
 - **(바퀴 16이 정정) 이전 바퀴 노트("오토로드는 `_init()` 대신 `_initialize()`에서 쓰면

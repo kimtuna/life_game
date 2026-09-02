@@ -78,7 +78,6 @@ const TOOL_ICONS := {
 ## 오버레이 방식을 버리고 캐릭터 애니메이션 프레임 자체(gun_idle_*/gun_fire_*, DESIGN.md
 ## "캐릭터 애니메이션")에 통합됐다.
 const TOOL_USE_ICONS := {
-	"axe": preload("res://assets/sprites/tools/axe_chopping.png"),
 	"fishing_rod": preload("res://assets/sprites/tools/fishing_rod_fishing.png"),
 }
 ## 곡괭이낫의 "쓰는 모션" 그림 — 채광(광물을 내려찍어 조각이 튐)과 채집(낫으로 작물을
@@ -226,7 +225,12 @@ func _unhandled_input(event: InputEvent) -> void:
 		_ammo_type = "tranq" if _ammo_type == "normal" else "normal"
 		_update_ammo_label()
 	elif event is InputEventMouseButton and event.pressed and not _paused and not _inventory_open \
-			and event.button_index == MOUSE_BUTTON_LEFT and (_held_tool == "axe" or _held_tool == "fishing_rod"):
+			and event.button_index == MOUSE_BUTTON_LEFT and _held_tool == "axe":
+		## 도끼는 INBOX #43부터 옆 아이콘이 아니라 캐릭터 애니메이션 프레임 자체
+		## (axe_chop_*)로 패는 모션을 보여준다 (총(#42)과 같은 패턴).
+		_tool_use_flash_timer = AXE_CHOP_FLASH_DURATION
+	elif event is InputEventMouseButton and event.pressed and not _paused and not _inventory_open \
+			and event.button_index == MOUSE_BUTTON_LEFT and _held_tool == "fishing_rod":
 		_play_tool_swing()
 
 
@@ -267,7 +271,7 @@ func _physics_process(delta: float) -> void:
 	if _tool_use_flash_timer > 0.0:
 		_tool_use_flash_timer -= delta
 		if _tool_use_flash_timer <= 0.0 and _held_item_sprite != null and _held_tool != "gun" \
-				and TOOL_ICONS.has(_held_tool):
+				and _held_tool != "axe" and TOOL_ICONS.has(_held_tool):
 			_held_item_sprite.texture = TOOL_ICONS[_held_tool]
 	if _is_reloading:
 		_reload_timer -= delta
@@ -573,9 +577,9 @@ func _select_hotbar(index: int) -> void:
 	var slot = general_slots[index] if index < general_slots.size() else null
 	if slot != null and TOOL_ICONS.has(slot["item"]):
 		_held_tool = slot["item"]
-		if _held_tool == "gun":
-			## 총은 INBOX #42부터 옆 아이콘 오버레이를 쓰지 않는다 — 캐릭터 애니메이션
-			## 프레임(gun_idle_*/gun_fire_*) 자체가 총을 든 모습을 보여준다.
+		if _held_tool == "gun" or _held_tool == "axe":
+			## 총(#42)/도끼(#43)는 옆 아이콘 오버레이를 쓰지 않는다 — 캐릭터 애니메이션
+			## 프레임(gun_idle_*/gun_fire_*, axe_idle_*/axe_chop_*) 자체가 든 모습을 보여준다.
 			_held_item_sprite.visible = false
 		else:
 			_held_item_sprite.texture = TOOL_ICONS[_held_tool]
@@ -742,12 +746,27 @@ func _build_player_sprite_frames(variant: String) -> SpriteFrames:
 		frames.add_animation(gun_fire_anim)
 		frames.set_animation_speed(gun_fire_anim, 1.0)
 		frames.add_frame(gun_fire_anim, load("res://assets/sprites/character/gun/%s_%s_fire.png" % [variant, direction]))
+
+		## 도끼(INBOX #43, 총(#42)과 같은 패턴): "들고 있는"/"패는" 모션 프레임 자체에
+		## 손과 도끼가 붙어 있는 그림을 넣는다. 걷기 전용 프레임은 총과 동일하게 옵션A
+		## (걷는 중에도 axe_idle 정지 프레임 유지)를 따른다.
+		var axe_idle_anim := "axe_idle_%s" % direction
+		frames.add_animation(axe_idle_anim)
+		frames.set_animation_speed(axe_idle_anim, 1.0)
+		frames.add_frame(axe_idle_anim, load("res://assets/sprites/character/axe/%s_%s_idle.png" % [variant, direction]))
+
+		var axe_chop_anim := "axe_chop_%s" % direction
+		frames.add_animation(axe_chop_anim)
+		frames.set_animation_speed(axe_chop_anim, 1.0)
+		frames.add_frame(axe_chop_anim, load("res://assets/sprites/character/axe/%s_%s_chop.png" % [variant, direction]))
 	return frames
 
 
 func _current_animation_name() -> String:
 	if _held_tool == "gun":
 		return ("gun_fire_" if _tool_use_flash_timer > 0.0 else "gun_idle_") + _facing
+	if _held_tool == "axe":
+		return ("axe_chop_" if _tool_use_flash_timer > 0.0 else "axe_idle_") + _facing
 	return ("walk_" if _is_moving else "idle_") + _facing
 
 
