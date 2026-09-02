@@ -172,6 +172,9 @@ func _unhandled_input(event: InputEvent) -> void:
 			and event.button_index == MOUSE_BUTTON_RIGHT and _held_tool == "gun":
 		_ammo_type = "tranq" if _ammo_type == "normal" else "normal"
 		_update_ammo_label()
+	elif event is InputEventMouseButton and event.pressed and not _paused and not _inventory_open \
+			and event.button_index == MOUSE_BUTTON_LEFT and (_held_tool == "axe" or _held_tool == "fishing_rod"):
+		_play_tool_swing()
 
 
 func _physics_process(delta: float) -> void:
@@ -238,6 +241,25 @@ func _fire() -> void:
 	add_child(bullet)
 
 
+## 지금 손에 든 도구 키를 밖에서 읽을 수 있게 하는 공개 접근자 (INBOX #23).
+## farm_plot/resource_point/ranch_zone이 "맞는 도구를 들고 좌클릭했는가"를
+## 판정할 때 이걸로 조회한다.
+func get_held_tool() -> String:
+	return _held_tool
+
+
+## 도끼/낚싯대는 아직 벌목 대상(나무)·낚시 스팟이 없어 실제 동작을 만들 수 없다
+## (DESIGN.md "범위 밖"). INBOX #23이 요구한 "좌클릭 애니메이션/동작만 연결"을
+## 위해 손에 든 아이콘을 짧게 확대했다 줄이는 최소한의 스윙 반응만 재생한다.
+func _play_tool_swing() -> void:
+	if _held_item_sprite == null or not _held_item_sprite.visible:
+		return
+	var base_scale := Vector2(0.85, 0.85)
+	var tween := create_tween()
+	tween.tween_property(_held_item_sprite, "scale", base_scale * 1.35, 0.08)
+	tween.tween_property(_held_item_sprite, "scale", base_scale, 0.12)
+
+
 ## 방향별 스프라이트(north/south/east/west)만 있으므로, 마우스가 가리키는
 ## 각도를 90도씩 4구간으로 나눠서 가장 가까운 방향 스프라이트로 바꿔 끼운다.
 ## 스프라이트 자체를 rotation으로 돌리면 정면(도트) 그림이 옆으로 눕는 것처럼
@@ -293,6 +315,7 @@ func _spawn_one_resource_point(scene: PackedScene) -> void:
 			break
 	point.global_position = pos
 	point.player_ref = player_sprite
+	point.world_ref = self
 	add_child(point)
 
 
@@ -304,6 +327,7 @@ func _spawn_farm_plots() -> void:
 			var plot := FarmPlotScene.instantiate()
 			plot.global_position = base + Vector2(col * FARM_PLOT_SPACING, row * FARM_PLOT_SPACING)
 			plot.player_ref = player_sprite
+			plot.world_ref = self
 			add_child(plot)
 
 
@@ -312,6 +336,7 @@ func _spawn_ranch_zone() -> void:
 	var zone := RanchZoneScene.instantiate()
 	zone.global_position = player_sprite.position + RANCH_ZONE_ORIGIN
 	zone.player_ref = player_sprite
+	zone.world_ref = self
 	add_child(zone)
 
 

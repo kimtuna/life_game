@@ -25,4 +25,4 @@ offset_right = 70.0
 offset_bottom = -126.0
 horizontal_alignment = 1
 label_settings = SubResource("LabelSettings_prompt")
-text = "F: 사슴 풀어놓기"
+text = "빈손으로 좌클릭: 사슴 풀어놓기"

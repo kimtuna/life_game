@@ -12,8 +12,9 @@ outline_color = Color(0, 0, 0, 1)
 script = ExtResource("1_script")
 item_name = "rice_seed"
 item_amount = 1
-prompt_text = "F: 채집 (벼 씨앗)"
+prompt_text = "낫을 들고 좌클릭: 채집 (벼 씨앗)"
 texture_path = "res://assets/sprites/gathering_point/gathering_point.png"
+required_tool = "sickle"
 
 [node name="Sprite" type="Sprite2D" parent="."]
 scale = Vector2(1.1, 1.1)

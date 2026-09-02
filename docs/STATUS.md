@@ -5,9 +5,60 @@
 
 ## 마지막 갱신
 
-바퀴 25 / 2026-09-02
+바퀴 26 / 2026-09-02
 
-## 끝난 것 (바퀴 25)
+## 끝난 것 (바퀴 26)
+
+- INBOX #23 완료: `farm_plot.gd`/`resource_point.gd`/`ranch_zone.gd`의 F키 상호작용을
+  전부 없애고, `world.gd`가 공개한 `get_held_tool()`로 "지금 손에 든 도구"를 확인해
+  좌클릭으로 동작하게 바꿨다.
+  - `world.gd`에 `get_held_tool() -> String`(내부 `_held_tool` 반환)을 추가하고,
+    `_spawn_one_resource_point`/`_spawn_farm_plots`/`_spawn_ranch_zone`에서 `player_ref`와
+    함께 `world_ref = self`도 넘겨준다(각 스크립트가 `world_ref.get_held_tool()`로 조회).
+  - `resource_point.gd`(채집/채광 포인트 공용 스크립트)에 `@export var required_tool`을
+    추가해 씬별로 다른 도구를 요구하게 했다 — `gathering_point.tscn`은
+    `required_tool="sickle"`(낫), `mining_point.tscn`은 `required_tool="pickaxe"`(곡괭이).
+    좌클릭 시 `world_ref.get_held_tool() == required_tool`일 때만 채집/채광이 동작하고,
+    틀린 도구를 들고 있으면 아무 일도 일어나지 않는다(검증 스크립트로 낫을 든 채 채광
+    포인트를 좌클릭해도 철이 늘지 않는 것, 곡괭이로 바꾸면 늘어나는 것을 확인했다).
+  - `farm_plot.gd`도 같은 방식으로 `REQUIRED_TOOL := "sickle"`을 추가했다. INBOX #23
+    원문은 "낫을 들고... 밭(수확) 앞에서 좌클릭→수확"이라고 수확만 명시했지만, 심기
+    (EMPTY 상태)에도 같은 요구를 적용했다 — DESIGN.md에 농사 전용 도구가 따로 없고,
+    채집 계열 도구(낫)를 심기/수확 양쪽에 일관되게 적용하는 게 "무슨 도구로 밭을
+    만지는가"라는 질문에 임의의 새 규칙을 추가하지 않는 가장 단순한 해석이라고
+    판단했다(스스로 판단해서 고친 부분).
+  - `ranch_zone.gd`는 DESIGN.md/INBOX 어디에도 목장 상호작용에 지정된 도구가 없어서,
+    `REQUIRED_TOOL := ""`(빈손)로 정했다 — 총을 든 채 좌클릭하면 발사가 되므로, 목장
+    상호작용까지 같이 발동하면 안 되고, 이 편이 INBOX #23이 말한 "맞는 도구/빈손
+    좌클릭"이라는 표현과도 맞는다고 해석했다.
+  - 도끼/낚싯대는 여전히 벌목 대상/낚시 스팟이 없어(DESIGN.md 범위 밖) 실제 결과물은
+    만들지 않고, `world.gd`에 `_play_tool_swing()`(손에 든 아이콘을 짧게 확대했다
+    되돌리는 Tween)을 추가해 좌클릭 시 최소한의 반응만 재생하도록 했다(INBOX #23
+    "좌클릭 애니메이션/동작만 연결" 요구 그대로).
+  - 각 포인트/밭/목장의 프롬프트 텍스트를 "F: ..."에서 "낫을 들고 좌클릭: ...",
+    "곡괭이를 들고 좌클릭: ...", "빈손으로 좌클릭: ..."로 바꿔 새 조작법을 화면에서
+    바로 알 수 있게 했다(지시받지 않았지만 추가한 개선 — 안 바꾸면 플레이어가 F키를
+    계속 누르게 되어 조작이 막힌 것처럼 보인다).
+  - 검증: `godot --headless --path . --script <임시스크립트>.gd`로 world.tscn을 실제로
+    띄운 뒤 (1) 낫을 들고 채집 포인트 좌클릭 → 벼 씨앗 증가, (2) 낫을 든 채 채광 포인트
+    좌클릭 → 철 변화 없음(틀린 도구 차단 확인), (3) 곡괭이로 바꿔 같은 채광 포인트
+    좌클릭 → 철 증가, (4) 낫을 들고 밭 좌클릭 → EMPTY→GROWING 전환, (5) 빈손으로 목장
+    좌클릭 → captured_deer 재고 감소(사슴 방출), (6) 도끼를 들고 좌클릭 → 에러 없이
+    스윙 트윈 실행까지 전부 콘솔 로그로 직접 확인했다. 추가로 `godot --path .`(렌더링
+    모드)로 같은 시나리오를 스크린샷으로도 확인했다 — 채집 포인트 앞 프롬프트가
+    "낫을 들고 좌클릭: 채집 (벼 씨앗)"로 정확히 뜨고, 핫바 선택 테두리와 손에 든
+    도구 아이콘도 기존 스타일과 어긋나지 않았다. 임시 스크립트/스크린샷 PNG는 커밋 전
+    삭제했다. 참고로 검증 스크립트가 `user://inventory.save`(macOS
+    `~/Library/Application Support/Godot/app_userdata/life_game/`)에 이전 바퀴들의
+    테스트 잔여 데이터를 그대로 읽어들여 첫 실행 결과가 뒤섞였다 — 이 저장 파일을
+    지우고 나서야 깨끗한 상태로 검증할 수 있었다(아래 "헤드리스 CLI 검증" 참고).
+  - 변경 파일: `game/scenes/world/world.gd`, `game/scenes/farm_plot/farm_plot.gd`,
+    `game/scenes/resource_point/resource_point.gd`,
+    `game/scenes/resource_point/gathering_point.tscn`,
+    `game/scenes/resource_point/mining_point.tscn`, `game/scenes/ranch_zone/ranch_zone.gd`,
+    `game/scenes/ranch_zone/ranch_zone.tscn`.
+
+## 끝난 것 (바퀴 25, 이전 기록)
 
 - INBOX #22 완료: 총/도끼/곡괭이/낫/낚싯대를 인벤토리 아이템으로 추가하고, 숫자키
   1~9로 핫바(일반 슬롯 앞 9칸)에서 골라 손에 들 수 있게 만들었다.
@@ -76,55 +127,23 @@
     `game/scenes/world/world.tscn` (커밋 `1aa96d3`). `game/project.godot`(아래
     "막힌 것/보류" 참고)와 untracked `.uid` 파일들은 이번에도 포함하지 않았다.
 
-## 끝난 것 (바퀴 23, 이전 기록)
-
-- INBOX #20 부분 완료: 확인된 원인(바닥 Ground가 단색 Polygon2D)만 고쳤다. "기존
-  스프라이트 전체를 훑어보고 통일감 있게 다듬는다"는 지시의 뒷부분은 이번 바퀴
-  예산으로는 다루지 못해 완료 처리하되 부분 완료로 남긴다(아래 "다음에 할 것" 참고).
-  - PixelLab REST API(`https://api.pixellab.ai/v2/`)를 이번에 처음 코드에서 직접 호출했다.
-    `/create-image-pixflux`(단발 이미지 생성, 동기)로 먼저 "seamless tileable grass" 텍스트
-    프롬프트만으로 시도했으나, 4x4로 이어붙여 미리보기를 해보니 타일 경계에 뚜렷한 테두리
-    패턴(비눗방울 모양 테두리)이 보여 전혀 이음매 없는 텍스처가 아니었다 — pixflux는
-    타일링을 보장하는 모델이 아니다.
-  - 대신 `/create-tileset`(비동기, Wang 타일셋 전용 엔드포인트, ~60~100초 소요, `GET
-    /tilesets/{id}`로 폴링)을 썼다. `lower_description`과 `upper_description`을 같은 문구로
-    줘서 지형 경계가 없는 균일한 잔디를 만들고, 그중 네 모서리가 전부 "lower"인
-    `wang_0` 타일(32x32) 하나만 골라 썼다 — Wang 타일셋은 애초에 서로 이어붙여지도록
-    설계된 것이라 이 타일 하나만 반복해도 이음매가 없다(4x4 미리보기로 직접 확인).
-  - `color_image`(팔레트 강제 참조) 파라미터에 기존 스프라이트(`gathering_point.png`)에서
-    뽑은 어두운 올리브그린 색상 6개로 만든 8x8 스와치 이미지를 넘겨봤으나 그 시도에서는
-    타일셋 생성 자체가 "Tileset generation failed"로 실패했다(원인 미상 — 스와치 이미지가
-    너무 작아서였을 수 있음, 재조사는 하지 않았다). `color_image`를 빼고 텍스트 설명만
-    "muted dark olive green ... no bright saturation ..."로 구체화하는 것으로 우회해
-    충분히 어두운 팔레트를 얻었다(재시도 성공). 다음에 `color_image`를 다시 시도하려면
-    더 큰 팔레트 이미지(예: 32x32 이상)로 만들어볼 것.
-  - 완성된 `assets/sprites/ground/grass_tile.png`(32x32)를 `world.tscn`의 `Ground` 노드에
-    적용했다. `Polygon2D` 대신 `Sprite2D` + `region_enabled=true` +
-    `region_rect=Rect2(0,0,8000,8000)`(기존 폴리곤이 덮던 -4000~4000 범위와 동일한 8000x8000
-    영역) + `texture_repeat=2`(`CanvasItem.TEXTURE_REPEAT_ENABLED`) 조합으로 텍스처 하나를
-    반복 타일링했다 — 실제 `TileMap`으로 수천 개 셀을 채우는 대신, 리전이 텍스처보다 크고
-    반복 모드가 켜져 있으면 GPU가 알아서 반복 샘플링해주는 방식이라 노드 하나, 드로우콜
-    하나로 끝난다. `texture_filter=1`(NEAREST)도 다른 모든 스프라이트와 동일하게 맞췄다.
-    `z_index=-2`는 그대로 유지해서 기존 z_index 순서(Ground -2 < 바닥 장식 -1 < Player 0)를
-    깨지 않았다.
-  - PNG를 새로 추가한 뒤 `godot --headless --path . --import`로 강제 재임포트했고(바퀴
-    18/19가 확정한 규칙), `godot --path . --script <임시스크립트>.gd`로 실제 월드 씬을
-    띄워 `get_viewport().get_texture()`로 스크린샷을 찍어 눈으로 확인했다 — 잔디가
-    이음매 없이 화면 전체에 깔리고, 플레이어/사슴/작물/돌(채광 포인트) 등 기존
-    스프라이트들과 색감이 크게 어긋나지 않는 것을 확인했다. 임시 스크립트(`_tmp_shot20.gd`)와
-    스크린샷 PNG, 관련 `.uid`/`.import` 부산물은 커밋 전 삭제했다.
-  - 변경 파일: `game/scenes/world/world.tscn`, `game/assets/sprites/ground/grass_tile.png`,
-    `game/assets/sprites/ground/grass_tile.png.import` (신규). 세션 시작 전부터 미커밋
-    상태였던 `game/project.godot`(아래 "막힌 것/보류" 참고)와 untracked `.uid` 파일들은
-    이번에도 포함하지 않았다.
-
 ## 다음에 할 것
 
-- `docs/feedback/INBOX.md` "처리 대기"의 다음 미완료 항목은 `#23`(도구 상호작용을
-  전부 좌클릭으로 통일 — farm_plot/resource_point/ranch_zone의 F키를 없애고, `#22`가
-  만든 `world._held_tool`이 맞는 도구일 때 좌클릭으로 동작하게 바꾸기)이다.
-  `world.gd`의 `_held_tool`(현재 손에 든 도구 키, "" = 빈손)을 그대로 참조하면 된다.
-  곡괭이→채광, 낫→채집/수확, 도끼/낚싯대는 대상이 아직 없으니 최소 반응만.
+- `docs/feedback/INBOX.md` "처리 대기"의 다음 미완료 항목은 `#24`(사냥/채집/채광 결과물을
+  바로 인벤토리에 넣지 않고 바닥에 드롭 → 접촉하면 자동 습득)이다. 지금은 사슴 사냥/포획,
+  `resource_point.gd`의 `_harvest()`, 농사 수확이 전부 `InventoryData.add_item()`을 즉시
+  호출한다 — 이 호출 지점들을 "바닥에 드롭 아이템 오브젝트 생성"으로 바꾸고, 새 드롭
+  아이템 씬이 플레이어와 접촉(Area2D 등)하면 그때 `add_item()`을 호출하도록 옮겨야 한다.
+  좌클릭은 이미 도구 동작(#22/#23)에 쓰이고 있으므로 드롭 습득은 반드시 접촉 기반으로
+  만들 것(지시문에 명시됨).
+- INBOX #23은 farm_plot/resource_point/ranch_zone의 F키 상호작용을 좌클릭+도구 확인
+  방식으로 바꿨다. `world.gd.get_held_tool()`을 공개 접근자로 추가했으니, 앞으로 새
+  상호작용 오브젝트를 추가할 때도 이 패턴(`world_ref.get_held_tool() == required_tool`)을
+  재사용할 것 — F키를 다시 쓰지 말 것(사용자가 F키 방식을 명시적으로 거부했었다).
+- 도끼/낚싯대는 여전히 좌클릭 시 손에 든 아이콘이 잠깐 커졌다 줄어드는 최소 스윙
+  애니메이션(`world._play_tool_swing()`)만 있고 실제 결과물(벌목/낚시)은 없다. 나무
+  자원이나 낚시 스팟이 INBOX로 들어오면 그때 실제 로직을 연결할 것 — DESIGN.md
+  "범위 밖"에 이미 명시돼 있어 지금은 손대지 않았다.
 - INBOX #21은 슬롯/UI/데이터 구조까지만 만들었다. 슬롯을 클릭해서 아이템을
   옮기거나 버리는 등의 상호작용은 아직 없다(지시 범위 밖) — 다음에 그런 요구가
   오면 새로 추가할 것.
@@ -204,6 +223,14 @@
   RPC)를 다루는 코드를 안정적으로 자동 테스트할 방법을 이번 바퀴에서 찾지 못했다. 다음
   바퀴가 멀티플레이 코드를 헤드리스로 검증하려면 `--script`를 쓰지 말고, `godot --headless
   --path .`로 실제 main_scene을 정상 부팅시킨 프로세스를 (필요하면 두 개) 띄워서 확인할 것.
+
+- **(바퀴 26 신규) `--script` 헤드리스 검증 스크립트를 반복 실행하면 `InventoryData`가
+  이전 실행의 `user://inventory.save`를 그대로 이어받아 인벤토리가 뒤섞인 채로
+  시작한다.** macOS 기준 `~/Library/Application Support/Godot/app_userdata/life_game/
+  inventory.save`. 매번 깨끗한 상태에서 검증하려면 스크립트 실행 전에 이 파일을 지울
+  것 — 실제 게임에서는 이 저장/불러오기가 의도된 동작(재시작해도 인벤토리 유지)이라
+  코드를 고칠 문제가 아니라, 검증 스크립트를 실행하는 쪽에서 매번 정리해야 하는
+  절차다.
 
 ## 막힌 것 / 보류
 

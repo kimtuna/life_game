@@ -12,8 +12,9 @@ outline_color = Color(0, 0, 0, 1)
 script = ExtResource("1_script")
 item_name = "iron"
 item_amount = 1
-prompt_text = "F: 채광 (철)"
+prompt_text = "곡괭이를 들고 좌클릭: 채광 (철)"
 texture_path = "res://assets/sprites/mining_point/mining_point.png"
+required_tool = "pickaxe"
 
 [node name="Sprite" type="Sprite2D" parent="."]
 scale = Vector2(1.1, 1.1)
