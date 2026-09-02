@@ -22,6 +22,12 @@ fi
 # shellcheck source=env.sh
 source "$SCRIPT_DIR/env.sh"
 
+# 비밀값(API 키 등). git에 올라가지 않는 파일이며 없어도 정상 동작한다.
+if [ -f "$SCRIPT_DIR/secrets.env" ]; then
+  # shellcheck source=secrets.env
+  source "$SCRIPT_DIR/secrets.env"
+fi
+
 mkdir -p "$ROOT_DIR/logs"
 
 log_event() {
