@@ -19,18 +19,18 @@
 </head>
 <body>
   <h1>auto-loop 진행 상황</h1>
-  <p class="updated">마지막 갱신: 2026-09-02 19:53:21</p>
+  <p class="updated">마지막 갱신: 2026-09-02 20:00:09</p>
   <div class="row">
-    <div class="card"><div class="label">남은 항목</div><div class="num">6</div></div>
-    <div class="card"><div class="label">완료된 항목</div><div class="num">14</div></div>
+    <div class="card"><div class="label">남은 항목</div><div class="num">5</div></div>
+    <div class="card"><div class="label">완료된 항목</div><div class="num">15</div></div>
   </div>
   <div class="card">
     <div class="label">지금 처리 중 / 다음으로 처리할 항목</div>
-    <div>#15 (버그 리포트) 사슴이 방향을 바꿀 때마다 다른 개체처럼 보인다(사용자 표현: "암수/새끼가 계속 바뀐다"). 원인 확인됨: `assets/sprites/deer/deer_north.png`(점박이 새끼 느낌), `deer_south.png`(뿔 없는 평범한 성체), `deer_east.png`(뿔 달린 수사슴)가 서로 다른 사슴처럼 그려져 있다. 코드에 성별/나이 개념은 없다 — 순수 그래픽 일관성 문제다. PixelLab로 "같은 한 마리 사슴"을 4방향(north/south/east, west는 기존처럼 east 좌우반전 유지)에서 일관된 색/무늬/뿔 유무로 다시 생성해서 교체한다.</div>
+    <div>#16 (버그 리포트) 전체적으로 스프라이트 크기가 너무 크다. 지금 각 씬의 Sprite scale이 플레이어/사슴=3, 목장(ranch_zone)=4, 채집/채광 포인트=2.2, 밭(farm_plot)=1.6~1.8로 제각각 크게 잡혀 있다. 전부 지금 값의 절반으로 줄인다(예: 3→1.5, 4→2, 2.2→1.1, 1.6~1.8→0.8~0.9). 줄인 뒤 실행해서 눈으로 전체 비율이 어색하지 않은지 확인하고, 필요하면 값을 미세 조정한다.</div>
   </div>
   <div class="card">
     <div class="label">마지막 작업 커밋</div>
-    <div><code>c600d9d 플레이 테스트 버그/피드백 6건을 큐에 등록 (#15~#20)</code></div>
+    <div><code>1a00910 [INBOX #15] 사슴 스프라이트를 PixelLab로 재생성해 방향별 개체 불일치 버그 수정</code></div>
   </div>
 </body>
 </html>
