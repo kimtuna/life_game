@@ -24,6 +24,20 @@ func add_item(item_name: String, amount: int) -> void:
 	changed.emit()
 
 
+func has_item(item_name: String, amount: int = 1) -> bool:
+	return get_count(item_name) >= amount
+
+
+## 성공하면 true를 반환하고 개수를 뺀다. 보유량이 부족하면 아무것도 바꾸지 않고 false.
+func remove_item(item_name: String, amount: int) -> bool:
+	if not has_item(item_name, amount):
+		return false
+	_counts[item_name] = get_count(item_name) - amount
+	_save()
+	changed.emit()
+	return true
+
+
 func all_counts() -> Dictionary:
 	return _counts.duplicate()
 

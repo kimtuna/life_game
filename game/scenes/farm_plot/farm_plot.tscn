@@ -1,0 +1,32 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scenes/farm_plot/farm_plot.gd" id="1_script"]
+[ext_resource type="Texture2D" path="res://assets/sprites/farm_plot/soil.png" id="2_soil"]
+
+[sub_resource type="LabelSettings" id="LabelSettings_prompt"]
+font_size = 16
+font_color = Color(1, 1, 1, 1)
+outline_size = 4
+outline_color = Color(0, 0, 0, 1)
+
+[node name="FarmPlot" type="Node2D"]
+script = ExtResource("1_script")
+
+[node name="Soil" type="Sprite2D" parent="."]
+z_index = -1
+scale = Vector2(1.8, 1.8)
+texture_filter = 1
+texture = ExtResource("2_soil")
+
+[node name="Crop" type="Sprite2D" parent="."]
+visible = false
+scale = Vector2(1.6, 1.6)
+texture_filter = 1
+
+[node name="Prompt" type="Label" parent="."]
+offset_left = -60.0
+offset_top = -70.0
+offset_right = 60.0
+offset_bottom = -46.0
+horizontal_alignment = 1
+label_settings = SubResource("LabelSettings_prompt")

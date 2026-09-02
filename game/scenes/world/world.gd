@@ -17,6 +17,7 @@ const BulletScene := preload("res://scenes/bullet/bullet.tscn")
 const DeerScene := preload("res://scenes/deer/deer.tscn")
 const GatheringPointScene := preload("res://scenes/resource_point/gathering_point.tscn")
 const MiningPointScene := preload("res://scenes/resource_point/mining_point.tscn")
+const FarmPlotScene := preload("res://scenes/farm_plot/farm_plot.tscn")
 
 const DEER_COUNT := 6
 const DEER_SPAWN_RADIUS := 1600.0
@@ -26,9 +27,17 @@ const RESOURCE_POINT_COUNT := 5
 const RESOURCE_SPAWN_RADIUS := 1400.0
 const RESOURCE_MIN_DISTANCE_FROM_PLAYER := 200.0
 
+## 밭은 채집/채광 포인트처럼 흩어놓지 않고, DESIGN.md "밭(정해진 구역)" 요구대로
+## 스폰 지점 기준 항상 같은 자리에 고정된 격자로 배치한다.
+const FARM_PLOT_COLUMNS := 3
+const FARM_PLOT_ROWS := 2
+const FARM_PLOT_SPACING := 120.0
+const FARM_PLOT_ORIGIN := Vector2(500.0, -400.0)
+
 ## InventoryData가 저장하는 아이템 키(내부 이름) -> 화면 표시 이름.
 const ITEM_LABELS := {
 	"rice_seed": "벼 씨앗",
+	"rice": "벼",
 	"iron": "철",
 }
 
@@ -54,6 +63,7 @@ func _ready() -> void:
 	_update_ammo_label()
 	_spawn_deer()
 	_spawn_resource_points()
+	_spawn_farm_plots()
 	InventoryData.changed.connect(_update_inventory_label)
 	_update_inventory_label()
 
@@ -180,6 +190,17 @@ func _spawn_one_resource_point(scene: PackedScene) -> void:
 	point.global_position = pos
 	point.player_ref = player_sprite
 	add_child(point)
+
+
+## 스폰 지점에서 고정된 오프셋에 밭 칸을 격자로 배치한다 (INBOX #11).
+func _spawn_farm_plots() -> void:
+	var base := player_sprite.position + FARM_PLOT_ORIGIN
+	for row in range(FARM_PLOT_ROWS):
+		for col in range(FARM_PLOT_COLUMNS):
+			var plot := FarmPlotScene.instantiate()
+			plot.global_position = base + Vector2(col * FARM_PLOT_SPACING, row * FARM_PLOT_SPACING)
+			plot.player_ref = player_sprite
+			add_child(plot)
 
 
 func _update_inventory_label() -> void:
