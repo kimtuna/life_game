@@ -5,10 +5,10 @@
 
 ## 마지막 갱신
 
-바퀴 49 / 2026-09-03 (INBOX #43 계속 시도 — **돌파구를 찾았다**: 기존 승인된 도끼 아이콘을
-합성 + 손 부분만 인페인트하는 기법으로 south idle/chop이 고품질로 나왔고 rotate로 east까지
-검증했으나, 예산 소진으로 north/west/blue/red/코드 통합은 다음 바퀴로 넘김 — 아래 "다음에
-할 것" 참고. 코드는 건드리지 않음, 게임 자체는 변경 없음.)
+바퀴 51 / 2026-09-03 (INBOX #43 계속 시도 — **idle 4방향(green/blue/red) 완성 확인 +
+chop을 south/north는 완성했지만 east/west에서 `/rotate` 결함을 발견해 예산 소진으로
+코드 통합 없이 중단**. 아래 "다음에 할 것" 참고. 코드는 건드리지 않음, 게임 자체는
+변경 없음, 에셋은 아직 `/tmp/axe_gen/`에만 있고 `game/`에는 복사하지 않았다.)
 
 ## 끝난 것 (지금까지의 스냅샷 — 바퀴별 상세 이력은 git 커밋 메시지 `[INBOX #N] ...`에 있음)
 
@@ -109,7 +109,90 @@
 
 ## 다음에 할 것
 
-- **다음 바퀴는 INBOX #43(도끼 통합)부터 계속할 것 — 이번 바퀴(49)가 돌파구를 찾았다.
+- **다음 바퀴는 INBOX #43(도끼 통합)부터 계속할 것. 바퀴 51 결론: idle은 3색×4방향 전부
+  합격, chop은 south/north만 합격, east/west가 `/rotate` API 결함으로 막혀 있다.**
+  - **idle 완성 (합격, 재검수 완료)**: `/tmp/axe_gen/{color}_south_idle_final.png`(south),
+    `grip_east_v1.png`(green east), `green_idle_north.png`(north), `green_idle_west.png`(west),
+    `{color}_east_idle_final.png`/`{color}_north_idle_final.png`/`{color}_west_idle_final.png`
+    (blue/red, 이번 바퀴 rotate+mirror로 생성). `contact_idle_all.png`로 12장 전부 직접
+    검수했다 — 손이 자루를 자연스럽게 쥐고 있고 색상/얼굴이 각 색의 기존 베이스 캐릭터와
+    일치했다. **합격.**
+  - **chop south/north 완성 (합격)**: `{color}_south_chop.png`(파이썬 PIL로
+    `axe_chopping.png`를 26x26 리사이즈해 `(30,34)`에 `alpha_composite`, **인페인트 없이
+    그대로 사용** — 이전 바퀴들이 겪은 "인페인트가 도끼머리를 지워버리는" 문제를 피하려고
+    이번엔 손이 이미 도끼에 가려지는 이 합성 결과가 그 자체로 자연스러워 보여서(직접 확대해
+    확인함, `crop_junction.png`) 인페인트 단계를 생략했다), `{color}_north_chop_final.png`
+    (south에서 `/rotate` south→north, 문제 없음). `contact_chop_all.png`의 1열(south)·3열
+    (north)이 이 결과다 — 도끼머리가 뚜렷하고 다리도 정상. **합격.**
+  - **chop east/west 불합격 (새로 발견한 결함, 아직 안 풀림)**: south chop을 `/rotate`로
+    south→east 변환하면(`{color}_east_chop_final.png`) **도끼와 다리가 좌우로 겹쳐서 두
+    벌 그려지는 결함**이 3색 전부에서 나왔다(`contact_chop_all.png`의 2열/4열,
+    `green_east_chop_final_big.png`로 확대 확인). west는 이 깨진 east를 그대로 미러링한
+    것이라 당연히 같이 깨졌다. **원인 추정**: south chop 이미지 하단(y≈53~58)에 바닥에
+    흩어진 나뭇조각/흙 파편(`axe_chopping.png` 자체 그림의 일부, 캐릭터 몸통에서 떨어진
+    독립된 픽셀 덩어리)이 있는데, 이게 idle(도끼가 몸에 딱 붙어 있어 이런 흩어진 요소가
+    없음)과 달리 rotate 모델이 "좌우 대칭으로 있어야 할 요소"로 잘못 해석해 반대편에도
+    복제해 넣는 것으로 보인다(idle은 이 문제가 전혀 없었다는 점이 원인 추정의 근거) —
+    **아직 검증 안 된 가설**이다.
+  - **다음 바퀴가 시도해볼 것 (예산 소진으로 이번 바퀴는 시도 전에 중단)**: south chop
+    이미지에서 흩어진 파편 부분(y≈52 이하, 몸통에서 떨어진 픽셀)을 투명하게 지운 "파편
+    없는" 버전을 만들어 그걸로 `/rotate`를 다시 시도하고(파편이 원인이 맞다면 east가
+    깨끗하게 나올 것), 성공하면 파편은 east/west에서는 그냥 생략하거나(south/north만
+    있어도 이상하지 않음) 좌표를 눈대중으로 다시 PIL로 붙여넣을 것. 이 가설이 틀리면
+    대안으로 (a) south chop 대신 이미 성공한 east idle 베이스(`grip_east_v1.png` 계열)
+    위에 axe_chopping을 직접 다른 좌표로 합성하는 방식(rotate를 아예 안 쓰는 방식)을
+    시도할 것.
+  - **이번 바퀴도 코드/게임 파일은 전혀 건드리지 않았다** — east/west chop이 합격 기준을
+    통과 못해서 `world.gd` 통합이나 `game/assets/` 복사를 하지 않기로 판단했다(4방향 중
+    2방향만 되는 상태로 통합하면 실제 플레이 중 동/서를 볼 때 깨진 그림이 그대로 노출되어
+    ①을 통과 못한다). 다음 바퀴가 east/west를 해결하면 idle+chop 24장(3색×4방향×2포즈)을
+    한 번에 `world.gd`(총(#42) 패턴 그대로: `_build_player_sprite_frames`/
+    `_current_animation_name`/`_select_hotbar`/`TOOL_USE_ICONS`에서 `"axe"` 제거)에
+    연결할 것. 이번 바퀴 생성물은 전부 `/tmp/axe_gen/`에 남아있다(이 머신은 세션이 지나도
+    `/tmp`가 지워지지 않는다).
+  - (아래는 바퀴 50이 남긴 기존 메모 — idle 부분은 위 내용으로 이미 확정됐으니 참고만 하고,
+    chop 부분은 위 새 발견(east/west rotate 결함)으로 대체됐다고 보고 읽을 것.)
+  - **새 발견 (바퀴 50, 중요): inpaint 호출 시 `no_background: true`를 반드시 줘야 한다.**
+    `no_background`를 안 주거나 false로 두면(바퀴 49는 이 값을 명시 안 함) blue/red에서
+    캐릭터 뒤에 불투명 회색 사각형 배경이 생기는 결함이 나왔다(green만 우연히 깨끗했던
+    것으로 보임). `no_background: true`로 재생성하니 사라졌다 — `blue_grip_v2.png`/
+    `red_grip_v2.png`(둘 다 `/tmp/axe_gen/`)가 이 값으로 만든 정상 결과다. **idle 포즈는
+    이 수정으로 green(기존)+blue_grip_v2+red_grip_v2 3색 south 전부 합격 수준이고, green은
+    east(rotate)/north(rotate)/west(mirror)까지 4방향 완성했다** (`green_idle_north.png`,
+    `grip_east_v1.png`, `green_idle_west.png`, 전부 `/tmp/axe_gen/`). blue/red는 아직 south만
+    있고 east/north/west 회전은 안 했다(idle은 문제 없으니 다음 바퀴가 green과 같은 방식으로
+    rotate만 돌리면 됨 — 저렴함, 회당 API 비용 매우 낮음).
+  - **새로 발견한 문제 (chop 포즈, 아직 안 풀림): south chop에서 도끼 머리가 안 보인다.**
+    직접 확대해서 보니(`chop_v1_huge.png`) 손에 쥔 게 그냥 나무 막대(지팡이/삽자루처럼
+    보임)이고 은색 도끼날이 전혀 안 보인다 — green/blue/red 전부 같은 증상
+    (`chop_v1.png`, `blue_chop_v2.png`, `red_chop_v2.png`). 원인 확인함: 합성 좌표
+    `axe_chopping.png`를 26x26로 리사이즈해 `(30,34)`에 붙이면 도끼 머리가 캔버스
+    x:30-40,y:34-43 부근에 오는데, 캐릭터 원래 손(주먹) 위치도 거의 같은 자리(x:22-41,
+    y:33-40)라서 **grip 마스크가 손을 포함하려면 필연적으로 도끼 머리 영역도 같이
+    덮게 된다** — 인페인트가 마스크 안을 통째로 다시 그리면서 도끼 머리를 "매끈한
+    막대"로 지워버린 것으로 보인다(마스크를 오른쪽으로 옮겨 머리를 피하면(`mask_chop_v2.png`
+    시도, x:40-58,y:40-58) 이번엔 원래 손이 마스크 밖에 남아 허공에 붕 뜬 채 손이
+    핸들에 안 붙어버린다 — `mask_chop_v2_overlay.png`로 확인, 아직 API 호출 전에
+    기각). **다음 바퀴가 시도해볼 것**: (a) `axe_chopping.png`를 붙이는 좌표 자체를
+    바꿔서(예: 더 오른쪽/아래로) 도끼 머리와 원래 손 위치가 겹치지 않게 하되, 땅에
+    떨어지는 나무조각 위치가 발밑에서 너무 멀어지지 않는 범위를 같이 확인할 것,
+    또는 (b) 마스크를 사각형이 아니라 손~머리 사이 좁은 대각선 띠 모양으로 만들어서
+    머리 픽셀은 최대한 보존하고 손-핸들 연결부만 좁게 다시 그리게 할 것, 또는 (c)
+    프롬프트에 "do not change the axe head, preserve the metallic axe blade shape
+    exactly"를 더 강하게/앞쪽에 배치해서 마스크가 머리를 일부 덮더라도 모델이 머리를
+    다시 그리도록 유도해볼 것(아직 시도 안 함, 예산 소진으로 중단). **idle 포즈는
+    이 문제가 없다** — idle은 도끼 머리(파스 좌표 (35,8), y:8-20대)가 손 위치(y:26-46대)와
+    충분히 떨어져 있어서 마스크가 겹치지 않았다.
+  - **이번 바퀴 코드/게임 파일은 전혀 건드리지 않았다** — chop 포즈가 합격 기준을 통과 못해서
+    `world.gd` 통합이나 `game/assets/`로의 파일 복사를 하지 않기로 판단했다(PROMPT.md ①
+    기준 미달 상태에서 코드 통합까지 하면 나중에 되돌리는 비용이 더 크다고 판단). 다음
+    바퀴가 chop을 해결하면 그때 idle+chop 세트를 한 번에 `world.gd`(총(#42) 패턴 그대로)에
+    연결할 것.
+  - 이전 바퀴(49)가 아래에 남긴 레시피/파일 목록은 idle 포즈에는 여전히 유효하다. chop
+    포즈 부분("남은 작업" 절의 rotate/west 관련 서술)은 위 새 발견으로 대체됐다고 보고
+    읽을 것.
+- (바퀴 49 노트, idle 포즈 한정으로는 여전히 유효) 다음 바퀴는 INBOX #43(도끼 통합)부터
+  계속할 것. 아래 레시피를 그대로 재사용하면 된다.
   아래 레시피를 그대로 재사용하면 된다.** (이전 바퀴 48이 5회 시도한 "텍스트 설명만으로
   마스크 안에 도끼를 그리게 하는" 접근은 전부 실패했었다 — 대칭 마스크→도끼 2자루,
   좁은 마스크→도끼 누락/블롭, 넓은 마스크→캐릭터 정체성 붕괴. 이번 바퀴가 이 접근을
