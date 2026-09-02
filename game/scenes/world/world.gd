@@ -69,6 +69,17 @@ const TOOL_ICONS := {
 	"fishing_rod": preload("res://assets/sprites/tools/fishing_rod.png"),
 }
 
+## 도구별 "실제로 쓰는 모션" 그림 (INBOX #37, DESIGN.md "도구 동작 표현"). TOOL_ICONS는
+## "들고 있는" 정적 자세고, 이 딕셔너리에 있는 도구는 사용하는 순간 잠깐 이 텍스처로
+## 바뀐다(총은 발사 시 반동으로 총구가 들리고 총열 전체가 발사열로 빛나는 모습).
+## 아직 도끼/곡괭이낫/낚싯대는 이 항목의 범위가 아니라(#38~#40에서 각각 처리) 넣지 않는다.
+const TOOL_FIRING_ICONS := {
+	"gun": preload("res://assets/sprites/tools/gun_firing.png"),
+}
+## 발사 모션 텍스처가 유지되는 시간. GUN_FIRE_INTERVAL(0.5초)보다 짧아야 연사 중에도
+## "들고 있는" 자세로 돌아왔다가 다시 반짝이는 것이 보인다.
+const GUN_MUZZLE_FLASH_DURATION := 0.12
+
 ## 손에 든 도구 아이콘을 캐릭터 옆 어디에 띄울지, 바라보는 방향별 오프셋(플레이어 로컬 좌표계).
 ## south/north는 원래 몸통 중앙(x=3) 근처에 두고 있었는데, 도구 그림 자체가 옆에서 본
 ## 대각선 자세 하나뿐이라(방향별 별도 그림 없음) 몸 정중앙에 겹치면 배에서 튀어나온 것처럼
@@ -132,6 +143,9 @@ var _is_reloading: bool = false
 var _reload_timer: float = 0.0
 ## 재장전이 시작된 탄종 — 재장전 도중 우클릭으로 탄종을 바꿔도 엉뚱한 탄창이 채워지지 않게 기억해둔다.
 var _reloading_ammo_type: String = "normal"
+## 지금 발사 모션 텍스처가 표시 중이면 0보다 크다 (INBOX #37). 매 물리 프레임 줄어들다가
+## 0이 되면 다시 "들고 있는" 텍스처로 되돌아간다.
+var _firing_flash_timer: float = 0.0
 var _is_moving: bool = false
 var _state_broadcast_timer: float = 0.0
 ## peer id -> 그 플레이어를 대신 그리는 Sprite2D (INBOX #14, remote_players_root의 자식).
@@ -228,6 +242,10 @@ func _physics_process(delta: float) -> void:
 	_recoil = maxf(0.0, _recoil - GUN_RECOIL_DECAY_PER_SEC * delta)
 	if _fire_cooldown > 0.0:
 		_fire_cooldown -= delta
+	if _firing_flash_timer > 0.0:
+		_firing_flash_timer -= delta
+		if _firing_flash_timer <= 0.0 and _held_tool == "gun" and _held_item_sprite != null:
+			_held_item_sprite.texture = TOOL_ICONS["gun"]
 	if _is_reloading:
 		_reload_timer -= delta
 		if _reload_timer <= 0.0:
@@ -250,6 +268,13 @@ func _fire() -> void:
 	_fire_cooldown = GUN_FIRE_INTERVAL
 	_ammo_in_magazine[_ammo_type] -= 1
 	_update_ammo_label()
+
+	## "들고 있는" 정적 총 텍스처를 잠깐 "발사하는" 텍스처(반동으로 총구가 들리고
+	## 총열이 발사열로 빛나는 그림)로 바꿔서 들기/쏘기가 서로 다른 그림으로 보이게 한다
+	## (INBOX #37, DESIGN.md "도구 동작 표현").
+	if _held_item_sprite != null and TOOL_FIRING_ICONS.has("gun"):
+		_held_item_sprite.texture = TOOL_FIRING_ICONS["gun"]
+		_firing_flash_timer = GUN_MUZZLE_FLASH_DURATION
 
 	var aim := get_global_mouse_position() - player_sprite.global_position
 	if aim.length() < 1.0:
