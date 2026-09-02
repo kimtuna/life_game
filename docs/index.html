@@ -19,18 +19,18 @@
 </head>
 <body>
   <h1>auto-loop 진행 상황</h1>
-  <p class="updated">마지막 갱신: 2026-09-02 21:55:03</p>
+  <p class="updated">마지막 갱신: 2026-09-02 22:02:14</p>
   <div class="row">
-    <div class="card"><div class="label">남은 항목</div><div class="num">6</div></div>
-    <div class="card"><div class="label">완료된 항목</div><div class="num">25</div></div>
+    <div class="card"><div class="label">남은 항목</div><div class="num">5</div></div>
+    <div class="card"><div class="label">완료된 항목</div><div class="num">26</div></div>
   </div>
   <div class="card">
     <div class="label">지금 처리 중 / 다음으로 처리할 항목</div>
-    <div>#26 (버그 리포트) 목장(ranch_zone)이 실제 충돌 오브젝트가 아니라서 동물이 경계를 통과한다. 지금은 사슴 위치를 매 프레임 강제로 되돌리는 방식(clamp)으로만 안에 가둬놓고 있는데, 실제 충돌체(담장 등 StaticBody2D+CollisionShape2D)를 목장 경계에 추가해서 물리적으로 못 지나가게 만든다.</div>
+    <div>#27 (버그 리포트/설계 정정) 농사 심기 방식을 바꾼다. 지금은 도구(곡괭이/낫 등)로 상호작용해서 심어지는 것 같은데, DESIGN.md대로 "심을 씨앗 아이템을 핫바에서 손에 든 상태"에서 밭에 좌클릭해야 심어지도록 바꾼다. 수확은 곡괭이(#25에서 합친 도구)를 든 상태로 좌클릭하면 되도록 유지/확인한다.</div>
   </div>
   <div class="card">
     <div class="label">마지막 작업 커밋</div>
-    <div><code>20f5566 [INBOX #25] 곡괭이/낫을 곡괭이낫 하나로 통합 (+ 이전 세션 미커밋 #24 포함)</code></div>
+    <div><code>b58916d [INBOX #26] 목장 경계를 clamp 대신 실제 물리 충돌체(담장)로 막음</code></div>
   </div>
 </body>
 </html>
