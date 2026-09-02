@@ -8,10 +8,12 @@ MODEL="sonnet"
 # 참고: claude CLI에는 "최대 턴 수"를 직접 제한하는 옵션이 없습니다.
 # 대신 예산(MAX_BUDGET_USD_PER_LAP)과 시간(LAP_TIMEOUT_SECONDS) 두 가지로
 # 한 바퀴의 크기를 제한합니다.
-MAX_BUDGET_USD_PER_LAP="2.00"
+MAX_BUDGET_USD_PER_LAP="5.00"
 
 # 한 바퀴 최대 실행 시간(초). 이 시간을 넘기면 해당 바퀴를 강제 종료하고 다음 바퀴로 넘어갑니다.
-LAP_TIMEOUT_SECONDS=1800
+# 예산을 5.00으로 올리면서 시간도 같이 늘림(1800→3600) — 안 그러면 예산보다 시간이
+# 먼저 끊어서 늘어난 예산이 무의미해질 수 있음.
+LAP_TIMEOUT_SECONDS=3600
 
 # 바퀴 사이 대기 시간(초).
 WAIT_BETWEEN_LAPS=60
