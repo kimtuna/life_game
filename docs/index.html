@@ -19,18 +19,18 @@
 </head>
 <body>
   <h1>auto-loop 진행 상황</h1>
-  <p class="updated">마지막 갱신: 2026-09-02 23:45:33</p>
+  <p class="updated">마지막 갱신: 2026-09-02 23:53:20</p>
   <div class="row">
-    <div class="card"><div class="label">남은 항목</div><div class="num">1</div></div>
-    <div class="card"><div class="label">완료된 항목</div><div class="num">34</div></div>
+    <div class="card"><div class="label">남은 항목</div><div class="num">0</div></div>
+    <div class="card"><div class="label">완료된 항목</div><div class="num">35</div></div>
   </div>
   <div class="card">
     <div class="label">지금 처리 중 / 다음으로 처리할 항목</div>
-    <div>#35 (품질 피드백) 도구를 들고 있을 때 플레이어가 4방향(정면/좌/우/후면)을 볼 때 전부 부자연스럽다. 원인으로 보이는 것 하나: 손에 든 도구 스프라이트(`_held_item_sprite`)가 `player_sprite`의 자식 노드라서 항상 플레이어 스프라이트보다 위에 그려진다 — 뒤(north)를 보고 있을 때도 도구가 몸 앞에 떠 있는 것처럼 보일 수 있다. 4방향 전부(도구 든 상태) 실제로 스크린샷을 찍어서 직접 눈으로 확인하고, 방향별로 도구가 몸 앞/뒤 어디에 그려져야 자연스러운지 판단해서 z_index나 위치/각도를 방향별로 다르게 조정해 고친다.</div>
+    <div>(없음 — 큐 비어있음)</div>
   </div>
   <div class="card">
     <div class="label">마지막 작업 커밋</div>
-    <div><code>6b03f5a [INBOX #34] 목장 풀어놓기를 빈손 좌클릭에서 포획 아이템을 든 좌클릭으로 변경</code></div>
+    <div><code>27736c3 [INBOX #35] 도구를 든 채 4방향을 볼 때 부자연스러운 자세를 위치/렌더순서 조정으로 고침</code></div>
   </div>
 </body>
 </html>
