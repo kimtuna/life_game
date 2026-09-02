@@ -20,6 +20,7 @@ config/icon="res://icon.svg"
 CharacterData="*res://scripts/character_data.gd"
 SettingsData="*res://scripts/settings_data.gd"
 InventoryData="*res://scripts/inventory_data.gd"
+TimeData="*res://scripts/time_data.gd"
 
 [display]
 

@@ -13,6 +13,10 @@ const GUN_RECOIL_PER_SHOT := 0.15
 const GUN_RECOIL_MAX := 0.6
 const GUN_RECOIL_DECAY_PER_SEC := 2.0
 
+## 낮/밤 화면 밝기 (INBOX #13). TimeData.phase_progress()에 맞춰 두 색 사이를 보간한다.
+const DAY_COLOR := Color(1.0, 1.0, 1.0, 1.0)
+const NIGHT_COLOR := Color(0.25, 0.28, 0.48, 1.0)
+
 const BulletScene := preload("res://scenes/bullet/bullet.tscn")
 const DeerScene := preload("res://scenes/deer/deer.tscn")
 const GatheringPointScene := preload("res://scenes/resource_point/gathering_point.tscn")
@@ -51,6 +55,9 @@ const ITEM_LABELS := {
 @onready var pause_menu: Control = $UI/PauseMenu
 @onready var ammo_label: Label = $UI/HUD/AmmoPanel/AmmoLabel
 @onready var inventory_label: Label = $UI/HUD/InventoryPanel/InventoryLabel
+@onready var time_label: Label = $UI/HUD/TimePanel/TimeLabel
+@onready var day_night_modulate: CanvasModulate = $DayNightModulate
+@onready var rain_overlay: ColorRect = $UI/RainOverlay
 
 var _variant: String = "green"
 var _facing: String = "south"
@@ -72,6 +79,17 @@ func _ready() -> void:
 	_spawn_ranch_zone()
 	InventoryData.changed.connect(_update_inventory_label)
 	_update_inventory_label()
+	TimeData.phase_changed.connect(_on_time_phase_changed)
+	TimeData.day_changed.connect(_on_time_day_changed)
+	TimeData.weather_changed.connect(_on_time_weather_changed)
+	_update_time_label()
+	rain_overlay.visible = TimeData.is_raining
+
+
+func _process(_delta: float) -> void:
+	var t := TimeData.phase_progress()
+	day_night_modulate.color = DAY_COLOR.lerp(NIGHT_COLOR, t) if TimeData.is_day \
+		else NIGHT_COLOR.lerp(DAY_COLOR, t)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -228,6 +246,23 @@ func _update_inventory_label() -> void:
 		if count > 0:
 			parts.append("%s x%d" % [ITEM_LABELS[item_key], count])
 	inventory_label.text = "인벤토리: " + (", ".join(parts) if not parts.is_empty() else "(비어 있음)")
+
+
+func _on_time_phase_changed(_is_day: bool) -> void:
+	_update_time_label()
+
+
+func _on_time_day_changed(_day_number: int) -> void:
+	_update_time_label()
+
+
+func _on_time_weather_changed(is_raining: bool) -> void:
+	rain_overlay.visible = is_raining
+
+
+func _update_time_label() -> void:
+	var phase_text := "낮" if TimeData.is_day else "밤"
+	time_label.text = "%s %d일차 · %s" % [TimeData.season_label(), TimeData.current_day_of_month(), phase_text]
 
 
 func _update_texture() -> void:
