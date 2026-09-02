@@ -70,12 +70,20 @@ const TOOL_ICONS := {
 }
 
 ## 손에 든 도구 아이콘을 캐릭터 옆 어디에 띄울지, 바라보는 방향별 오프셋(플레이어 로컬 좌표계).
+## south/north는 원래 몸통 중앙(x=3) 근처에 두고 있었는데, 도구 그림 자체가 옆에서 본
+## 대각선 자세 하나뿐이라(방향별 별도 그림 없음) 몸 정중앙에 겹치면 배에서 튀어나온 것처럼
+## 보였다(INBOX #35). east/west처럼 몸 옆(엉덩이 높이)으로 옮겨서 "옆구리에 걸친" 자세로
+## 보이게 했다.
 const HELD_ITEM_OFFSETS := {
 	"east": Vector2(15.0, 3.0),
 	"west": Vector2(-15.0, 3.0),
-	"north": Vector2(3.0, -15.0),
-	"south": Vector2(3.0, 15.0),
+	"north": Vector2(14.0, -2.0),
+	"south": Vector2(16.0, 11.0),
 }
+
+## 등을 보이는 north에서는 도구를 몸 앞이 아니라 몸 뒤(등/옆구리)에 걸친 것처럼 보이도록
+## 캐릭터 스프라이트보다 뒤에 그린다. 그 외 방향은 손에 쥔 것이 자연스럽게 앞에 보여야 한다.
+const HELD_ITEM_BEHIND_FACINGS := ["north"]
 
 ## 다른 플레이어에게 내 위치/방향을 보내는 주기 (INBOX #14). 매 물리 프레임(60Hz)마다
 ## 보내면 LAN 기준으로도 낭비라, 10Hz로 줄인다 — 위치는 unreliable 채널이라 중간에
@@ -429,6 +437,7 @@ func _update_held_item_transform() -> void:
 		return
 	_held_item_sprite.position = HELD_ITEM_OFFSETS.get(_facing, Vector2.ZERO)
 	_held_item_sprite.flip_h = _facing == "west"
+	_held_item_sprite.show_behind_parent = _facing in HELD_ITEM_BEHIND_FACINGS
 
 
 ## 화면 아래 중앙에 핫바 9칸을 만든다 (INBOX #22). 인벤토리 창의 맨 위 9칸(핫바)과
