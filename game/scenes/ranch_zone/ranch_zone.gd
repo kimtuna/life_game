@@ -2,9 +2,9 @@ extends Node2D
 ## 목장 구역 (INBOX #12). deer.gd에서 마취탄으로 포획하면 InventoryData의
 ## captured_deer 개수가 늘어난다(포획된 사슴이 즉시 필드에 나타나지 않고 "재고"로
 ## 쌓이는 방식 — farm_plot의 씨앗/작물처럼 InventoryData를 경유). INBOX #23부터는
-## F키 대신 좌클릭으로 사슴을 풀어놓는다. DESIGN.md에 이 상호작용에 지정된 도구가
-## 없으므로, "맞는 도구"를 빈손(REQUIRED_TOOL="")으로 두어 도구를 든 채로는(예: 총을
-## 들고 실수로 발사되는 것과 헷갈리지 않게) 동작하지 않고 빈손일 때만 좌클릭이 먹힌다.
+## F키 대신 좌클릭으로 사슴을 풀어놓는다. INBOX #34부터는 farm_plot의 씨앗 심기와 같은
+## "손에 든 아이템으로 좌클릭" 패턴을 따른다 — 포획한 동물 아이템(captured_deer)을
+## 핫바에서 손에 든 채 좌클릭해야 풀어놓아진다(빈손 좌클릭은 더 이상 동작하지 않는다).
 ## 그 사슴은 deer.gd의 is_ranched 모드(도주 없음, zone_radius 안에서만 배회)로 산다.
 ## INBOX #26부터는 zone_radius 안에 머무는 것을 매 프레임 position clamp가 아니라
 ## _build_fence()가 만드는 실제 담장(StaticBody2D + CollisionShape2D 여러 개를 원형으로
@@ -17,7 +17,6 @@ extends Node2D
 const INTERACT_RADIUS := 150.0
 const ZONE_RADIUS := 100.0
 const CAPTURED_ITEM := "captured_deer"
-const REQUIRED_TOOL := ""
 
 const FENCE_SEGMENTS := 16
 const FENCE_THICKNESS := 12.0
@@ -67,7 +66,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if not prompt.visible:
 		return
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT \
-			and world_ref != null and world_ref.get_held_tool() == REQUIRED_TOOL:
+			and world_ref != null and world_ref.get_held_item() == CAPTURED_ITEM:
 		_release_one()
 
 
