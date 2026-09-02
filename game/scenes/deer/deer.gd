@@ -1,5 +1,10 @@
-extends Node2D
+extends CharacterBody2D
 ## 사슴 한 마리의 AI(배회/도주)와 사냥/포획 판정을 맡는다. (INBOX #9)
+## INBOX #26부터 CharacterBody2D로 바뀌었다 — move_and_slide()가 목장 담장
+## (ranch_zone.gd가 만드는 StaticBody2D+CollisionShape2D)과 실제로 충돌하게
+## 하기 위함. 이전에는 순수 Node2D + 직접 position 대입 방식이라 목장 경계를
+## "밀어내는" 물리 충돌이 불가능해서 매 프레임 위치를 강제로 되돌리는 clamp로
+## 대신했었다.
 
 const MAX_HEALTH := 100
 ## DESIGN.md "포획": 체력이 10%(=10) 미만으로 떨어지는 상태에서 마취탄에 맞으면 포획.
@@ -39,8 +44,10 @@ var player_ref: Node2D = null
 var world_ref: Node2D = null
 
 ## 목장에 풀어놓은 사슴이면 true (INBOX #12). ranch_zone.gd가 스폰 직후 채워준다.
-## 배회만 하고 도주하지 않으며, 이동 범위가 WORLD_BOUNDS 대신 zone_center 기준
-## zone_radius 원형 범위로 제한된다.
+## 배회만 하고 도주하지 않는다. 이동 범위는 (INBOX #26부터) zone_center/zone_radius로
+## 더 이상 코드로 clamp하지 않고, ranch_zone.gd가 세운 실제 담장(StaticBody2D)이
+## move_and_slide()로 물리적으로 막아준다 — 두 값은 이제 ranch_zone.gd가 담장 반경과
+## 일치시켜 초기 스폰 위치를 무작위로 고를 때만 참고용으로 쓴다.
 var is_ranched: bool = false
 var zone_center: Vector2 = Vector2.ZERO
 var zone_radius: float = 0.0
@@ -143,15 +150,13 @@ func _wall_slide_direction(preferred: Vector2) -> Vector2:
 	return adjusted.normalized()
 
 
-func _move(direction: Vector2, speed: float, delta: float) -> void:
+func _move(direction: Vector2, speed: float, _delta: float) -> void:
 	if direction.length() < 0.01:
+		velocity = Vector2.ZERO
 		return
-	position += direction * speed * delta
-	if is_ranched:
-		var offset := position - zone_center
-		if offset.length() > zone_radius:
-			position = zone_center + offset.normalized() * zone_radius
-	else:
+	velocity = direction * speed
+	move_and_slide()
+	if not is_ranched:
 		position.x = clampf(position.x, -WORLD_BOUNDS, WORLD_BOUNDS)
 		position.y = clampf(position.y, -WORLD_BOUNDS, WORLD_BOUNDS)
 	var new_facing := _facing_from_direction(direction)

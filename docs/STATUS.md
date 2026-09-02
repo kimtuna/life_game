@@ -5,9 +5,46 @@
 
 ## 마지막 갱신
 
-바퀴 27 / 2026-09-02
+바퀴 28 / 2026-09-02
 
-## 끝난 것 (바퀴 27)
+## 끝난 것 (바퀴 28)
+
+- INBOX #26 완료: 목장(ranch_zone) 경계를 매 프레임 position clamp가 아니라 실제
+  물리 충돌체로 막도록 바꿨다.
+  - `deer.gd`의 `extends Node2D`를 `extends CharacterBody2D`로 바꾸고, `_move()`가
+    `position +=` 직접 대입 대신 `velocity` 설정 + `move_and_slide()`를 쓰도록
+    고쳤다. `is_ranched`일 때 하던 `zone_center`/`zone_radius` 기준 원형 clamp
+    블록은 완전히 제거했다 — 이제 실제 담장이 막아준다. 비목장(야생) 사슴의
+    `WORLD_BOUNDS` clamp(맵 끝 무한 경계)는 그대로 유지했다(#26 범위 밖, 담장이
+    없는 지형이라 여전히 clamp가 필요함).
+  - `deer.tscn`의 루트 노드 타입을 `Node2D`→`CharacterBody2D`로 바꾸고, 기존
+    `Hurtbox`(Area2D, 총알 피격 판정용, 그대로 유지) 옆에 몸통 물리 충돌용
+    `CollisionShape2D`(반경 20 CircleShape2D)를 새로 추가했다. 기존 Hurtbox는
+    독립된 Area2D라 이번 변경과 레이어 충돌이 없다(총알/피격 판정에 영향 없음 —
+    실제 실행으로 확인).
+  - `ranch_zone.gd`에 `_build_fence()`를 추가했다. `ZONE_RADIUS`(100) 원주를 따라
+    얇은 직사각형 `CollisionShape2D` 16개(`FENCE_SEGMENTS`)를 겹치게 이어붙여 속이
+    빈 원형 담장을 만들고, 하나의 `StaticBody2D`(`Fence`) 아래 자식으로 둔다. 속이
+    꽉 찬 `CircleShape2D` 하나를 쓰지 않은 이유: 그러면 목장 안에 스폰되는 사슴이
+    담장 안쪽에서부터 이미 겹친 상태가 되어 `move_and_slide()`가 즉시 밖으로
+    튕겨내 버린다 — 세그먼트 방식은 속이 비어 있어 이 문제가 없다.
+  - `_release_one()`의 스폰 위치 계산도 `spawn_radius := ZONE_RADIUS - FENCE_THICKNESS`로
+    안쪽 여유를 둬서, 새로 풀어놓는 사슴이 담장 콜라이더와 겹친 채 스폰되지 않게 했다
+    (지시받지 않았지만 추가한 개선 — 담장을 실제 충돌체로 만들면서 자연히 필요해진
+    안전장치).
+  - 검증: `godot --path . --script <임시스크립트>.gd`로 world.tscn을 실제로 띄운 뒤
+    (1) 목장에 사슴을 풀어놓고 바깥쪽으로 강제 이동(`velocity=(500,0)`)을 600 물리
+    프레임 동안 반복 적용해도 중심에서 75.6 거리를 넘지 못하는 것을 확인(담장 반경
+    100+두께 12 안쪽에 갇힘 — clamp 없이 물리적으로만 막힌 것), (2) 같은 스크립트로
+    비목장 야생 사슴이 400프레임 동안 정상적으로 배회(약 78 거리 이동)해 회귀가 없는
+    것을 확인, (3) `godot --path .`(렌더링 모드)로 목장 스크린샷을 찍어 기존
+    `pasture.png`(담장이 이미 그림으로 그려진 텍스처) 위에 사슴이 정상적으로 보이고
+    렌더링 깨짐이 없는 것을 눈으로 확인했다. 임시 스크립트/스크린샷/
+    `user://inventory.save`는 검증 후 모두 삭제했다.
+  - 변경 파일: `game/scenes/deer/deer.gd`, `game/scenes/deer/deer.tscn`,
+    `game/scenes/ranch_zone/ranch_zone.gd`.
+
+## 끝난 것 (바퀴 27, 이전 기록)
 
 - **먼저: 세션 시작 시점에 이미 INBOX #24(바닥 드롭 아이템)가 완료 표시(`- [x]`)되어
   있었는데, 관련 코드(`deer.gd`/`farm_plot.gd`/`resource_point.gd`/`world.gd`의
@@ -186,11 +223,17 @@
 
 ## 다음에 할 것
 
-- `docs/feedback/INBOX.md` "처리 대기"의 다음 미완료 항목은 `#26`(목장 경계를 clamp가
-  아니라 실제 충돌체(StaticBody2D+CollisionShape2D)로 막기)이다. `ranch_zone.gd`가 지금
-  사슴 위치를 매 프레임 강제로 되돌리는 방식(clamp)을 쓰는 부분을 찾아 담장류 충돌체로
-  바꿀 것.
-- **INBOX #27(농사 심기 방식 변경)이 다음다음 항목으로 대기 중** — 지금 `farm_plot.gd`는
+- `docs/feedback/INBOX.md` "처리 대기"의 다음 미완료 항목은 `#27`(농사 심기 방식을
+  "곡괭이낫으로 상호작용"에서 "씨앗 아이템을 손에 든 상태로 밭에 좌클릭"으로 변경)이다.
+- **INBOX #26(목장 경계 실제 충돌체화)은 이번 바퀴(28)에 완료했다.** `deer.gd`가
+  `CharacterBody2D`+`move_and_slide()`로 바뀌었으므로, 앞으로 사슴 이동 관련 코드를
+  건드릴 때는 더 이상 `position +=` 직접 대입을 쓰지 말고 `velocity` 설정 후
+  `move_and_slide()`를 호출하는 패턴을 유지할 것. 목장 외 다른 구역(예: 나중에 생길
+  수 있는 다른 울타리형 구역)에도 비슷한 실제 충돌 담장이 필요해지면
+  `ranch_zone.gd._build_fence()`(세그먼트형 CollisionShape2D를 원주에 이어붙이는 방식)를
+  재사용/참고할 것 — 속이 꽉 찬 CircleShape2D 하나로 담장을 만들면 안 된다(스폰 시
+  즉시 밀려남).
+- INBOX #27(농사 심기 방식 변경)이 다음 항목으로 대기 중 — 지금 `farm_plot.gd`는
   여전히 "도구(곡괭이낫)를 든 채 좌클릭"으로 심기/수확 둘 다 처리한다(이번 바퀴 #25는
   도구 이름만 sickle→pickaxe로 바꿨을 뿐, 상호작용 방식 자체는 안 건드렸다). #27이 오면
   `_can_interact()`/`_unhandled_input()`의 EMPTY 상태 분기를 "씨앗 아이템을 손에 든 상태"
