@@ -22,6 +22,11 @@ const RESOLUTIONS: Array[Vector2i] = [
 
 var resolution_index: int = 0
 
+## 설정 화면의 "뒤로" 버튼이 돌아갈 곳. 설정 화면은 메인 메뉴와 월드(일시정지 메뉴)
+## 양쪽에서 열릴 수 있어서, 여는 쪽이 이 값을 미리 채워두고 설정 화면은 그대로 읽기만 한다
+## (CharacterData.active_slot_index와 같은 패턴 — Godot는 change_scene에 인자를 못 넘긴다).
+var return_scene_path: String = "res://scenes/main_menu/main_menu.tscn"
+
 
 func _ready() -> void:
 	_load()

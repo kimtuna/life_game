@@ -4,9 +4,11 @@ const MOVE_SPEED := 220.0
 
 @onready var player_sprite: Sprite2D = $Player
 @onready var camera: Camera2D = $Camera2D
+@onready var pause_menu: Control = $UI/PauseMenu
 
 var _variant: String = "green"
 var _facing: String = "south"
+var _paused: bool = false
 
 
 func _ready() -> void:
@@ -15,7 +17,15 @@ func _ready() -> void:
 	_update_texture()
 
 
+func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE:
+		_set_paused(not _paused)
+
+
 func _physics_process(delta: float) -> void:
+	if _paused:
+		return
+
 	var input_dir := Vector2.ZERO
 	if Input.is_physical_key_pressed(KEY_D):
 		input_dir.x += 1.0
@@ -59,5 +69,19 @@ func _update_texture() -> void:
 	player_sprite.texture = load("res://assets/sprites/character/%s_%s.png" % [_variant, _facing])
 
 
-func _on_back_pressed() -> void:
+func _set_paused(value: bool) -> void:
+	_paused = value
+	pause_menu.visible = value
+
+
+func _on_resume_pressed() -> void:
+	_set_paused(false)
+
+
+func _on_settings_pressed() -> void:
+	SettingsData.return_scene_path = "res://scenes/world/world.tscn"
+	get_tree().change_scene_to_file("res://scenes/settings/settings.tscn")
+
+
+func _on_quit_pressed() -> void:
 	get_tree().change_scene_to_file("res://scenes/main_menu/main_menu.tscn")
