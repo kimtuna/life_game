@@ -5,45 +5,58 @@
 
 ## 마지막 갱신
 
-바퀴 8 / 2026-09-02
+바퀴 9 / 2026-09-02
 
 ## 끝난 것
 
-- INBOX #7: "설정에서 해상도를 골라도 안 바뀐다" 버그를 조사했다. **결론: 코드 결함이
-  아니다.** 확인된 원인은 Godot 4.7 에디터의 "게임 임베딩"(Embed Game in Editor Window)
-  기능이다 — 에디터에서 Play를 누르면 실제 별도 OS 창 대신 에디터 안의 "Game" 패널에
-  게임 화면이 끼워 넣어지고, 그 패널 자체에 별도의 "화면비 유지" 같은 표시 옵션이 있다
-  (이 옵션은 패널이 고정 렌더 결과를 어떻게 "보여줄지"만 바꾸는 순수 UI 기능이고, 우리
-  프로젝트의 실제 해상도/창 크기 로직과는 완전히 무관하다). 이 기능은 (1) 사람마다 다른
-  머신에 저장된 전역 에디터 설정(`~/Library/Application Support/Godot/editor_settings-
-  4.7.tres`의 `run/window_placement/game_embed_mode`, 기본값 "프로젝트별 설정 사용")과
-  (2) 그 프로젝트별 선택을 캐시하는 `game/.godot/editor/project_metadata.cfg`(이미
-  `.gitignore`의 `game/.godot/`에 포함돼 저장소에 커밋되지 않는 로컬 캐시, 이번 조사
-  중 `embed_size_mode=1`로 이미 설정돼 있는 걸 확인)로 제어되며, 둘 다 이 저장소가 추적하는
-  파일이 아니다. `ProjectSettings.has_setting("run/window_placement/game_embed_mode")`가
-  `false`를 반환하는 것도 확인해서 — project.godot에 넣을 수 있는 프로젝트 설정 키 자체가
-  존재하지 않는다(에디터 전역 설정일 뿐 프로젝트 설정이 아님)는 것도 코드로 직접 검증했다.
-  즉 저장소 안의 그 어떤 파일을 고쳐도 이 동작을 바꿀 수 없다.
-  **실제 게임 로직은 정상 동작함을 별도로 검증**: 에디터 임베딩을 우회하는
-  `godot --path . --script <스크립트>.gd`(에디터가 아니라 실제 게임 프로세스로 실행,
-  익스포트된 빌드와 동일한 경로)로 `SettingsData.set_resolution(2)`(1920x1080),
-  `set_resolution(0)`(1280x720)을 직접 호출해 `root.size`가 매번 정확히 그 값으로
-  바뀌는 것을 콘솔 출력으로 확인했다. 즉 `settings.gd`→`SettingsData.set_resolution`→
-  `get_window().size` 경로는 이미 올바르게 동작하고 있었다 — 버그 리포트는 에디터
-  미리보기 UI를 실제 게임 동작으로 착각한 것이었다(리포트 문구 자체도 "정확한 원인은
-  확인 필요"라고 여지를 남겨뒀음). 코드 변경은 없음(고칠 결함이 없었음).
-  **다음 QA를 위한 교훈**: 해상도/창 크기 관련 기능을 눈으로 검수할 때는 Godot 에디터의
-  "Play" 버튼(임베디드 Game 패널)이 아니라 `godot --path . --script <스크립트>.gd`
-  방식(바퀴 2 결정 로그의 스크린샷 방식과 동일한 원리 — 엔진을 직접 구동해 실제 창/렌더
-  상태를 확인)으로 확인할 것. 에디터 임베디드 패널은 개발 편의용 미리보기일 뿐 실제
-  게임(익스포트 빌드) 동작을 대표하지 않는다.
+- INBOX #8: 사냥 전투(사격) 프로토타입을 만들었다. `world.gd`에 DESIGN.md "총기 스탯"
+  그대로(사거리 800, 데미지 25, 연사 간격 0.5초=초당 2발) 상수를 넣고, 좌클릭을 누른
+  상태에서 쿨다운이 끝날 때마다 `_fire()`가 총알을 하나씩 생성한다. 우클릭은
+  `_unhandled_input`에서 감지해 `_ammo_type`("normal"/"tranq")을 토글하고, 월드
+  좌상단 HUD 라벨(`UI/HUD/AmmoPanel/AmmoLabel`)에 현재 탄종을 표시한다. 새로 만든
+  `scenes/bullet/bullet.tscn`(Area2D + CollisionShape2D + Line2D 트레일)이 총알
+  하나의 이동을 맡는다 — 매 물리 프레임 `velocity * delta`만큼 이동하며 누적 이동거리가
+  `max_range`(800)에 도달하면 스스로 `queue_free()`한다. 탄퍼짐은 이동 중이면 8도,
+  정지 중이면 1도 범위에서 조준 방향에 랜덤 회전을 더해 구현했고, 반동은 사격마다
+  `_recoil`을 0.15씩 올려(최대 0.6) 조준 방향에 `Vector2.UP * _recoil`을 더한 뒤
+  정규화하는 방식으로 "화면상 위로 튐"을 구현했다 — 사격을 멈추면 초당 2.0씩 감쇠해서
+  빠르게 원래 조준으로 돌아온다(DESIGN.md "반동" 문구 그대로).
+  아직 사슴이 없으므로 총알 충돌/명중 판정은 만들지 않았다(지시 범위 밖, INBOX #9 몫) —
+  `bullet.tscn`은 collision_layer=4/mask=0으로 세팅만 해두고 실제 감지는 비워뒀다.
+  **검증 방법**: `godot --headless --path . --script <스크립트>.gd`로 월드 씬을 직접
+  인스턴스화해서 `_fire()`를 호출해본 결과, 한 번 쏘면 `_fire_cooldown`이 정확히 0.5초로
+  세팅됨(연사 제한 확인)과 총알이 약 800 유닛(계측값 806.67, 22프레임 소요) 이동한
+  시점에 `is_queued_for_deletion()`이 true가 됨(사거리 제한 확인)을 콘솔 출력으로
+  확인했다. 화면 검증은 `godot --path . --script <스크립트>.gd`(헤드리스 아님 —
+  더미 렌더러라 텍스처가 안 나와서 실제 OpenGL 드라이버로 띄워야 `get_texture()`가
+  됨, 바퀴 8 교훈과 별개의 새로운 발견)로 3연발을 쏘고 뷰포트를 PNG로 저장해 확인했다
+  (HUD 탄약 라벨과 노란 총알 트레일이 화면에 정상적으로 보임). 검증에 쓴 임시 스크립트와
+  스크린샷은 게임 코드가 아니라서 커밋 전에 지웠다.
 
 ## 다음에 할 것
 
-- `docs/feedback/INBOX.md` "처리 대기"에 남은 미완료 항목이 없다(#1~#7 모두 완료).
-  다음 바퀴는 새 INBOX 항목이 추가될 때까지 열리지 않는다(loop.sh가 빈 큐면 세션을
-  새로 열지 않음). 사람이 새 버그 리포트/기능 지시를 `INBOX.md`에 추가하면 그 항목을
-  이어서 처리하면 된다.
+- `docs/feedback/INBOX.md` "처리 대기"의 다음 항목은 **#9(사슴 배치·AI·사냥/포획
+  판정)**이다. #8에서 만든 `bullet.tscn`이 `damage`/`ammo_type`을 이미 들고 있으니,
+  #9는 사슴 쪽에 Area2D 충돌 감지 + 체력/도주 로직만 추가하고 총알 쪽 collision_layer/
+  mask(현재 layer=4, mask=0)를 사슴과 실제로 부딪히도록 조정하면 된다. 사슴 배회 AI는
+  DESIGN.md "동물 AI"(평소 배회, 접근/피격 시 도주) 그대로 따르면 됨.
+
+## 헤드리스 CLI 검증 시 추가로 확인된 점 (다음 바퀴 참고)
+
+- `godot --script <script>.gd`(SceneTree 확장 스크립트)에서 오토로드(CharacterData 등)에
+  안전하게 접근하려면 로직을 `_init()`이 아니라 `_initialize()`에 넣을 것 — `_init()`
+  시점에는 아직 오토로드가 등록되지 않아 "Identifier not found" 컴파일 에러가 난다.
+- `_initialize()`에서 씬을 `add_child`해도 `@onready` 변수는 그 즉시 채워지지 않는다
+  (NOTIFICATION_READY가 다음 프레임에 전달됨). `_process(delta)`를 오버라이드해서 최소
+  1~2프레임 지난 뒤에 값을 읽을 것.
+- `queue_free()`로 예약된 노드는 실제 엔진 메인루프가 프레임을 처리해야 해제되므로,
+  스크립트에서 직접 `_physics_process()`를 반복 호출하는 식의 "가짜 프레임 진행"으로는
+  `is_instance_valid()`가 절대 false가 되지 않는다. 대신 `is_queued_for_deletion()`으로
+  "해제가 예약됐는지"만 확인할 것.
+- `--headless`로 실행하면 더미 렌더러가 붙어서 `get_texture()`가 null을 반환한다(화면
+  캡처 불가). 화면을 실제로 캡처해야 하면 `--headless`를 빼고(`godot --path . --script
+  ...`) 실제 렌더링 드라이버(OpenGL/Metal)로 띄운 채 실행할 것 — 바퀴 2 결정 로그의
+  스크린샷 방식과 같은 원리이지만 `--headless` 유무가 갈린다는 점이 이번에 새로 확인됨.
 
 ## 막힌 것 / 보류
 
