@@ -22,6 +22,14 @@ const WORLD_BOUNDS := 3800.0
 const FLEE_WALL_MARGIN := 80.0
 
 @onready var sprite: Sprite2D = $Sprite
+@onready var health_bar: Node2D = $HealthBar
+@onready var health_bar_fill: ColorRect = $HealthBar/Fill
+
+const HEALTH_BAR_WIDTH := 40.0
+## 포획 가능 구간(체력 10% 이하)을 색으로 구분해서, 마취탄 포획 타이밍을
+## 체력바만 보고도 알 수 있게 한다 (INBOX #19가 요구하지 않은 추가 UX).
+const HEALTH_BAR_COLOR_NORMAL := Color(0.2, 0.8, 0.2, 1.0)
+const HEALTH_BAR_COLOR_CAPTURABLE := Color(0.95, 0.85, 0.15, 1.0)
 
 ## world.gd가 스폰 직후 채워준다 (플레이어 접근 감지용).
 var player_ref: Node2D = null
@@ -44,6 +52,7 @@ var _dead: bool = false
 
 func _ready() -> void:
 	_update_texture()
+	_update_health_bar()
 	_pick_idle()
 
 
@@ -90,10 +99,23 @@ func take_hit(damage: int, ammo_type: String) -> void:
 		_capture()
 		return
 	health = maxi(0, resulting)
+	_update_health_bar()
 	if health <= 0:
 		_die()
 	else:
 		_start_flee()
+
+
+## 체력바는 만피(다치지 않은 상태)일 때는 숨기고, 한 번이라도 맞으면 보여준다 (INBOX #19).
+## 포획 가능 구간(체력 10% 이하)에서는 색을 바꿔 마취탄 포획 타이밍을 강조한다.
+func _update_health_bar() -> void:
+	health_bar.visible = health < MAX_HEALTH
+	var ratio := float(health) / float(MAX_HEALTH)
+	health_bar_fill.offset_right = health_bar_fill.offset_left + HEALTH_BAR_WIDTH * ratio
+	if health <= CAPTURE_HEALTH_THRESHOLD:
+		health_bar_fill.color = HEALTH_BAR_COLOR_CAPTURABLE
+	else:
+		health_bar_fill.color = HEALTH_BAR_COLOR_NORMAL
 
 
 ## 도주 방향 중 월드 경계 쪽으로 파고드는 성분을 0으로 눌러(벽을 따라 미끄러지듯) 실제로

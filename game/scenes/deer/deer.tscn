@@ -18,3 +18,21 @@ collision_mask = 4
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Hurtbox"]
 shape = SubResource("CircleShape2D_hurtbox")
+
+[node name="HealthBar" type="Node2D" parent="."]
+position = Vector2(0, -50)
+visible = false
+
+[node name="Background" type="ColorRect" parent="HealthBar"]
+offset_left = -20.0
+offset_top = -3.0
+offset_right = 20.0
+offset_bottom = 3.0
+color = Color(0.08, 0.08, 0.08, 0.75)
+
+[node name="Fill" type="ColorRect" parent="HealthBar"]
+offset_left = -20.0
+offset_top = -3.0
+offset_right = 20.0
+offset_bottom = 3.0
+color = Color(0.2, 0.8, 0.2, 1)
