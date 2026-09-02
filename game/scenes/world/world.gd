@@ -72,17 +72,27 @@ const TOOL_ICONS := {
 ## 도구별 "실제로 쓰는 모션" 그림 (INBOX #37/#38, DESIGN.md "도구 동작 표현"). TOOL_ICONS는
 ## "들고 있는" 정적 자세고, 이 딕셔너리에 있는 도구는 사용하는 순간 잠깐 이 텍스처로
 ## 바뀐다(총은 발사 시 반동으로 총구가 들리고 총열 전체가 발사열로 빛나는 모습, 도끼는
-## 날이 바닥/나무에 박히고 나무 조각이 튀는 모습). 곡괭이낫/낚싯대는 아직 이 항목의
-## 범위가 아니라(#39~#40에서 각각 처리) 넣지 않는다.
+## 날이 바닥/나무에 박히고 나무 조각이 튀는 모습). 곡괭이낫은 채광/채집 두 모션이 서로
+## 달라야 해서 여기 대신 아래 PICKAXE_USE_ICONS를 따로 쓴다(INBOX #39). 낚싯대는 아직
+## 이 항목의 범위가 아니다(#40에서 처리).
 const TOOL_USE_ICONS := {
 	"gun": preload("res://assets/sprites/tools/gun_firing.png"),
 	"axe": preload("res://assets/sprites/tools/axe_chopping.png"),
 }
+## 곡괭이낫의 "쓰는 모션" 그림 — 채광(광물을 내려찍어 조각이 튐)과 채집(낫으로 작물을
+## 베어냄)이 같은 도구라도 서로 다른 그림이어야 한다(DESIGN.md "도구 동작 표현", INBOX #39).
+## resource_point.gd가 실제 채광/채집이 일어나는 순간 kind("mining"/"gathering")를 알려주면
+## play_pickaxe_use()가 여기서 골라 재생한다.
+const PICKAXE_USE_ICONS := {
+	"mining": preload("res://assets/sprites/tools/pickaxe_mining.png"),
+	"gathering": preload("res://assets/sprites/tools/pickaxe_gathering.png"),
+}
 ## "사용하는" 모션 텍스처가 유지되는 시간. GUN_FIRE_INTERVAL(0.5초)보다 짧아야 연사 중에도
 ## "들고 있는" 자세로 돌아왔다가 다시 반짝이는 것이 보인다.
 const GUN_MUZZLE_FLASH_DURATION := 0.12
-## 도끼 패는 동작이 눈에 보이는 시간. 총 발사보다 한 동작이 느려 보여야 자연스러워서
-## 총의 발사열 지속 시간보다 길게 잡았다 — DESIGN.md에 구체적 수치가 없어 임의로 정함.
+## 도끼로 패거나 곡괭이낫으로 채광/채집하는 동작이 눈에 보이는 시간. 총 발사보다 한 동작이
+## 느려 보여야 자연스러워서 총의 발사열 지속 시간보다 길게 잡았다 — DESIGN.md에 구체적
+## 수치가 없어 임의로 정함.
 const AXE_CHOP_FLASH_DURATION := 0.25
 
 ## 손에 든 도구 아이콘을 캐릭터 옆 어디에 띄울지, 바라보는 방향별 오프셋(플레이어 로컬 좌표계).
@@ -322,16 +332,29 @@ func get_held_item() -> String:
 ## (DESIGN.md "범위 밖"). 대신 "패는/낚는" 동작 자체는 손에 든 아이콘을 짧게 확대했다
 ## 줄이는 스윙 반응으로 표현한다(INBOX #23). 도끼는 여기에 더해 INBOX #38부터 실제
 ## "패는 모션" 그림(TOOL_USE_ICONS["axe"])으로 잠깐 바뀐다(DESIGN.md "도구 동작 표현").
-func _play_tool_swing() -> void:
+## override_texture를 주면 TOOL_USE_ICONS 대신 그 텍스처를 쓴다 — 곡괭이낫처럼 하나의
+## 도구가 여러 "쓰는 모션"을 가질 때(play_pickaxe_use() 참고) 재사용한다.
+func _play_tool_swing(override_texture: Texture2D = null) -> void:
 	if _held_item_sprite == null or not _held_item_sprite.visible:
 		return
 	var base_scale := Vector2(0.85, 0.85)
 	var tween := create_tween()
 	tween.tween_property(_held_item_sprite, "scale", base_scale * 1.35, 0.08)
 	tween.tween_property(_held_item_sprite, "scale", base_scale, 0.12)
-	if TOOL_USE_ICONS.has(_held_tool):
-		_held_item_sprite.texture = TOOL_USE_ICONS[_held_tool]
+	var use_texture: Texture2D = override_texture if override_texture != null else TOOL_USE_ICONS.get(_held_tool)
+	if use_texture != null:
+		_held_item_sprite.texture = use_texture
 		_tool_use_flash_timer = AXE_CHOP_FLASH_DURATION
+
+
+## resource_point.gd가 실제로 채광/채집이 일어나는 순간(harvest 성공 시) 호출한다
+## (INBOX #39). kind는 "mining" 또는 "gathering" — 같은 곡괭이낫이라도 두 동작이 서로
+## 다른 그림으로 보여야 한다(DESIGN.md "도구 동작 표현"). 지금 손에 든 도구가 곡괭이낫이
+## 아니면(예: 이미 다른 도구로 바꿔 든 뒤 신호가 늦게 온 경우) 아무 것도 하지 않는다.
+func play_pickaxe_use(kind: String) -> void:
+	if _held_tool != "pickaxe" or not PICKAXE_USE_ICONS.has(kind):
+		return
+	_play_tool_swing(PICKAXE_USE_ICONS[kind])
 
 
 ## 방향별 스프라이트(north/south/east/west)만 있으므로, 마우스가 가리키는

@@ -5,44 +5,51 @@
 
 ## 마지막 갱신
 
-바퀴 40 / 2026-09-03
+바퀴 41 / 2026-09-03
 
 ## 끝난 것 (지금까지의 스냅샷 — 바퀴별 상세 이력은 git 커밋 메시지 `[INBOX #N] ...`에 있음)
 
-- INBOX #38 완료: 도끼의 "들고 있는 모션"과 "패는 모션"을 서로 다른 그림으로 분리.
-  PixelLab(`/generate-image-pixflux`, 32x32, no_background)로
-  `game/assets/sprites/tools/axe_chopping.png`(도끼날이 바닥/나무에 박히고 나뭇조각이
-  튀는 그림)를 새로 생성했다. `world.gd`의 총 전용 `TOOL_FIRING_ICONS`/`_firing_flash_timer`를
-  도구 공용 `TOOL_USE_ICONS`/`_tool_use_flash_timer`로 이름을 일반화하고 "axe" 항목을
-  추가해서, `_play_tool_swing()`이 도끼를 쓸 때(좌클릭) 잠깐 이 텍스처로 바뀌었다가
-  `AXE_CHOP_FLASH_DURATION`(0.25초) 뒤 자동으로 들고 있는 텍스처(`axe.png`)로 되돌아가게
-  했다(총의 `_fire()` 리셋 로직도 이 공용 타이머를 그대로 쓰도록 갱신, 동작 변화 없음).
-  - 검증: `game/_verify_axe_motion.gd`(커밋 전 삭제)로 world 씬을 실제 렌더링 드라이버로
-    띄운 뒤 south/east/north/west 4방향 각각 holding/using 상태로 강제 전환하며 스크린샷
-    8장을 찍어 직접 확인했다. 4방향 모두 기존 오프셋/`show_behind_parent`(north에서 몸
-    뒤) 규칙이 정상 적용되고, "패는" 상태에서만 도끼가 땅에 박힌 채 나뭇조각이 튀는
-    그림으로 뚜렷이 구분돼 보였다 — 합격 기준(①) 통과로 판단.
-  - 변경 파일: `game/scenes/world/world.gd`,
-    `game/assets/sprites/tools/axe_chopping.png`(+`.import`).
+- INBOX #39 완료: 곡괭이낫의 "채광하는 모션"과 "채집하는 모션"을 서로 다른 그림으로
+  분리(들고 있는 모션은 기존 `pickaxe.png` 그대로 재사용 — #37/#38과 같은 패턴).
+  PixelLab(`/generate-image-pixflux`, 32x32, no_background, `pickaxe.png`를
+  `color_image`로 줘서 팔레트 통일)로 `pickaxe_mining.png`(곡괭이가 회색 돌을 내려찍고
+  돌조각이 튀는 그림)와 `pickaxe_gathering.png`(낫날이 밀 이삭을 베는 그림)를 생성했다.
+  `world.gd`에 `PICKAXE_USE_ICONS`(kind→텍스처) 딕셔너리와 공개 함수
+  `play_pickaxe_use(kind)`를 추가하고, 기존 `_play_tool_swing()`이 선택적
+  `override_texture` 인자를 받도록 넓혀서 재사용했다. `resource_point.gd`에 새 export
+  `use_kind`("mining"/"gathering")를 추가하고 `_harvest()`에서
+  `world_ref.play_pickaxe_use(use_kind)`를 호출하도록 했다 — `gathering_point.tscn`은
+  `use_kind="gathering"`, `mining_point.tscn`은 `use_kind="mining"`으로 지정.
+  - 검증: `game/_verify_pickaxe_motion.gd`(커밋 전 삭제)로 world 씬을 실제 렌더링
+    드라이버로 띄운 뒤 south/east/north/west 4방향 각각 holding/mining/gathering 3상태로
+    강제 전환하며 스크린샷 12장을 찍어 직접 확인했다(축소 조합/원본 크롭 둘 다 확인).
+    4방향 모두 기존 오프셋/`show_behind_parent`(north에서 몸 뒤) 규칙이 정상 적용되고,
+    채광(회색 돌더미)과 채집(황금빛 밀 이삭)이 뚜렷이 다른 그림으로 구분되며 캐릭터와의
+    비율도 도끼 때와 비슷한 수준으로 자연스러웠다 — 합격 기준(①) 통과로 판단.
+  - 변경 파일: `game/scenes/world/world.gd`, `game/scenes/resource_point/resource_point.gd`,
+    `game/scenes/resource_point/gathering_point.tscn`,
+    `game/scenes/resource_point/mining_point.tscn`,
+    `game/assets/sprites/tools/pickaxe_mining.png`(+`.import`),
+    `game/assets/sprites/tools/pickaxe_gathering.png`(+`.import`).
 
 ## 다음에 할 것
 
-- **다음은 INBOX #39**(곡괭이낫의 "들고 있는 모션"/"채광하는 모션"/"채집하는 모션" 3종을
-  PixelLab로 서로 다른 그림으로 만들기 — #37/#38과 같은 패턴, DESIGN.md "도구 동작 표현"
-  규칙). 채광과 채집은 같은 도구(pickaxe)를 쓰지만 그림은 서로 달라야 한다(예: 채광은
-  광석에 곡괭이를 내려찍는 그림, 채집은 낫으로 베는 그림) — 지금 `world.gd`에는
-  "actual mining/gathering" 시점을 구분해서 신호를 보내는 곳이 `resource_point.gd`/
-  `gathering_point.gd`/`mining_point.gd` 쪽에 있을 가능성이 높으니, `_play_tool_swing()`
-  하나로는 부족하고 두 포인트 타입이 각각 어떤 함수를 호출하는지 먼저 확인할 것. 이어서
-  #40(낚싯대: 들기/낚시)이 같은 패턴으로 대기 중이다.
-- 이번 바퀴(#38)에서 확정한 검증 방식: 스크린샷 검증 스크립트에서 "상태를 설정 →
-  같은 프레임에 바로 캡처"하면 렌더링이 한 프레임 밀려서 **직전 상태**가 찍힌다(이번
-  바퀴에 새로 발견 — 아래 "헤드리스 CLI 검증" 절에 상세 기록). 반드시 "상태 설정 → 여러
-  프레임 대기 → 그 다음에 캡처" 순서로 만들 것 — 대기 없이 바로 캡처하면 남방향인데
-  옆모습이 찍히는 식으로 방향이 밀려 보인다.
-- #39~#40도 전부 PixelLab로 실제 그림을 새로 그려야 하는 작업이라 이전 바퀴들보다
-  시간/토큰을 더 많이 쓸 가능성이 높다 — 세션 예산이 빠듯하면 PROMPT.md ⑤대로 그림
-  생성이 끝나는 대로, 또는 도구 하나가 검증되는 대로 더 일찍 커밋하는 것을 고려할 것.
+- **다음은 INBOX #40**(낚싯대의 "들고 있는 모션"/"낚시하는 모션" 2종을 PixelLab로 서로
+  다른 그림으로 만들기 — #37/#38/#39와 같은 패턴, DESIGN.md "도구 동작 표현" 규칙).
+  낚싯대는 지금 `world.gd`의 `_unhandled_input`에서 axe와 같은 분기(`_held_tool == "axe"
+  or _held_tool == "fishing_rod"`)로 `_play_tool_swing()`을 직접 호출하고 있으므로(별도
+  포인트 스크립트를 거치지 않음), #39처럼 새 공개 함수를 만들 필요 없이
+  `TOOL_USE_ICONS["fishing_rod"]`에 새 텍스처만 추가하면 기존 `_play_tool_swing()`
+  경로가 그대로 동작한다 — 가장 단순한 케이스다.
+- #39에서 재확인된 검증 패턴(그대로 재사용 가능): "상태 설정 → 최소 3~4프레임 대기 →
+  그 다음에 `root.get_texture().get_image().save_png()`로 캡처"를 상태별로 반복하는
+  단계 머신(phase: set→wait→capture→next) 방식이 안정적으로 동작했다. `_select_hotbar(i)`
+  로 원하는 도구를 핫바에서 먼저 선택하고 `set_physics_process(false)`로 마우스 추종을
+  끈 뒤 `_facing`/`_update_texture()`/`_update_held_item_transform()`을 스크립트에서
+  직접 호출하는 것도 그대로 재사용 가능(바퀴 37 결정 로그 참고).
+- #40도 PixelLab로 실제 그림을 새로 그려야 하는 작업이라 시간/토큰을 어느 정도 쓸
+  가능성이 높다 — 세션 예산이 빠듯하면 PROMPT.md ⑤대로 그림 생성이 끝나는 대로 더
+  일찍 커밋하는 것을 고려할 것.
 - 다음 지시가 들어오면 참고할 만한 백로그(강제 사항 아님, 아래 "막힌 것/보류"·"오래된
   메모" 참고):
   - 멀티플레이 실제 두 클라이언트 접속/동기화를 실기기로 아직 검증 못함.
@@ -511,6 +518,24 @@
   도끼로 "패는" 동작은 총보다 느린 동작이라는 일반적인 직관(무기 vs 도구, 원거리 순간
   vs 근접 스윙)을 반영해 임의로 정했다 — 스크린샷 검증에서 이 값이 너무 짧거나 길어
   부자연스러워 보이지 않았다.
+- 바퀴 41: 곡괭이낫의 채광/채집 두 "쓰는 모션"을 `TOOL_USE_ICONS`(도구 키 하나에 텍스처
+  하나)에 그대로 넣지 않고, 별도 `PICKAXE_USE_ICONS`(kind→텍스처) 딕셔너리와 공개 함수
+  `play_pickaxe_use(kind)`를 새로 만들었다. 근거: `TOOL_USE_ICONS`는 "도구 키 → 텍스처
+  하나"라는 1:1 가정으로 설계돼 있어서(총/도끼는 실제로 쓰는 모션이 하나뿐), 곡괭이낫처럼
+  한 도구가 상황에 따라 다른 두 모션을 가지는 경우를 억지로 끼워넣으면 `TOOL_USE_ICONS`의
+  값 타입이 도구마다 달라져(어떤 건 Texture2D, 어떤 건 Dictionary) 읽는 쪽 코드가 매번
+  타입을 분기해야 했다 — 새 도구를 계속 늘릴 것을 감안해 "1:1 도구"와 "1:N 도구"를 코드
+  레벨에서 분리해뒀다. `_play_tool_swing()`은 `override_texture` 선택 인자를 받게 넓혀서
+  두 함수가 같은 tween/타이머 로직을 공유하게 했다(중복 없음). **다음 바퀴가 참고할 점**:
+  `resource_point.gd`처럼 별도 포인트 스크립트를 거치는 도구만 이 패턴이 필요하다 — #40
+  낚싯대는 `world.gd` 안에서 직접 처리되는 단일 모션이라 기존 `TOOL_USE_ICONS`만으로
+  충분하다(위 "다음에 할 것" 참고).
+- 바퀴 41: `resource_point.gd`(gathering_point.tscn/mining_point.tscn 공용 스크립트)에
+  `use_kind` export를 추가해 씬 데이터로 "mining"/"gathering"을 지정하게 했다. 근거:
+  `item_name`("rice_seed" vs "iron")으로 이미 두 포인트 종류를 씬에서 구분하고 있는
+  기존 패턴과 동일하게, 코드에서 씬 이름이나 item_name 문자열을 분기해 추측하는 대신
+  씬 파일에 명시적으로 값을 박아두는 쪽이 더 안전하다고 판단했다(나중에 세 번째 종류의
+  포인트가 추가돼도 코드 분기를 늘릴 필요 없이 export 값만 지정하면 됨).
 - 바퀴 39: INBOX #37(총 들기/발사 모션 분리) 코드와 `gun_firing.png`가 세션 시작 전부터
   이미 미커밋 상태로 완성돼 있어서, 새로 만들지 않고 4방향 스크린샷 검증만 다시 수행해서
   커밋했다. 근거: 바퀴 3→4/14→15/24와 같은 패턴 — 실제로 실행해 8장(4방향 x holding/firing)

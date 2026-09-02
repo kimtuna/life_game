@@ -16,6 +16,9 @@ const RESPAWN_SECONDS := 20.0
 @export var texture_path: String = ""
 ## 이 포인트를 쓰려면 손에 들고 있어야 하는 도구 키 ("pickaxe" 등).
 @export var required_tool: String = "pickaxe"
+## 곡괭이낫이 채광/채집 중 어느 쪽 모션을 보여줘야 하는지 ("mining" / "gathering",
+## world.gd의 play_pickaxe_use()가 참고, INBOX #39 — DESIGN.md "도구 동작 표현").
+@export var use_kind: String = "mining"
 
 @onready var sprite: Sprite2D = $Sprite
 @onready var prompt: Label = $Prompt
@@ -55,6 +58,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _harvest() -> void:
+	world_ref.play_pickaxe_use(use_kind)
 	world_ref.spawn_dropped_item(item_name, item_amount, global_position)
 	_cooldown = RESPAWN_SECONDS
 	sprite.visible = false

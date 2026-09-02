@@ -15,6 +15,7 @@ item_amount = 1
 prompt_text = "곡괭이낫을 들고 좌클릭: 채집 (벼 씨앗)"
 texture_path = "res://assets/sprites/gathering_point/gathering_point.png"
 required_tool = "pickaxe"
+use_kind = "gathering"
 
 [node name="Sprite" type="Sprite2D" parent="."]
 scale = Vector2(1.1, 1.1)

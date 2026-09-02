@@ -15,6 +15,7 @@ item_amount = 1
 prompt_text = "곡괭이낫을 들고 좌클릭: 채광 (철)"
 texture_path = "res://assets/sprites/mining_point/mining_point.png"
 required_tool = "pickaxe"
+use_kind = "mining"
 
 [node name="Sprite" type="Sprite2D" parent="."]
 scale = Vector2(1.1, 1.1)
