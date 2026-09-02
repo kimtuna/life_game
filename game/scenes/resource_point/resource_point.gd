@@ -8,7 +8,6 @@ extends Node2D
 
 const INTERACT_RADIUS := 70.0
 const RESPAWN_SECONDS := 20.0
-const DEPLETED_MODULATE := Color(0.45, 0.45, 0.45, 1.0)
 
 @export var item_name: String = "rice_seed"
 @export var item_amount: int = 1
@@ -58,9 +57,9 @@ func _unhandled_input(event: InputEvent) -> void:
 func _harvest() -> void:
 	world_ref.spawn_dropped_item(item_name, item_amount, global_position)
 	_cooldown = RESPAWN_SECONDS
-	sprite.modulate = DEPLETED_MODULATE
+	sprite.visible = false
 	prompt.visible = false
 
 
 func _respawn() -> void:
-	sprite.modulate = Color(1.0, 1.0, 1.0, 1.0)
+	sprite.visible = true

@@ -5,7 +5,35 @@
 
 ## 마지막 갱신
 
-바퀴 30 / 2026-09-02
+바퀴 31 / 2026-09-02
+
+## 끝난 것 (바퀴 31)
+
+- INBOX #29 완료: 채집/채광 포인트를 다 캤을 때 회색(`modulate` 어둡게)으로 표시하던
+  것을, 쿨다운(`RESPAWN_SECONDS`=20초) 동안 완전히 숨겼다가(`sprite.visible = false`)
+  쿨다운이 끝나면 다시 보이게(`sprite.visible = true`) 바꿨다. DESIGN.md 82번째 줄
+  "채집/채광 포인트는 다 캐면 회색으로 표시하는 대신 완전히 사라졌다가, 쿨다운이 끝나면
+  다시 나타난다"와 정확히 일치하는 요구라 임의 해석 없이 그대로 구현했다.
+  - 변경: `game/scenes/resource_point/resource_point.gd`에서 `DEPLETED_MODULATE`
+    상수를 제거하고, `_harvest()`의 `sprite.modulate = DEPLETED_MODULATE`를
+    `sprite.visible = false`로, `_respawn()`의 `sprite.modulate = Color(1,1,1,1)`을
+    `sprite.visible = true`로 바꿨다. 상호작용 판정(`INTERACT_RADIUS` 거리 계산, 프롬프트
+    표시)은 이미 `_cooldown` 값 기준으로만 동작하고 있어서 손대지 않았다 — 포인트에는
+    애초에 물리 충돌체(CollisionShape2D)가 없고 순수 거리 계산으로만 상호작용을
+    판정하므로, `visible`만 바꿔도 캐낸 동안 실제로 다시 캘 수 없는 상태가 유지된다.
+  - 검증: `godot --headless --path . --check-only`로 스크립트 컴파일 에러 없음을
+    확인했고, `godot --script <임시스크립트>.gd`로 world.tscn을 실제 로드해
+    `GatheringPoint`(rice_seed)를 찾아 `_harvest()`를 직접 호출한 뒤
+    `sprite.visible`이 `true→false`로 바뀌는 것을 콘솔로 확인했다. 이어서 별도
+    스크립트로 `_harvest()` 직후 `_respawn()`을 직접 호출해 `visible`이
+    `false→true`로 복구되는 것도 확인했다(쿨다운 20초를 실시간으로 기다리는 대신
+    `_respawn()` 함수 자체를 직접 호출해 확인 — 로직이 `_cooldown`이 0 이하가 되는 순간
+    `_respawn()`을 호출하는 것뿐이라 이 방식으로도 충분히 검증된다고 판단했다). 렌더링
+    모드로 하나 스크린샷도 찍어 인벤토리/핫바 UI가 정상 표시되는 것과, 캔 직후
+    화면 어디에도 회색 잔상이 남지 않는 것을 육안으로도 확인했다. 검증 전후로
+    `inventory.save`를 지워 깨끗한 상태를 유지했고, 임시 스크립트와 스크린샷 파일은
+    모두 삭제했다.
+  - 변경 파일: `game/scenes/resource_point/resource_point.gd`.
 
 ## 끝난 것 (바퀴 30)
 
@@ -290,23 +318,19 @@
 
 ## 다음에 할 것
 
-- `docs/feedback/INBOX.md` "처리 대기"의 다음 미완료 항목은 `#29`(채집/채광 포인트를
-  다 캐면 회색으로 표시하는 대신, 쿨다운 동안 완전히 사라졌다가 재생성될 때 다시
-  나타나도록 바꾸기)이다.
-- **INBOX #28(총알이 커서보다 위로 나가는 버그)은 이번 바퀴(30)에 완료했다.** 원인은
-  총알 스폰 위치나 카메라/해상도 관련이 아니라 순수 로직 순서 버그(`_recoil` 증가를
-  조준 방향 계산보다 먼저 했음)였다 — 총알 스폰 위치(`player_sprite.global_position`)
-  자체는 문제가 없었다. 다음 바퀴가 조준/투사체 관련 버그를 또 조사하게 되면, 먼저
-  스폰 위치보다 `_fire()` 안의 계산 순서(반동/탄퍼짐이 언제 갱신되고 언제 읽히는지)부터
-  의심해볼 것 — 이번 버그도 겉보기엔 "위치가 이상하다"처럼 보고됐지만 실제로는
-  "방향 계산"이 원인이었다.
-- INBOX #29(자원 포인트 재생성 연출)를 만들 때는 `scenes/resource_point/
-  resource_point.gd`의 기존 "회색으로 표시" 로직(바퀴 12가 만든 `RESPAWN_SECONDS`
-  쿨다운 시스템)부터 확인할 것 — 쿨다운 자체는 이미 있으니 시각 표현만 "회색 유지"에서
-  "visible=false로 숨겼다가 쿨다운 끝나면 다시 visible=true"로 바꾸면 될 가능성이 크다.
-  DESIGN.md "채집/채광 포인트는 다 캐면 회색으로 표시하는 대신 완전히 사라졌다가,
-  쿨다운이 끝나면 다시 나타난다"와도 이미 일치하는 방향이니(DESIGN.md가 최신 요구를
-  반영해 갱신돼 있음) 임의 해석 없이 그대로 구현하면 된다.
+- `docs/feedback/INBOX.md` "처리 대기"의 다음 미완료 항목은 `#30`(사슴 도주 로직을
+  예측하기 어렵게 개선 — 지그재그/무작위 편차)이다. 그 다음은 `#31`(인벤토리 드래그
+  앤 드롭 이동/버리기)이다.
+- **INBOX #29(자원 포인트 "회색 표시" → "완전히 사라짐")는 이번 바퀴(31)에 완료했다.**
+  `game/scenes/resource_point/resource_point.gd`의 `_harvest()`/`_respawn()`에서
+  `sprite.modulate` 대신 `sprite.visible`을 토글하도록 바꿨다. 포인트에는 물리
+  충돌체가 없고 상호작용은 `_cooldown` 값으로만 판정하므로 다른 로직은 손대지 않았다.
+- INBOX #30(사슴 도주 예측 불가능하게)을 만들 때는 사슴 스크립트(아마
+  `scenes/deer/deer.gd` 계열, 바퀴 9가 만든 배회/도주 상태머신)의 도주 상태에서
+  "플레이어 반대 방향 일직선" 이동 로직부터 확인할 것. INBOX #18(경계에 막히면 다른
+  방향으로 피하기)에서 이미 "막히면 방향을 바꾸는" 처리를 넣어둔 적이 있으니, 그
+  코드와 겹치지 않게 지그재그/무작위 편차를 얹을 것 — 완전히 새로 짜지 말고 기존
+  도주 방향 계산에 각도 편차나 주기적 방향 흔들림을 섞는 식으로 최소 변경할 것.
 - INBOX #23은 farm_plot/resource_point/ranch_zone의 F키 상호작용을 좌클릭+도구 확인
   방식으로 바꿨다. `world.gd.get_held_tool()`을 공개 접근자로 추가했으니, 앞으로 새
   상호작용 오브젝트를 추가할 때도 이 패턴(`world_ref.get_held_tool() == required_tool`)을
