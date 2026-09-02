@@ -5,514 +5,85 @@
 
 ## 마지막 갱신
 
-바퀴 34 / 2026-09-02
+바퀴 35 / 2026-09-02
 
-## 끝난 것 (바퀴 34)
+## 끝난 것 (지금까지의 스냅샷 — 바퀴별 상세 이력은 git 커밋 메시지 `[INBOX #N] ...`에 있음)
 
-- INBOX #32 완료: 총(또는 다른 도구)을 손에 든 채로 드래그해서 버리면 여전히 들고
-  있는 것처럼 보이고 발사도 되던 버그를 고쳤다.
-  - 원인: `world.gd`의 `_select_hotbar()`는 숫자키를 누를 때만 `_held_tool`/손
-    스프라이트를 갱신했다. `InventoryData.move_slot()`(슬롯 이동/교환)이나
-    `take_slot()`(버리기)으로 핫바 슬롯 내용이 바뀌어도 이 함수가 다시 호출되지
-    않아서, 화면에 총을 든 채로 남아있고 `_held_tool == "gun"`이라 좌클릭 발사도
-    그대로 됐다.
-  - `world.gd`에 `_revalidate_held_hotbar_slot()`을 추가해 `InventoryData.changed`
-    신호(이미 `_update_inventory_label`/`_refresh_inventory_window`/`_refresh_hotbar`가
-    구독 중이던 것과 같은 신호)에 새로 연결했다. 이 함수는 그냥
-    `_select_hotbar(_selected_hotbar_index)`를 다시 호출한다 — 지금 선택된 핫바
-    인덱스는 그대로 두고, 그 슬롯의 최신 내용만 다시 읽어 `_held_tool`/스프라이트를
-    갱신하는 식이라 기존 `_select_hotbar()` 로직을 전혀 바꾸지 않고 재사용했다.
-  - 검증: `godot --headless --path . --script <임시스크립트>.gd`로 world.tscn을 띄운
-    뒤 (1) 핫바 0번(시작 지급된 총)을 선택해 `get_held_tool()=="gun"` 확인, (2)
-    `InventoryData.move_slot("general",0,"general",5)`(드래그 이동과 동일한 데이터
-    경로)로 0번 슬롯을 비우자 숫자키를 다시 누르지 않아도 `get_held_tool()==""`,
-    `_held_item_sprite.visible==false`로 즉시 되돌아가는 것을 확인(수정 전이었다면
-    슬롯이 빈 뒤에도 `_held_tool`이 "gun"에 그대로 남아있었을 것), (3) 총이 옮겨간
-    5번 슬롯을 선택해 다시 `held_tool=="gun"`이 되는 것을 확인한 뒤
-    `world.discard_inventory_slot("general",5)`(실제 "창 밖으로 드래그해서 버리기"
-    코드 경로)를 호출해 같은 방식으로 빈손이 되는 것도 확인했다 — 콘솔에 `PASS` 출력.
-    `_held_tool=="gun"`이 아니므로 좌클릭 발사 조건(`world.gd:211`)도 통과하지 못해
-    발사가 안 되는 것을 코드 경로상으로 함께 확인했다(발사 조건 자체는 이번에 손대지
-    않음). 검증 전후로 `inventory.save`를 지워 깨끗한 상태를 유지했고, 임시 스크립트는
-    검증 후 삭제했다. **렌더링 스크린샷은 생략했다** — 이 버그는 "인벤토리 데이터가
-    바뀐 뒤 손 스프라이트 상태가 갱신되는가"라는 로직/타이밍 문제라 정적 스크린샷
-    한 장으로는 수정 전후 차이가 보이지 않고, 위 콘솔 상태 전이 확인(들고 있음→
-    사라짐→다시 들음→버림→사라짐)이 훨씬 정확하게 검증할 수 있는 방법이라고
-    판단했다(바퀴 30/28이 각도·타이밍 버그를 검증할 때와 같은 판단 기준).
-  - 변경 파일: `game/scenes/world/world.gd`.
-
-## 끝난 것 (바퀴 33, 이전 기록)
-
-- INBOX #31 완료: 인벤토리 창(#21)에 드래그 앤 드롭을 추가했다 — 슬롯 사이(일반↔일반,
-  일반↔장비, 핫바 포함) 이동/교환과, 창 바깥으로 드래그해서 놓으면 버려서 바닥에
-  드롭되는 것까지 DESIGN.md "인벤토리 / 장비" 절 그대로 구현했다.
-  - `game/scripts/inventory_data.gd`에 `move_slot(from_kind, from_index, to_kind,
-    to_index)`와 `take_slot(kind, index)`를 추가했다. `move_slot`은 general↔general이고
-    같은 아이템이면 스택을 합치고(공간이 남는 만큼만, 다 못 옮기면 나머지는 원래 슬롯에
-    남는다), 그 외에는 두 슬롯 내용을 통째로 교환(swap)한다 — 대상이 비어있으면 그냥
-    이동한 것과 같다. `take_slot`은 슬롯 내용을 반환하고 그 자리를 비운다(버리기용).
-  - `game/scripts/inventory_slot_cell.gd`(신규)를 만들어 `world.gd`가 코드로 만드는
-    슬롯 `PanelContainer` 각각에 동적으로 붙였다(`set_script`). `slot_kind`("general"/
-    "equipment")와 `slot_index`를 들고 있고, Godot의 `_get_drag_data`/`_can_drop_data`/
-    `_drop_data` 가상 함수로 `InventoryData.move_slot()`을 직접 호출한다 — 슬롯 셀은
-    자기가 어느 슬롯인지만 알면 되고 인벤토리 로직 자체를 몰라도 되게 분리했다.
-  - `game/scripts/inventory_discard_zone.gd`(신규)를 `UI/InventoryWindow` 루트
-    Control에 동적으로 붙였다. 슬롯 셀들이 먼저 드롭을 받으므로, 이 스크립트의
-    `_drop_data`까지 올라오는 경우는 실제로 슬롯이 아닌 곳(빈 배경, 창 여백)에 놓았을
-    때뿐이다 — Godot이 드롭 대상을 찾을 때 마우스 아래 Control에서 시작해
-    `_can_drop_data`가 true를 반환할 때까지 부모 Control로 거슬러 올라가는 표준 동작을
-    그대로 활용했다(별도로 "창 바깥 영역"을 좌표로 계산할 필요가 없다).
-  - `world.gd`에 `discard_inventory_slot(kind, index)`를 추가했다 — `InventoryData.
-    take_slot()`으로 슬롯을 비우고, `spawn_dropped_item()`(#24가 만든 바닥 드롭
-    오브젝트, 재사용)으로 플레이어가 **바라보는 방향 앞쪽 60유닛**에 드롭한다. 발밑
-    (거리 0)에 놓으면 `DroppedItem`의 픽업 판정 반경(40)보다 가까워서 놓자마자 바로
-    다시 주워져 버려지지 않는 버그가 생기므로, 방향 오프셋을 새로 추가했다.
-  - **지시받지 않았지만 추가한 개선**: `game/scenes/dropped_item/dropped_item.gd`의
-    `ITEM_ICONS`에 도구 4종(gun/axe/pickaxe/fishing_rod) 아이콘을 추가했다. 이전까지는
-    사냥/채집/채광/농사 산출물만 있어서, 도구를 버리면 빈 스프라이트(아이콘 없음)로
-    떨어졌을 것 — 새 버리기 기능이 도구도 버릴 수 있게 만들어서 함께 고쳤다(기존
-    `world.gd`의 `TOOL_ICONS`와 같은 텍스처를 재사용, 새 그림 없음).
+- INBOX #33 완료: 총에 탄창(8발)/재장전(R키)을 추가했다. DESIGN.md "총기 스탯" 절 그대로:
+  탄창이 비면 좌클릭해도 발사되지 않고, R키를 누르면 약간의 시간(1.2초, AI가 임의로 정함 —
+  밸런스는 나중에 조정)이 지나야 가득(8발) 재장전된다. 예비 탄약 제한은 없다.
+  - `world.gd`에 `GUN_MAGAZINE_SIZE`(8)/`GUN_RELOAD_TIME`(1.2) 상수와
+    `_ammo_in_magazine`/`_is_reloading`/`_reload_timer` 상태를 추가했다. `_fire()`가 매 발
+    `_ammo_in_magazine`을 1씩 깎고, `_physics_process()`의 발사 조건(`_held_tool=="gun" and
+    좌클릭 and 쿨다운 끝 and ...`)에 `not _is_reloading and _ammo_in_magazine > 0`을 추가로
+    걸었다 — 탄창이 비었거나 재장전 중이면 아예 `_fire()`가 호출되지 않는다.
+  - R키는 총을 들고 있을 때만(`_held_tool == "gun"`) `_start_reload()`를 호출하도록
+    `_unhandled_input()`에 새 분기를 추가했다(다른 키 처리와 같은 자리, 같은 스타일).
+    `_start_reload()`는 이미 재장전 중이거나 탄창이 이미 가득이면 아무것도 안 한다(불필요한
+    재장전 방지). `_physics_process()`에서 `_reload_timer`를 매 프레임 깎다가 0 이하가 되면
+    `_ammo_in_magazine`을 가득 채우고 `_is_reloading`을 끈다.
+  - `_update_ammo_label()`을 확장해서 기존 "탄약: 기본탄/마취탄" 표시에 발수(`8/8` 등)를
+    덧붙이고, 재장전 중에는 "탄약: 기본탄 재장전 중..."으로 바꿔 표시한다. 라벨이 항상
+    총을 들고 있지 않아도 보이는 기존 동작(HUD 패널이라 상시 표시)은 그대로 유지했다 —
+    이번 항목이 요구한 "탄창에 남은 발수를 화면에 표시"를 그대로 반영한 것뿐, 표시 조건
+    자체는 건드리지 않았다.
+  - `world.tscn`의 `AmmoPanel` 폭을 144px→244px로 넓혔다(`offset_right` 160→260) — 늘어난
+    문구("탄약: 기본탄 재장전 중...")가 기존 폭에서는 잘릴 수 있어서, 스크린샷으로 실제
+    렌더링을 확인한 뒤 넓혔다.
   - 검증: `godot --headless --path . --script <임시스크립트>.gd`로 world.tscn을 실제로
-    띄운 뒤 `InventoryData.move_slot`/`take_slot`을 11개 케이스(빈 슬롯 이동, 같은
-    아이템 병합+스택상한 초과 시 나머지 잔류, 다른 아이템 교환, 일반↔장비 교환,
-    범위 밖/제자리 이동 무시, 슬롯 셀에 스크립트/kind/index가 올바르게 연결됐는지,
-    `_get_drag_data`→`_can_drop_data`→`_drop_data`를 직접 호출한 end-to-end 드래그,
-    빈 슬롯에서는 드래그 데이터가 안 나오는 것, 버리기 존의 `_drop_data`가 실제로
-    `world._world_ref` 연결과 함께 슬롯을 비우고 플레이어로부터 40(픽업 반경)보다 먼
-    거리에 드롭 오브젝트를 생성하는 것)로 전부 확인했다(콘솔에 `PASS`로 출력). 추가로
-    `godot --path .`(렌더링 모드)로 인벤토리 창을 열어 스크린샷을 찍어 슬롯 레이아웃/
-    핫바/장비 그리드가 이전과 시각적으로 동일하게 나오는 것(드래그 앤 드롭은 정적
-    스크린샷으로는 안 보이므로 회귀 없음만 확인)을 눈으로 확인했다. 검증 전후로
-    `inventory.save`를 지워 깨끗한 상태를 유지했고, 임시 스크립트와 스크린샷은 커밋 전
-    모두 삭제했다.
-  - **실제 마우스 드래그(OS 이벤트) 자체는 시뮬레이션하지 않았다** — Godot의 드래그
-    시작/버블링 판정(`Viewport`가 마우스 아래 Control에서 `_can_drop_data`를 부모로
-    거슬러 올라가며 찾는 것)은 엔진 자체의 표준 동작이라 이 프로젝트 코드가 구현한
-    부분이 아니므로, 위처럼 세 가상 함수(`_get_drag_data`/`_can_drop_data`/
-    `_drop_data`)를 직접 호출해 "우리 코드가 올바른 입출력을 만드는지"를 검증하는
-    것으로 충분하다고 판단했다(엔진 내부 버블링 로직까지 재검증할 필요는 없음).
-  - 변경 파일: `game/scripts/inventory_data.gd`, `game/scenes/world/world.gd`,
-    `game/scenes/dropped_item/dropped_item.gd`, `game/scripts/inventory_slot_cell.gd`
-    (신규), `game/scripts/inventory_discard_zone.gd`(신규).
-
-## 끝난 것 (바퀴 32, 이전 기록)
-
-- INBOX #30 완료: 사슴 도주 로직이 플레이어 반대 방향으로 일직선으로만 움직이던 것을
-  지그재그(주기적 각도 편차)로 바꿨다. DESIGN.md "동물 AI" 절 "도주는 플레이어 반대
-  방향으로 일직선이 아니라 예측하기 어렵게 움직여야 한다"를 그대로 구현했다.
-  - `game/scenes/deer/deer.gd`에 `_flee_zigzag_angle`/`_flee_zigzag_timer` 상태를
-    추가했다. `_physics_process`의 `"flee"` 분기에서 0.3~0.6초(`FLEE_ZIGZAG_MIN/MAX_
-    INTERVAL`)마다 -60~+60도(`FLEE_ZIGZAG_MAX_ANGLE_DEG`) 범위의 새 무작위 각도를
-    뽑고, "플레이어 반대 방향"(`away`) 벡터를 그 각도만큼 회전시킨 뒤 기존
-    `_wall_slide_direction()`(INBOX #18의 경계 처리)에 넘긴다 — 두 로직이 겹치지
-    않게, 편차는 `_wall_slide_direction` **이전**에만 섞고 경계 처리 자체는 손대지
-    않았다.
-  - 편차 범위를 90도가 아니라 60도로 제한한 이유(스스로 판단): 180도 가까이 틀면
-    "반대 방향"이라는 전제 자체가 깨져서 플레이어 쪽으로 되돌아가는 것처럼 보일 수
-    있다 — DESIGN.md가 요구하는 건 "예측 불가능"이지 "방향성 없음"이 아니므로, 대체로
-    멀어지는 흐름은 유지하면서 지그재그만 주는 값으로 60도를 골랐다.
-  - `_start_flee()`에서 `_flee_zigzag_timer = 0.0`으로 리셋해서, 새로 도주를 시작할
-    때마다 첫 물리 프레임에 바로 새 각도를 뽑도록 했다(이전 도주에서 남은 타이머 값을
-    이어받아 첫 순간에 일직선으로 나가는 것을 방지).
-  - 검증: `godot --headless --path . --script <임시스크립트>.gd`로 world.tscn을 실제로
-    띄운 뒤 (1) 사슴을 플레이어 근처로 옮기고 `_start_flee()`를 직접 호출해 90프레임
-    동안 `deer.velocity.angle()`을 샘플링 → 51개의 서로 다른 각도(0.02rad 단위)가
-    나와 방향이 계속 바뀌는 것을 확인(수정 전이었다면 반동/편차 없이 거의 고정된 한
-    각도만 나왔을 것), (2) 사슴을 월드 경계 구석(3790,3790, `WORLD_BOUNDS`=3800
-    바로 안쪽)으로 옮기고 같은 방식으로 도주시켜 200프레임 동안 `velocity.length()`가
-    0이 되는(멈추는) 프레임이 0회인 것을 확인 — INBOX #18이 고친 "구석에서 멈추는"
-    회귀가 이번 변경으로 다시 생기지 않았음을 확인했다. 검증 전후로
-    `inventory.save`를 지워 깨끗한 상태를 유지했고, 임시 스크립트는 검증 후 삭제했다.
-    렌더링 모드 스크린샷은 생략했다 — 이 변경은 초 단위 방향 각도 문제라 스크린샷
-    한 장으로는 "지그재그가 되는지"를 판별할 수 없고, 위 콘솔 각도 샘플링이 훨씬
-    정밀하게 검증할 수 있는 방법이라고 판단했다(바퀴 30이 반동 버그를 검증할 때와
-    같은 판단 기준).
-  - 변경 파일: `game/scenes/deer/deer.gd`.
-
-## 끝난 것 (바퀴 31, 이전 기록)
-
-- INBOX #29 완료: 채집/채광 포인트를 다 캤을 때 회색(`modulate` 어둡게)으로 표시하던
-  것을, 쿨다운(`RESPAWN_SECONDS`=20초) 동안 완전히 숨겼다가(`sprite.visible = false`)
-  쿨다운이 끝나면 다시 보이게(`sprite.visible = true`) 바꿨다. DESIGN.md 82번째 줄
-  "채집/채광 포인트는 다 캐면 회색으로 표시하는 대신 완전히 사라졌다가, 쿨다운이 끝나면
-  다시 나타난다"와 정확히 일치하는 요구라 임의 해석 없이 그대로 구현했다.
-  - 변경: `game/scenes/resource_point/resource_point.gd`에서 `DEPLETED_MODULATE`
-    상수를 제거하고, `_harvest()`의 `sprite.modulate = DEPLETED_MODULATE`를
-    `sprite.visible = false`로, `_respawn()`의 `sprite.modulate = Color(1,1,1,1)`을
-    `sprite.visible = true`로 바꿨다. 상호작용 판정(`INTERACT_RADIUS` 거리 계산, 프롬프트
-    표시)은 이미 `_cooldown` 값 기준으로만 동작하고 있어서 손대지 않았다 — 포인트에는
-    애초에 물리 충돌체(CollisionShape2D)가 없고 순수 거리 계산으로만 상호작용을
-    판정하므로, `visible`만 바꿔도 캐낸 동안 실제로 다시 캘 수 없는 상태가 유지된다.
-  - 검증: `godot --headless --path . --check-only`로 스크립트 컴파일 에러 없음을
-    확인했고, `godot --script <임시스크립트>.gd`로 world.tscn을 실제 로드해
-    `GatheringPoint`(rice_seed)를 찾아 `_harvest()`를 직접 호출한 뒤
-    `sprite.visible`이 `true→false`로 바뀌는 것을 콘솔로 확인했다. 이어서 별도
-    스크립트로 `_harvest()` 직후 `_respawn()`을 직접 호출해 `visible`이
-    `false→true`로 복구되는 것도 확인했다(쿨다운 20초를 실시간으로 기다리는 대신
-    `_respawn()` 함수 자체를 직접 호출해 확인 — 로직이 `_cooldown`이 0 이하가 되는 순간
-    `_respawn()`을 호출하는 것뿐이라 이 방식으로도 충분히 검증된다고 판단했다). 렌더링
-    모드로 하나 스크린샷도 찍어 인벤토리/핫바 UI가 정상 표시되는 것과, 캔 직후
-    화면 어디에도 회색 잔상이 남지 않는 것을 육안으로도 확인했다. 검증 전후로
-    `inventory.save`를 지워 깨끗한 상태를 유지했고, 임시 스크립트와 스크린샷 파일은
-    모두 삭제했다.
-  - 변경 파일: `game/scenes/resource_point/resource_point.gd`.
-
-## 끝난 것 (바퀴 30)
-
-- INBOX #28 완료: 총을 쐈을 때 총알이 마우스 커서(조준점)보다 위로 나가는 버그를 고쳤다.
-  - 원인: `world.gd`의 `_fire()`에서 `_recoil`을 조준 방향 계산(`aim = (aim + Vector2.UP *
-    _recoil).normalized()`)보다 **먼저** 증가시키고 있었다. 그래서 첫 발조차 이미
-    `GUN_RECOIL_PER_SHOT`(0.15)만큼 반동이 적용된 채로 발사됐다 — 즉 "연사 중 반동으로
-    위로 튐"이 아니라 "가만히 서서 쏜 첫 발부터 항상 커서보다 위(약 8.6도)로 나가는"
-    상시 버그였다. 반동이 매 발마다 누적된다는 것 자체는 의도된 동작(DESIGN.md "연속
-    사격 시 조준선이 위로 살짝 튀고")이라 `_recoil` 로직 자체는 건드리지 않고, 증가
-    순서만 "조준 방향 계산 뒤"로 옮겼다 — 이제 첫 발은 `_recoil==0`인 상태로 조준
-    방향을 그대로 쓰고, 두 번째 발부터 반동이 반영된다.
-  - 변경: `_fire()` 안에서 `_recoil = minf(GUN_RECOIL_MAX, _recoil + GUN_RECOIL_PER_SHOT)`
-    한 줄을 조준 방향/탄퍼짐 계산 블록 아래(총알 생성 직전)로 옮겼을 뿐, 다른 로직은
-    손대지 않았다.
-  - 검증: `godot --headless --path . --script <임시스크립트>.gd`로 world.tscn을 띄운 뒤
-    `world._fire()`를 직접 두 번 호출해 결과를 콘솔로 확인했다 — 1발째는
-    `get_global_mouse_position()`으로 계산한 "정확한 조준 방향"과의 각도 차이가
-    -0.07도(이동 중이 아닐 때 탄퍼짐 범위 ±1도 이내 — 사실상 오차 없음, 수정 전이었다면
-    이미 반동 0.15가 반영돼 약 -8.6도 차이가 났을 것), 2발째는 반동이 정상적으로
-    누적되어(+7.15도, `_recoil` 0.15→0.3) 커서에서 위로 튀는 것도 함께 확인했다 —
-    "첫 발 정확 + 연사 시 반동으로 튐"이라는 의도된 동작과 정확히 일치한다. 검증 전
-    `~/Library/Application Support/Godot/app_userdata/life_game/inventory.save`를
-    지워 깨끗한 상태에서 테스트했고, 임시 스크립트와 저장 파일은 검증 후 모두 삭제했다.
-    렌더링 모드(`godot --path .`) 스크린샷 확인은 생략했다 — 이 버그는 화면 각도
-    수치(조준 방향 벡터 계산) 문제라 스크린샷으로는 8도 안팎의 오차를 육안으로
-    분별하기 어렵고, 위 콘솔 각도 비교가 훨씬 정밀하게 검증할 수 있는 방법이라고
-    판단했다.
-  - 변경 파일: `game/scenes/world/world.gd`.
-
-## 끝난 것 (바퀴 29, 이전 기록)
-
-- INBOX #27 완료: 농사 심기 방식을 "도구(곡괭이낫)로 상호작용"에서 DESIGN.md대로
-  "씨앗 아이템(rice_seed)을 손에 든 상태에서 밭에 좌클릭"으로 바꿨다. 수확(READY
-  상태)은 기존대로 곡괭이낫(pickaxe)을 든 채 좌클릭으로 유지했다.
-  - 문제: `world.gd`의 `_held_tool`은 `TOOL_ICONS`(gun/axe/pickaxe/fishing_rod)에
-    속한 아이템을 핫바에서 골랐을 때만 채워진다 — 씨앗처럼 도구가 아닌 아이템을
-    선택하면 `_held_tool`이 항상 `""`이 되어, "씨앗을 손에 들었는지"를 이 값만으로는
-    확인할 수 없었다.
-  - `world.gd`에 `get_held_item() -> String`을 새로 추가했다(`get_held_tool()` 바로
-    아래). 지금 선택된 핫바 슬롯(`_selected_hotbar_index`)의 아이템 키를 도구 여부와
-    상관없이 그대로 반환한다(빈 슬롯이면 `""`). 기존 `get_held_tool()`/`_held_tool`은
-    그대로 뒀다 — 다른 상호작용(총 발사, 채집/채광 포인트, 목장, 수확)이 여전히
-    "도구인가"만 확인하면 되므로 건드릴 이유가 없었다.
-  - `farm_plot.gd`의 `_unhandled_input()`을 상태별로 분기하도록 바꿨다: EMPTY
-    상태에서는 `world_ref.get_held_item() == SEED_ITEM`("rice_seed")일 때만
-    `_interact()`(심기)를 호출하고, READY 상태에서는 기존대로
-    `world_ref.get_held_tool() == REQUIRED_TOOL`("pickaxe")일 때만 `_interact()`
-    (수확)를 호출한다. 이전에는 두 상태 모두 `get_held_tool() == REQUIRED_TOOL` 하나만
-    확인했었다 — 즉 곡괭이낫을 든 채로도 심기가 됐었다(버그).
-  - EMPTY 상태 프롬프트 텍스트를 "곡괭이낫을 들고 좌클릭: 씨앗 심기"에서 "벼 씨앗을
-    들고 좌클릭: 씨앗 심기"로 바꿨다(실제 요구 조건에 맞춰 화면 안내도 정정).
-  - 검증: `rm ~/Library/Application Support/Godot/app_userdata/life_game/
-    inventory.save` 후 `godot --headless --path . --script <임시스크립트>.gd`로
-    world.tscn을 띄운 뒤 (1) 씨앗을 핫바에서 선택 → `get_held_item()=="rice_seed"`,
-    `get_held_tool()==""` 확인, (2) 씨앗을 든 채 좌클릭 → EMPTY→GROWING 전환 + 씨앗
-    1개 소비 확인, (3) GROWING 상태에서 같은(씨앗 든) 좌클릭을 다시 눌러도 상태 유지
-    (중복 심기 안 됨) 확인, (4) GROWING 상태에서 곡괭이낫으로 바꿔 좌클릭해도 아직 안
-    익었으므로 상태 유지(조기 수확 안 됨) 확인, (5) `_grow_timer=0`으로 강제 진행 후
-    READY 전환 확인, (6) 곡괭이낫을 든 채 좌클릭 → READY→EMPTY 전환(수확) 확인,
-    (7) **회귀 확인**: 별도 스크립트로 곡괭이낫만 든 채(씨앗은 선택하지 않고) EMPTY
-    밭에 좌클릭 → 상태가 EMPTY에 그대로 머물고 씨앗 재고도 줄지 않는 것을 확인(이전
-    버그였다면 곡괭이낫만으로도 심어졌을 것). 추가로 `godot --path .`(렌더링 모드)로
-    씨앗을 든 채 밭 앞에 선 스크린샷을 찍어 프롬프트 문구("벼 씨앗을 들고 좌클릭: 씨앗
-    심기")와 핫바 선택 테두리가 정상적으로 보이는 것을 눈으로 확인했다. 임시
-    스크립트/스크린샷/`user://inventory.save`는 검증 후 모두 삭제했다.
-  - 변경 파일: `game/scenes/world/world.gd`, `game/scenes/farm_plot/farm_plot.gd`.
-
-## 끝난 것 (바퀴 28, 이전 기록)
-
-- INBOX #26 완료: 목장(ranch_zone) 경계를 매 프레임 position clamp가 아니라 실제
-  물리 충돌체로 막도록 바꿨다.
-  - `deer.gd`의 `extends Node2D`를 `extends CharacterBody2D`로 바꾸고, `_move()`가
-    `position +=` 직접 대입 대신 `velocity` 설정 + `move_and_slide()`를 쓰도록
-    고쳤다. `is_ranched`일 때 하던 `zone_center`/`zone_radius` 기준 원형 clamp
-    블록은 완전히 제거했다 — 이제 실제 담장이 막아준다. 비목장(야생) 사슴의
-    `WORLD_BOUNDS` clamp(맵 끝 무한 경계)는 그대로 유지했다(#26 범위 밖, 담장이
-    없는 지형이라 여전히 clamp가 필요함).
-  - `deer.tscn`의 루트 노드 타입을 `Node2D`→`CharacterBody2D`로 바꾸고, 기존
-    `Hurtbox`(Area2D, 총알 피격 판정용, 그대로 유지) 옆에 몸통 물리 충돌용
-    `CollisionShape2D`(반경 20 CircleShape2D)를 새로 추가했다. 기존 Hurtbox는
-    독립된 Area2D라 이번 변경과 레이어 충돌이 없다(총알/피격 판정에 영향 없음 —
-    실제 실행으로 확인).
-  - `ranch_zone.gd`에 `_build_fence()`를 추가했다. `ZONE_RADIUS`(100) 원주를 따라
-    얇은 직사각형 `CollisionShape2D` 16개(`FENCE_SEGMENTS`)를 겹치게 이어붙여 속이
-    빈 원형 담장을 만들고, 하나의 `StaticBody2D`(`Fence`) 아래 자식으로 둔다. 속이
-    꽉 찬 `CircleShape2D` 하나를 쓰지 않은 이유: 그러면 목장 안에 스폰되는 사슴이
-    담장 안쪽에서부터 이미 겹친 상태가 되어 `move_and_slide()`가 즉시 밖으로
-    튕겨내 버린다 — 세그먼트 방식은 속이 비어 있어 이 문제가 없다.
-  - `_release_one()`의 스폰 위치 계산도 `spawn_radius := ZONE_RADIUS - FENCE_THICKNESS`로
-    안쪽 여유를 둬서, 새로 풀어놓는 사슴이 담장 콜라이더와 겹친 채 스폰되지 않게 했다
-    (지시받지 않았지만 추가한 개선 — 담장을 실제 충돌체로 만들면서 자연히 필요해진
-    안전장치).
-  - 검증: `godot --path . --script <임시스크립트>.gd`로 world.tscn을 실제로 띄운 뒤
-    (1) 목장에 사슴을 풀어놓고 바깥쪽으로 강제 이동(`velocity=(500,0)`)을 600 물리
-    프레임 동안 반복 적용해도 중심에서 75.6 거리를 넘지 못하는 것을 확인(담장 반경
-    100+두께 12 안쪽에 갇힘 — clamp 없이 물리적으로만 막힌 것), (2) 같은 스크립트로
-    비목장 야생 사슴이 400프레임 동안 정상적으로 배회(약 78 거리 이동)해 회귀가 없는
-    것을 확인, (3) `godot --path .`(렌더링 모드)로 목장 스크린샷을 찍어 기존
-    `pasture.png`(담장이 이미 그림으로 그려진 텍스처) 위에 사슴이 정상적으로 보이고
-    렌더링 깨짐이 없는 것을 눈으로 확인했다. 임시 스크립트/스크린샷/
-    `user://inventory.save`는 검증 후 모두 삭제했다.
-  - 변경 파일: `game/scenes/deer/deer.gd`, `game/scenes/deer/deer.tscn`,
-    `game/scenes/ranch_zone/ranch_zone.gd`.
-
-## 끝난 것 (바퀴 27, 이전 기록)
-
-- **먼저: 세션 시작 시점에 이미 INBOX #24(바닥 드롭 아이템)가 완료 표시(`- [x]`)되어
-  있었는데, 관련 코드(`deer.gd`/`farm_plot.gd`/`resource_point.gd`/`world.gd`의
-  `spawn_dropped_item()` 배선, `scenes/dropped_item/`, `assets/sprites/items/`)는
-  전부 미커밋 상태로 작업 디렉터리에 남아 있었다** — 바퀴 3→4, 14→15, 24→25와 같은
-  패턴(이전 세션이 구현은 끝냈지만 커밋 전에 예산 초과로 죽음)으로 보인다. 처음부터
-  다시 만들지 않고, 이번 바퀴 검증 과정(아래)에서 이 코드가 실제로 동작하는지 함께
-  확인했다 — 채집/채광/농사 수확 시 `spawn_dropped_item()`이 호출되고, 플레이어가 그
-  위치에 있으면(접촉) 즉시 인벤토리에 들어가는 것을 직접 실행해 확인했다(사슴 사냥/포획
-  경로는 이번 바퀴에서 별도로 재검증하지 않음 — `deer.gd`의 `_capture()`가 `world_ref.
-  spawn_dropped_item()`을 호출하도록 바뀐 diff만 읽고 패턴이 동일함을 확인). 품질
-  기준을 통과한다고 판단해 이번 커밋에 함께 포함했다. **참고**: `deer.gd`의 `_die()`
-  (기본탄으로 사냥 성공한 경우)는 여전히 아무 아이템도 드롭하지 않는다 — 이건 #24 이전
-  부터 있던 기존 동작(사냥 성공 보상 자체가 DESIGN.md/INBOX에 정의된 적 없음, 마취탄
-  포획만 `captured_deer`를 준다)이라 이번 바퀴가 새로 만든 결함이 아니다. 다음에 "사냥
-  성공 시에도 뭔가 드롭해야 한다"는 지시가 오면 그때 추가할 것.
-- INBOX #25 완료: 곡괭이와 낫으로 나뉘어 있던 채집 도구를 곡괭이 하나("곡괭이낫")로
-  다시 합쳤다.
-  - `sickle` 아이템을 완전히 제거했다: `scenes/world/world.gd`의 `ITEM_LABELS`/
-    `TOOL_KEYS`/`TOOL_ICONS`에서 삭제하고, `pickaxe`의 표시 이름을 "곡괭이"에서
-    "곡괭이낫"으로 바꿨다(DESIGN.md가 이 도구를 부르는 이름을 그대로 UI에 반영).
-    `assets/sprites/tools/sickle.png`(+`.import`)도 `git rm`으로 삭제했다(이제 아무
-    코드도 참조하지 않음).
-  - `scenes/resource_point/gathering_point.tscn`(채집 포인트)의 `required_tool`을
-    `"sickle"`→`"pickaxe"`로 바꿨다. `mining_point.tscn`(채광 포인트)은 이미
-    `"pickaxe"`였으므로 그대로 뒀다. 두 포인트 모두 프롬프트 텍스트를 "곡괭이낫을 들고
-    좌클릭: ..."으로 통일했다.
-  - `scenes/farm_plot/farm_plot.gd`의 `REQUIRED_TOOL`도 `"sickle"`→`"pickaxe"`로
-    바꿨다(#27이 아직 처리 대기 상태라, 심기 방식 자체는 이번에 건드리지 않고 "도구
-    요구 조건"만 곡괭이로 맞췄다 — DESIGN.md에도 아직 "수확은 곡괭이낫" 요구만 확정돼
-    있고 심기는 #27이 바꿀 예정).
-  - **곡괭이 이미지를 새로 그리지 않았다**(스스로 판단해서 고른 부분): INBOX #25가
-    "곡괭이 이미지가 이미 곡괭이+낫 형태로 그려져 있다면 새로 그리지 않아도 된다(먼저
-    확인)"고 했는데, 기존 `pickaxe.png`를 32배 확대해서 직접 봤더니 이미 뾰족한 픽
-    (곡괭이 날)과 반대쪽의 넓적한 날(낫/도끼날에 가까운 모양)이 함께 있는 투헤드
-    구조였다 — 이 정도 아이콘 해상도(32x32, 게임 내에서는 더 작게 표시됨)에서는 이미
-    "곡괭이+낫 통합 도구"로 충분히 읽힌다고 판단했다. 참고로 PixelLab로 같은 설명
-    ("pickaxe combined with sickle blade")을 다시 생성도 해봤는데 결과가 기존 이미지와
-    사실상 구분이 안 될 정도로 비슷해서(같은 실루엣), 새로 교체할 실익이 없다고 보고
-    기존 파일을 그대로 유지했다 — 예산도 아꼈다.
-  - 검증: `godot --path . --script <임시스크립트>.gd`로 world.tscn을 띄운 뒤
-    (1) `InventoryData.has_item("pickaxe")==true`, `has_item("sickle")==false` 확인,
-    (2) 핫바 3번(곡괭이)을 선택한 채로 좌클릭 → 채집 포인트에서 벼 씨앗 +1, 같은
-    좌클릭으로(같은 프레임 그룹에서 위치만 겹쳐놓고) 채광 포인트에서도 철 +1이 함께
-    올라가는 것을 확인(둘 다 `required_tool=="pickaxe"`이므로 도구 하나로 양쪽 다
-    가능해졌다는 게 핵심 확인 포인트), (3) 별도 스크립트로 곡괭이를 든 채 밭에 좌클릭
-    → EMPTY(0)에서 GROWING(1)으로 전환되고 씨앗이 소비되는 것 확인. 추가로 `godot
-    --path .`(렌더링 모드)로 인벤토리 창을 열어 스크린샷을 찍어 핫바에 "곡괭이낫"
-    한 칸만 있고(4개: 총/도끼/곡괭이낫/낚싯대) 선택 테두리도 정상 표시되는 것을 눈으로
-    확인했다. 임시 스크립트/스크린샷/`user://inventory.save`는 검증 후 모두 삭제했다.
-  - 변경 파일: `game/scenes/world/world.gd`, `game/scenes/farm_plot/farm_plot.gd`,
-    `game/scenes/resource_point/resource_point.gd`,
-    `game/scenes/resource_point/gathering_point.tscn`,
-    `game/scenes/resource_point/mining_point.tscn`(prompt_text만),
-    `game/assets/sprites/tools/sickle.png`(+`.import`, 삭제).
-
-## 끝난 것 (바퀴 26, 이전 기록)
-
-- INBOX #23 완료: `farm_plot.gd`/`resource_point.gd`/`ranch_zone.gd`의 F키 상호작용을
-  전부 없애고, `world.gd`가 공개한 `get_held_tool()`로 "지금 손에 든 도구"를 확인해
-  좌클릭으로 동작하게 바꿨다.
-  - `world.gd`에 `get_held_tool() -> String`(내부 `_held_tool` 반환)을 추가하고,
-    `_spawn_one_resource_point`/`_spawn_farm_plots`/`_spawn_ranch_zone`에서 `player_ref`와
-    함께 `world_ref = self`도 넘겨준다(각 스크립트가 `world_ref.get_held_tool()`로 조회).
-  - `resource_point.gd`(채집/채광 포인트 공용 스크립트)에 `@export var required_tool`을
-    추가해 씬별로 다른 도구를 요구하게 했다 — `gathering_point.tscn`은
-    `required_tool="sickle"`(낫), `mining_point.tscn`은 `required_tool="pickaxe"`(곡괭이).
-    좌클릭 시 `world_ref.get_held_tool() == required_tool`일 때만 채집/채광이 동작하고,
-    틀린 도구를 들고 있으면 아무 일도 일어나지 않는다(검증 스크립트로 낫을 든 채 채광
-    포인트를 좌클릭해도 철이 늘지 않는 것, 곡괭이로 바꾸면 늘어나는 것을 확인했다).
-  - `farm_plot.gd`도 같은 방식으로 `REQUIRED_TOOL := "sickle"`을 추가했다. INBOX #23
-    원문은 "낫을 들고... 밭(수확) 앞에서 좌클릭→수확"이라고 수확만 명시했지만, 심기
-    (EMPTY 상태)에도 같은 요구를 적용했다 — DESIGN.md에 농사 전용 도구가 따로 없고,
-    채집 계열 도구(낫)를 심기/수확 양쪽에 일관되게 적용하는 게 "무슨 도구로 밭을
-    만지는가"라는 질문에 임의의 새 규칙을 추가하지 않는 가장 단순한 해석이라고
-    판단했다(스스로 판단해서 고친 부분).
-  - `ranch_zone.gd`는 DESIGN.md/INBOX 어디에도 목장 상호작용에 지정된 도구가 없어서,
-    `REQUIRED_TOOL := ""`(빈손)로 정했다 — 총을 든 채 좌클릭하면 발사가 되므로, 목장
-    상호작용까지 같이 발동하면 안 되고, 이 편이 INBOX #23이 말한 "맞는 도구/빈손
-    좌클릭"이라는 표현과도 맞는다고 해석했다.
-  - 도끼/낚싯대는 여전히 벌목 대상/낚시 스팟이 없어(DESIGN.md 범위 밖) 실제 결과물은
-    만들지 않고, `world.gd`에 `_play_tool_swing()`(손에 든 아이콘을 짧게 확대했다
-    되돌리는 Tween)을 추가해 좌클릭 시 최소한의 반응만 재생하도록 했다(INBOX #23
-    "좌클릭 애니메이션/동작만 연결" 요구 그대로).
-  - 각 포인트/밭/목장의 프롬프트 텍스트를 "F: ..."에서 "낫을 들고 좌클릭: ...",
-    "곡괭이를 들고 좌클릭: ...", "빈손으로 좌클릭: ..."로 바꿔 새 조작법을 화면에서
-    바로 알 수 있게 했다(지시받지 않았지만 추가한 개선 — 안 바꾸면 플레이어가 F키를
-    계속 누르게 되어 조작이 막힌 것처럼 보인다).
-  - 검증: `godot --headless --path . --script <임시스크립트>.gd`로 world.tscn을 실제로
-    띄운 뒤 (1) 낫을 들고 채집 포인트 좌클릭 → 벼 씨앗 증가, (2) 낫을 든 채 채광 포인트
-    좌클릭 → 철 변화 없음(틀린 도구 차단 확인), (3) 곡괭이로 바꿔 같은 채광 포인트
-    좌클릭 → 철 증가, (4) 낫을 들고 밭 좌클릭 → EMPTY→GROWING 전환, (5) 빈손으로 목장
-    좌클릭 → captured_deer 재고 감소(사슴 방출), (6) 도끼를 들고 좌클릭 → 에러 없이
-    스윙 트윈 실행까지 전부 콘솔 로그로 직접 확인했다. 추가로 `godot --path .`(렌더링
-    모드)로 같은 시나리오를 스크린샷으로도 확인했다 — 채집 포인트 앞 프롬프트가
-    "낫을 들고 좌클릭: 채집 (벼 씨앗)"로 정확히 뜨고, 핫바 선택 테두리와 손에 든
-    도구 아이콘도 기존 스타일과 어긋나지 않았다. 임시 스크립트/스크린샷 PNG는 커밋 전
-    삭제했다. 참고로 검증 스크립트가 `user://inventory.save`(macOS
-    `~/Library/Application Support/Godot/app_userdata/life_game/`)에 이전 바퀴들의
-    테스트 잔여 데이터를 그대로 읽어들여 첫 실행 결과가 뒤섞였다 — 이 저장 파일을
-    지우고 나서야 깨끗한 상태로 검증할 수 있었다(아래 "헤드리스 CLI 검증" 참고).
-  - 변경 파일: `game/scenes/world/world.gd`, `game/scenes/farm_plot/farm_plot.gd`,
-    `game/scenes/resource_point/resource_point.gd`,
-    `game/scenes/resource_point/gathering_point.tscn`,
-    `game/scenes/resource_point/mining_point.tscn`, `game/scenes/ranch_zone/ranch_zone.gd`,
-    `game/scenes/ranch_zone/ranch_zone.tscn`.
-
-## 끝난 것 (바퀴 25, 이전 기록)
-
-- INBOX #22 완료: 총/도끼/곡괭이/낫/낚싯대를 인벤토리 아이템으로 추가하고, 숫자키
-  1~9로 핫바(일반 슬롯 앞 9칸)에서 골라 손에 들 수 있게 만들었다.
-  - `world.gd`에 `TOOL_KEYS`/`TOOL_ICONS`(도구 5종 아이콘 preload) 상수를 추가하고,
-    화면 아래 중앙에 핫바 UI 바(`UI/HUD/HotbarBar`, world.tscn에 새로 추가)를 코드로
-    채워서 인벤토리 창의 핫바 9칸과 같은 데이터를 항상 다시 읽어 보여준다(선택 슬롯은
-    노란 테두리로 표시).
-  - 도끼/곡괭이/낫/낚싯대 아이콘 4종은 PixelLab `create-image-pixflux`(32x32,
-    `no_background`)로 새로 생성했다. 기존에 없던 총 아이콘도 인벤토리 표시 일관성을
-    위해 같이 생성했다(INBOX 원문은 "새 아이템"에만 아이콘 생성을 요구했지만, 총만
-    아이콘이 없으면 핫바에서 부자연스러워 보여 스스로 판단해 추가했다).
-  - 선택한 슬롯이 도구면 `Player`의 자식 `Sprite2D`(코드에서 생성)에 그 아이콘을
-    씌워 캐릭터 옆(바라보는 방향 오프셋)에 보여준다("스프라이트 전환" 요구사항).
-    도구가 아니거나 빈 슬롯이면 빈손(아이콘 숨김)으로 돌아간다.
-  - 좌클릭 발사는 이제 `_held_tool == "gun"`일 때만 동작하도록 바꿨다(이전에는 무조건
-    발사됐음). 우클릭 탄종 전환도 총을 들고 있을 때만 동작하게 함께 고쳤다 —
-    DESIGN.md "우클릭: (총을 들고 있을 때) 장전된 탄종 전환" 문구를 그대로 반영한
-    것으로, 이번 항목을 구현하면서 자연히 따라오는 수정이라 스스로 판단해 반영했다.
-  - **아이템을 얻는 채집/제작 경로가 아직 없어서**, 캐릭터가 처음 월드에 들어올 때
-    도구 5종을 한 벌씩 자동 지급하도록 스스로 판단해 추가했다(`_ensure_starting_tools`,
-    이미 총을 갖고 있으면 다시 지급하지 않음 — 재입장 시 중복 지급 방지). DESIGN.md에
-    도구 획득 경로가 정의돼 있지 않아 임의로 정한 것이니, 상점/제작 시스템이 생기면
-    이 부트스트랩은 없앨 것.
-  - 도끼/낫/낚싯대는 이번 항목 범위상 좌클릭을 눌러도 아직 아무 동작이 없다(F키
-    상호작용을 좌클릭으로 옮기는 건 INBOX #23 몫 — 지시문에 그렇게 명시돼 있어 손대지
-    않았다).
-  - 검증: `godot --path . --script <임시 SceneTree 스크립트>.gd`로 실제 world.tscn을
-    렌더링해 `world._select_hotbar(i)`를 여러 인덱스로 직접 호출하며 스크린샷을 찍어
-    확인했다 — 총/도끼를 든 모습이 캐릭터 옆에 자연스럽게 나타났고, 도구가 아닌
-    슬롯(벼 씨앗 등)을 고르면 빈손으로 정상적으로 돌아갔다. 핫바 UI도 선택 테두리,
-    번호, 아이템명이 의도대로 보였다. 임시 스크립트와 스크린샷은 커밋 전 삭제했다.
-  - 변경 파일: `game/scenes/world/world.gd`, `game/scenes/world/world.tscn`,
-    `game/assets/sprites/tools/{axe,pickaxe,sickle,fishing_rod,gun}.png(.import)`.
-  - **`game/project.godot`도 이번에 같이 커밋한다.** 이번 바퀴가 `--import`를 돌리며
-    에디터가 자동으로 `window/stretch/aspect="keep"` 줄을 다시 지운 것을 발견해서,
-    바퀴 19의 "다음 바퀴가 project.godot를 다루게 되면 복원할 것" 메모대로 그 줄을
-    되살려 넣었다(아래 "막힌 것/보류"에서 이 항목 제거).
-
-## 끝난 것 (바퀴 24, 이전 기록)
-
-- INBOX #21 완료: 인벤토리를 슬롯 기반(일반 18칸+장비 9칸)으로 전환하고 E키
-  인벤토리 창을 추가했다.
-  - `InventoryData`(`scripts/inventory_data.gd`)를 아이템별 개수 딕셔너리(`_counts`)
-    방식에서 `_general_slots`(18칸, 각 원소는 `null` 또는 `{"item","count"}`)와
-    `_equipment_slots`(9칸, 부위 고정 순서: 모자/상의/하의/신발/목걸이2/반지2/가방)
-    구조로 바꿨다. `get_count`/`add_item`/`remove_item`/`has_item`/`all_counts` 등
-    기존 호출부(사냥/채집/채광/농사/목장)가 쓰는 API는 시그니처를 그대로 유지해서
-    다른 씬 코드는 전혀 건드리지 않았다. 스택 상한 99개를 넘으면 새 슬롯으로 이어진다.
-    `_load()`는 옛 딕셔너리 저장 파일을 만나면 자동으로 `add_item`을 반복 호출해
-    슬롯 구조로 마이그레이션한다.
-  - `world.tscn`에 `UI/InventoryWindow`(그리드 UI, 기존 일시정지 메뉴와 같은
-    `StyleBoxFlat_pause_panel`/테마 재사용)를 추가하고, `world.gd`에서 E키로
-    `_set_inventory_open()`을 토글한다(일시정지 중이거나 인벤토리가 열려 있으면
-    각각 서로를 막는다 — ESC는 인벤토리가 열려 있으면 먼저 인벤토리부터 닫음).
-    핫바 9칸(인덱스 0~8)은 배경색을 다르게 줘서 일반 슬롯과 시각적으로 구분했다.
-  - **세션 시작 시점에 이미 이 코드가 미커밋 상태로 다 만들어져 있었다**(직전
-    바퀴가 구현은 끝냈지만 커밋/문서 갱신 전에 죽은 것으로 보임 — 바퀴 3→4,
-    14→15와 같은 패턴). 처음부터 다시 만들지 않고, `godot --path . --script
-    <임시스크립트>.gd`로 실제 월드 씬을 띄운 뒤 여러 아이템(스택 99 초과 케이스
-    포함)을 넣고 E키에 해당하는 `_set_inventory_open(true)`를 직접 호출해
-    인벤토리 창을 스크린샷으로 렌더링해서 눈으로 확인했다 — 핫바 행 구분, 스택
-    오버플로우(예: 벼 150개→99+51 두 슬롯), 장비 슬롯 부위 라벨이 모두 의도대로
-    나왔고 기존 UI 스타일과 통일감이 있어 합격 기준(①)을 통과한다고 판단했다.
-    검증용 임시 스크립트와 스크린샷은 커밋 전 삭제했다.
-  - 변경 파일: `game/scripts/inventory_data.gd`, `game/scenes/world/world.gd`,
-    `game/scenes/world/world.tscn` (커밋 `1aa96d3`). `game/project.godot`(아래
-    "막힌 것/보류" 참고)와 untracked `.uid` 파일들은 이번에도 포함하지 않았다.
+    띄운 뒤 (1) 총 선택 시 `_ammo_in_magazine==8` 초기값, (2) `_fire()`를 8번 호출해
+    `_ammo_in_magazine==0`, (3) 탄창이 빈 상태에서 발사 게이트 조건이 `false`가 되는 것
+    (좌클릭을 눌러도 `_fire()`가 호출되지 않는 조건 확인), (4) `_start_reload()` 호출 직후
+    `_is_reloading==true`면서 발사 게이트도 여전히 막혀 있는 것(재장전 중엔 못 쏨), (5)
+    `_reload_timer=0`으로 강제 진행 후 `_physics_process()` 한 프레임으로
+    `_is_reloading==false`, `_ammo_in_magazine==8`로 복구되는 것, (6) 라벨 텍스트가
+    `"탄약: 기본탄 8/8"`/`"탄약: 마취탄 8/8"`로 정확한 것, (7) 탄창이 가득일 때 R을 눌러도
+    재장전이 시작되지 않는 것(불필요한 재장전 방지 확인) — 7개 케이스 전부 콘솔에 `PASS`로
+    확인했다(`--script` 모드에서는 `preload()`로 world.tscn을 상수 선언하면 오토로드 정적
+    참조 컴파일 에러가 나서, `_initialize()` 안에서 `load()`로 동적 로드하는 방식을 썼다 —
+    STATUS.md 기존 "헤드리스 CLI 검증" 노트와 일치하는 회피책). 추가로 `godot --path .`
+    (렌더링 모드, `--headless` 아님)로 실제 스크린샷 두 장을 찍어 "탄약: 기본탄 8/8"과
+    "탄약: 기본탄 재장전 중..." 두 상태 모두 패널 안에 잘리지 않고 자연스럽게 표시되는
+    것을 눈으로 확인했다. 검증 전후로 `inventory.save`를 지워 깨끗한 상태를 유지했고,
+    임시 스크립트/스크린샷은 커밋 전 모두 삭제했다.
+  - 변경 파일: `game/scenes/world/world.gd`, `game/scenes/world/world.tscn`.
 
 ## 다음에 할 것
 
-- `docs/feedback/INBOX.md` "처리 대기"에 다음 미완료 항목은 **#33(총 탄창/재장전)**이다.
-  DESIGN.md "총기 스탯" 절에 탄창 8발, R키 재장전(예비 탄약 무제한), 남은 발수 화면 표시
-  요구가 이미 정리돼 있으니 그대로 구현할 것. `world.gd`의 `_fire()`/`_fire_cooldown`/
-  `_update_ammo_label()` 근처에 이미 탄약 표시용 라벨(`_ammo_label`?)이 있는지부터 확인하고
-  (없다면 새로 만들 것), 좌클릭 발사 조건(`world.gd:211` 부근, `_held_tool == "gun"`)에
-  탄창이 0이면 발사되지 않는 조건을 추가할 것. 이어서 #34(목장 풀어놓기 방식 정정),
-  #35(도구 든 자세 4방향 품질) 순서로 처리.
-- **INBOX #32(총 버려도 계속 들고 있던 버그)는 이번 바퀴(34)에 완료했다.** 고친 파일은
-  `game/scenes/world/world.gd` 하나뿐이고, `InventoryData.changed` 신호에
-  `_revalidate_held_hotbar_slot()`을 새로 연결해 인벤토리가 바뀔 때마다 `_select_hotbar()`를
-  다시 호출하는 방식이다. **다음 바퀴가 주의할 점**: 앞으로 핫바/손에 든 아이템과 관련된
-  새 버그가 생기면, "숫자키를 누를 때만 갱신되는 상태"가 또 있는지부터 의심할 것 — 이번
-  버그와 같은 패턴(이벤트 기반 갱신 누락)일 가능성이 높다.
-- **INBOX #31(인벤토리 드래그 앤 드롭)은 바퀴 33에 완료했다.** 슬롯 이동/교환
-  로직은 `game/scripts/inventory_data.gd`의 `move_slot()`/`take_slot()`에, UI 드래그
-  훅은 `game/scripts/inventory_slot_cell.gd`(슬롯 셀)와
-  `game/scripts/inventory_discard_zone.gd`(창 바깥 버리기)에 있다. 다음 바퀴가 인벤토리
-  관련 요구를 또 받으면(예: "장비 슬롯은 맞는 부위 아이템만 넣을 수 있어야 한다") 이
-  파일들부터 확인할 것 — 지금은 장비 슬롯에 아이템 종류 제한이 전혀 없다(DESIGN.md에
-  아직 아이템별 "장비 부위" 데이터 자체가 없어서, 제한을 걸면 임의로 새 데이터 모델을
-  만드는 것이라 이번 바퀴 범위에 넣지 않았다 — 필요해지면 그때 정할 것).
-- 도끼/낚싯대는 여전히 좌클릭 시 손에 든 아이콘이 잠깐 커졌다 줄어드는 최소 스윙
-  애니메이션(`world._play_tool_swing()`)만 있고 실제 결과물(벌목/낚시)은 없다. 나무
-  자원이나 낚시 스팟이 INBOX로 들어오면 그때 실제 로직을 연결할 것 — DESIGN.md
-  "범위 밖"에 이미 명시돼 있어 지금은 손대지 않았다.
-- INBOX #23은 farm_plot/resource_point/ranch_zone의 F키 상호작용을 좌클릭+도구 확인
-  방식으로 바꿨다. `world.gd.get_held_tool()`을 공개 접근자로 추가했으니, 앞으로 새
-  상호작용 오브젝트를 추가할 때도 이 패턴(`world_ref.get_held_tool() == required_tool`)을
-  재사용할 것 — F키를 다시 쓰지 말 것(사용자가 F키 방식을 명시적으로 거부했었다).
-- 도끼/낚싯대는 여전히 좌클릭 시 손에 든 아이콘이 잠깐 커졌다 줄어드는 최소 스윙
-  애니메이션(`world._play_tool_swing()`)만 있고 실제 결과물(벌목/낚시)은 없다. 나무
-  자원이나 낚시 스팟이 INBOX로 들어오면 그때 실제 로직을 연결할 것 — DESIGN.md
-  "범위 밖"에 이미 명시돼 있어 지금은 손대지 않았다.
-- INBOX #21은 슬롯/UI/데이터 구조까지만 만들었다. 슬롯을 클릭해서 아이템을
-  옮기거나 버리는 등의 상호작용은 아직 없다(지시 범위 밖) — 다음에 그런 요구가
-  오면 새로 추가할 것.
-- INBOX #20의 "바닥이 단색이다" 부분은 고쳤지만, "지금까지 만들어진 스프라이트들을
-  전체적으로 다시 훑어보고 통일감 있게 다듬는다"는 지시의 뒷부분은 이번 바퀴 예산으로
-  다루지 못했다. 다음에 새 지시나 여유 예산이 있으면 캐릭터/사슴/채집·채광 포인트/
-  밭/목장 스프라이트를 나란히 스크린샷으로 놓고 팔레트(채도/명도)가 서로 크게 벗어나는
-  게 있는지 검토할 것 — 이번 바퀴에 새로 만든 잔디 바닥(`grass_tile.png`)은 어두운
-  올리브그린 톤이라 이 기준의 참고점으로 삼을 수 있다.
-- 잔디 타일(`assets/sprites/ground/grass_tile.png`, 32x32)은 PixelLab
-  `/create-tileset`이 생성한 16개 Wang 타일 중 `wang_0`(네 모서리 전부 "lower") 하나만
-  뽑아 쓴 것이다. 나중에 언덕/물가 등 "지형 경계"가 필요해지면, 이번에 버린 나머지 15개
-  타일을 다시 만들 필요 없이 같은 `lower_description`/`upper_description` 조합으로
-  새로 타일셋을 생성해 경계 타일들도 활용할 수 있다(예: `upper_description`을 "흙길"로
-  바꾸면 잔디↔흙길 전환 타일 15종이 함께 나온다).
-- `game/project.godot`에서 `window/stretch/aspect="keep"` 한 줄이 여전히 삭제된 채
-  미커밋 상태다(바퀴 19 이전부터, 이번 바퀴도 손대지 않고 그대로 둠) — 아래
-  "막힌 것/보류" 참고. 다음 바퀴가 `project.godot`를 건드리는 작업을 하게 되면 먼저
-  `git diff game/project.godot`로 이 상태가 여전한지 확인할 것.
-- 멀티플레이 실제 두 클라이언트 간 연결/동기화를 실기기(스크린샷 등)로 아직 검증하지
-  못했다(바퀴 17부터 이월 — 아래 "막힌 것/보류", "헤드리스 CLI 검증" 참고).
-- 농사(farm_plot)의 성장 시간(60초, 바퀴 13이 임의로 정함)은 여전히 게임 내 날짜 기준으로
-  바꾸지 않고 실시간 초 단위로 뒀다 — INBOX #13 지시문에 그 요구가 없었고, 실시간 초 단위와
-  게임 내 날짜(하루 20분) 중 뭘 기준으로 할지는 DESIGN.md에도 없어서 임의로 바꾸면 다음
-  바퀴가 되돌릴 위험이 있다고 판단했다. 다음 지시가 오면 그때 정할 것.
-- 목장(ranch_zone)은 여전히 개체 수 제한이나 "다시 꺼내기" 기능이 없다. 다음 지시가
-  오면 그때 추가할 것.
-- 밭(farm_plot)은 채집/채광 포인트와 같은 "무한 재사용" 철학을 따라 수확 후
-  다시 EMPTY로 돌아가 계속 심을 수 있게 만들었다(밭 칸 자체가 사라지거나 고갈되지
-  않음). 다음 바퀴가 자원 희소성을 넣고 싶다면 이 부분부터 바꿀 것.
-- **새 배경/바닥용 스프라이트를 world.tscn에 추가할 때는 `Ground`(z_index=-2)보다는
-  위, `Player`(기본값 0)보다는 아래인 `z_index=-1`을 기본으로 줄 것.**
-- **낮/밤에 따라 화면 밝기가 바뀌는 게 정상 동작이다** — 스크린샷 QA를 할 때 화면이
-  어둡게 나와도 렌더링 버그가 아니라 `TimeData.is_day`가 false(밤)이거나 비가 오는
-  상태(`RainOverlay`)일 수 있으니, 먼저 `TimeData` 상태를 확인할 것. 특정 조명 상태를
-  고정해서 캡처하고 싶으면 `TimeData.is_day`/`is_raining`을 스크립트에서 직접 덮어쓰면
-  된다.
-- **스프라이트 PNG 파일을 교체할 때는 반드시 `godot --headless --path . --import`로
-  강제 재임포트한 뒤 스크린샷으로 재검증할 것**(바퀴 18에서 확정된 규칙 — `.godot/
-  imported/*.ctex` 캐시가 자동 갱신되지 않을 수 있음).
+- `docs/feedback/INBOX.md` "처리 대기"에 다음 미완료 항목은 **#34(목장 풀어놓기 방식
+  정정)**이다. DESIGN.md "목장" 절대로 "포획한 동물 아이템(captured_deer)을 핫바에서
+  손에 든 상태로 목장 구역에 좌클릭"해야 풀어놓아지도록 바꿀 것 — #27(씨앗 심기)이 쓴
+  "손에 든 아이템으로 좌클릭" 패턴(`world_ref.get_held_item()`)을 그대로 재사용하면 된다.
+  지금 `ranch_zone.gd`는 `REQUIRED_TOOL := ""`(빈손 좌클릭)로 되어 있으니 그 조건을
+  `get_held_item() == "captured_deer"`로 바꾸고, 풀어놓을 때 인벤토리에서 1개 소비하는
+  것도 확인할 것. 이어서 #35(도구 든 자세 4방향 품질, 스크린샷으로 직접 확인 필요) 순서로
+  처리.
+- **INBOX #33(총 탄창/재장전)은 이번 바퀴(35)에 완료했다.** 고친 파일은
+  `game/scenes/world/world.gd`, `game/scenes/world/world.tscn` 둘뿐이다. 탄약 상태는
+  총 하나뿐이라 전역 변수(`_ammo_in_magazine` 등)로 뒀다 — 나중에 총 종류가 늘어나면
+  총별로 별도 탄창 상태를 둬야 한다(지금 구조로는 안 됨, 그때 리팩터링 필요).
+- **아직 남아 있는 오래된 메모(여전히 유효)**:
+  - 멀티플레이 실제 두 클라이언트 간 연결/동기화를 실기기(스크린샷 등)로 아직 검증하지
+    못했다(바퀴 17부터 이월 — 아래 "막힌 것/보류", "헤드리스 CLI 검증" 참고).
+  - 농사(farm_plot)의 성장 시간(60초)은 여전히 게임 내 날짜 기준이 아니라 실시간 초
+    단위다 — DESIGN.md에 기준이 명시돼 있지 않아 임의로 바꾸지 않고 있다. 다음 지시가
+    오면 그때 정할 것.
+  - 목장은 여전히 개체 수 제한이나 "다시 꺼내기" 기능이 없다.
+  - 도끼/낚싯대는 좌클릭 시 최소 스윙 애니메이션만 있고 실제 결과물(벌목/낚시)이 없다
+    (DESIGN.md "범위 밖"에 명시돼 있어 의도된 상태).
+  - **새 배경/바닥용 스프라이트를 world.tscn에 추가할 때는 `Ground`(z_index=-2)보다는
+    위, `Player`(기본값 0)보다는 아래인 `z_index=-1`을 기본으로 줄 것.**
+  - **낮/밤에 따라 화면 밝기가 바뀌는 게 정상 동작이다** — 스크린샷 QA에서 화면이 어둡게
+    나와도 렌더링 버그가 아니라 `TimeData.is_day`/`is_raining` 상태일 수 있으니 먼저
+    확인할 것.
+  - **스프라이트 PNG 파일을 교체할 때는 반드시 `godot --headless --path . --import`로
+    강제 재임포트한 뒤 스크린샷으로 재검증할 것.**
+  - **F키 상호작용 방식은 사용자가 명시적으로 거부했다 — 새 상호작용 오브젝트도
+    좌클릭+`get_held_tool()`/`get_held_item()` 패턴을 쓸 것, F키로 되돌리지 말 것.**
+  - `game/project.godot`의 `window/stretch/aspect="keep"`은 이번 바퀴 확인 결과 정상
+    유지되고 있다(이전 메모의 "삭제된 채 미커밋"은 더 이상 사실이 아니어서 이번에
+    제거함) — 그래도 `--import`나 에디터를 여는 작업 뒤에는 `git diff game/project.godot`로
+    한 번 더 확인하는 습관은 유지할 것.
 
 ## 헤드리스 CLI 검증 시 추가로 확인된 점 (다음 바퀴 참고)
 
@@ -572,11 +143,6 @@
   필요한데 DESIGN.md에 명시가 없다. 다음 지시가 오면 그때 정할 것.
 - (바퀴 17) 실제 두 클라이언트 간 접속/이동 동기화를 실기기(스크린샷)로 검증하지 못했다
   (위 "끝난 것"과 "헤드리스 CLI 검증" 참고, `--script` 테스트 하네스 한계 + 예산 소진).
-- (바퀴 19, 바퀴 25에서 해결) `game/project.godot`의 `window/stretch/aspect="keep"`이
-  반복적으로 삭제되던 문제 — 바퀴 25가 `godot --import`를 돌릴 때마다 에디터가 이 줄을
-  지운다는 걸 확인하고 복원 후 커밋했다. 앞으로도 `--import`나 에디터를 여는 작업 뒤에는
-  `git diff game/project.godot`로 이 줄이 여전한지 확인할 것(에디터가 열릴 때마다 다시
-  지워질 가능성이 있음 — 근본 원인은 미조사).
 
 ## 결정 로그
 
@@ -879,3 +445,8 @@
   아닌 아이템을 들고 있을 때도 실수로 동작하게 될 위험이 있다. 새 함수를 분리하면
   기존 동작을 전혀 건드리지 않고 "지금 선택된 아이템이 특정 소모품인가"라는 새 질문에
   답할 수 있다.
+- 바퀴 35: 총 탄창/재장전 상태(`_ammo_in_magazine`/`_is_reloading`/`_reload_timer`)를
+  총별이 아니라 `world.gd`의 전역 변수로 뒀다. 근거: 지금 총이 "기본 소총" 하나뿐이라
+  총별 상태를 구분할 필요가 없고, 미리 딕셔너리 등으로 구조화하면 아직 없는 요구를
+  위해 복잡도만 늘어난다. 총 종류가 늘어나면(DESIGN.md "범위 밖: 총기 추가 종류") 그때
+  아이템별 탄창 상태로 리팩터링할 것.
