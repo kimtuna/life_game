@@ -160,7 +160,7 @@ size_flags_horizontal = 4
 custom_minimum_size = Vector2(220, 0)
 text = "메인 메뉴로"
 
-[connection signal="pressed" from="CenterContainer/VBoxContainer/SlotsRow/Slot1Button" to="." method="_on_slot_pressed" binds=[1]]
-[connection signal="pressed" from="CenterContainer/VBoxContainer/SlotsRow/Slot2Button" to="." method="_on_slot_pressed" binds=[2]]
-[connection signal="pressed" from="CenterContainer/VBoxContainer/SlotsRow/Slot3Button" to="." method="_on_slot_pressed" binds=[3]]
+[connection signal="pressed" from="CenterContainer/VBoxContainer/SlotsRow/Slot1Button" to="." method="_on_slot_pressed" binds=[0]]
+[connection signal="pressed" from="CenterContainer/VBoxContainer/SlotsRow/Slot2Button" to="." method="_on_slot_pressed" binds=[1]]
+[connection signal="pressed" from="CenterContainer/VBoxContainer/SlotsRow/Slot3Button" to="." method="_on_slot_pressed" binds=[2]]
 [connection signal="pressed" from="CenterContainer/VBoxContainer/BackButton" to="." method="_on_back_pressed"]

@@ -1,0 +1,199 @@
+[gd_scene load_steps=10 format=3]
+
+[ext_resource type="Script" path="res://scenes/character_customization/character_customization.gd" id="1_script"]
+[ext_resource type="Theme" path="res://theme/main_theme.tres" id="2_theme"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_preview_bg"]
+bg_color = Color(0.157, 0.212, 0.184, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.4, 0.49, 0.44, 1)
+corner_radius_top_left = 14
+corner_radius_top_right = 14
+corner_radius_bottom_right = 14
+corner_radius_bottom_left = 14
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_swatch_green"]
+bg_color = Color(0.271, 0.612, 0.318, 1)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_swatch_green_selected"]
+bg_color = Color(0.271, 0.612, 0.318, 1)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(1, 1, 1, 1)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_swatch_blue"]
+bg_color = Color(0.239, 0.42, 0.769, 1)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_swatch_blue_selected"]
+bg_color = Color(0.239, 0.42, 0.769, 1)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(1, 1, 1, 1)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_swatch_red"]
+bg_color = Color(0.769, 0.267, 0.243, 1)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_swatch_red_selected"]
+bg_color = Color(0.769, 0.267, 0.243, 1)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(1, 1, 1, 1)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+
+[node name="CharacterCustomization" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("2_theme")
+script = ExtResource("1_script")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.098, 0.114, 0.106, 1)
+
+[node name="CenterContainer" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="CenterContainer"]
+layout_mode = 2
+theme_override_constants/separation = 20
+alignment = 1
+
+[node name="Title" type="Label" parent="CenterContainer/VBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_font_sizes/font_size = 34
+text = "캐릭터 만들기"
+horizontal_alignment = 1
+
+[node name="PreviewFrame" type="PanelContainer" parent="CenterContainer/VBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_styles/panel = SubResource("StyleBoxFlat_preview_bg")
+
+[node name="PreviewMargin" type="MarginContainer" parent="CenterContainer/VBoxContainer/PreviewFrame"]
+layout_mode = 2
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 24
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 24
+
+[node name="Preview" type="TextureRect" parent="CenterContainer/VBoxContainer/PreviewFrame/PreviewMargin"]
+custom_minimum_size = Vector2(160, 160)
+layout_mode = 2
+texture_filter = 1
+stretch_mode = 5
+expand_mode = 1
+
+[node name="VariantLabel" type="Label" parent="CenterContainer/VBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_font_sizes/font_size = 20
+theme_override_colors/font_color = Color(0.7, 0.75, 0.72, 1)
+text = "초록 옷"
+horizontal_alignment = 1
+
+[node name="SwatchRow" type="HBoxContainer" parent="CenterContainer/VBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_constants/separation = 18
+alignment = 1
+
+[node name="GreenSwatch" type="Button" parent="CenterContainer/VBoxContainer/SwatchRow"]
+custom_minimum_size = Vector2(56, 56)
+layout_mode = 2
+toggle_mode = true
+button_pressed = true
+theme_override_styles/normal = SubResource("StyleBoxFlat_swatch_green")
+theme_override_styles/hover = SubResource("StyleBoxFlat_swatch_green_selected")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_swatch_green_selected")
+theme_override_styles/focus = SubResource("StyleBoxFlat_swatch_green_selected")
+
+[node name="BlueSwatch" type="Button" parent="CenterContainer/VBoxContainer/SwatchRow"]
+custom_minimum_size = Vector2(56, 56)
+layout_mode = 2
+toggle_mode = true
+theme_override_styles/normal = SubResource("StyleBoxFlat_swatch_blue")
+theme_override_styles/hover = SubResource("StyleBoxFlat_swatch_blue_selected")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_swatch_blue_selected")
+theme_override_styles/focus = SubResource("StyleBoxFlat_swatch_blue_selected")
+
+[node name="RedSwatch" type="Button" parent="CenterContainer/VBoxContainer/SwatchRow"]
+custom_minimum_size = Vector2(56, 56)
+layout_mode = 2
+toggle_mode = true
+theme_override_styles/normal = SubResource("StyleBoxFlat_swatch_red")
+theme_override_styles/hover = SubResource("StyleBoxFlat_swatch_red_selected")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_swatch_red_selected")
+theme_override_styles/focus = SubResource("StyleBoxFlat_swatch_red_selected")
+
+[node name="ButtonSpacer" type="Control" parent="CenterContainer/VBoxContainer"]
+custom_minimum_size = Vector2(0, 12)
+layout_mode = 2
+
+[node name="ButtonRow" type="HBoxContainer" parent="CenterContainer/VBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_constants/separation = 16
+alignment = 1
+
+[node name="BackButton" type="Button" parent="CenterContainer/VBoxContainer/ButtonRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(160, 0)
+text = "뒤로"
+
+[node name="ConfirmButton" type="Button" parent="CenterContainer/VBoxContainer/ButtonRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(160, 0)
+text = "확정하고 입장"
+
+[connection signal="pressed" from="CenterContainer/VBoxContainer/SwatchRow/GreenSwatch" to="." method="_on_swatch_pressed" binds=[0]]
+[connection signal="pressed" from="CenterContainer/VBoxContainer/SwatchRow/BlueSwatch" to="." method="_on_swatch_pressed" binds=[1]]
+[connection signal="pressed" from="CenterContainer/VBoxContainer/SwatchRow/RedSwatch" to="." method="_on_swatch_pressed" binds=[2]]
+[connection signal="pressed" from="CenterContainer/VBoxContainer/ButtonRow/BackButton" to="." method="_on_back_pressed"]
+[connection signal="pressed" from="CenterContainer/VBoxContainer/ButtonRow/ConfirmButton" to="." method="_on_confirm_pressed"]
