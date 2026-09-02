@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="refresh" content="60">
+<title>auto-loop 진행 상황</title>
+<style>
+  :root{color-scheme:dark light}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;max-width:640px;margin:40px auto;padding:0 16px;background:#0b0b0c;color:#e8e8ea}
+  h1{font-size:1.3rem;margin-bottom:4px}
+  .updated{color:#9a9aa2;font-size:.85rem;margin-top:0}
+  .row{display:flex;gap:12px;flex-wrap:wrap}
+  .card{background:#17181a;border:1px solid #2a2b2e;border-radius:10px;padding:16px;margin:12px 0;flex:1;min-width:140px}
+  .num{font-size:2rem;font-weight:700}
+  .label{color:#9a9aa2;font-size:.85rem;margin-bottom:6px}
+  code{background:#222;padding:2px 6px;border-radius:4px;word-break:break-all}
+</style>
+</head>
+<body>
+  <h1>auto-loop 진행 상황</h1>
+  <p class="updated">마지막 갱신: 2026-09-02 09:53:13</p>
+  <div class="row">
+    <div class="card"><div class="label">남은 항목</div><div class="num">0</div></div>
+    <div class="card"><div class="label">완료된 항목</div><div class="num">0</div></div>
+  </div>
+  <div class="card">
+    <div class="label">지금 처리 중 / 다음으로 처리할 항목</div>
+    <div>(없음 — 큐 비어있음)</div>
+  </div>
+  <div class="card">
+    <div class="label">마지막 작업 커밋</div>
+    <div><code>1b25e8e 자율 개발 루프 뼈대 추가</code></div>
+  </div>
+</body>
+</html>
