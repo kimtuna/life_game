@@ -5,19 +5,47 @@
 
 ## 마지막 갱신
 
-바퀴 52 / 2026-09-03 (**INBOX #43 완료.** 세션을 열어보니 `git status`에 이미
-`game/assets/sprites/character/axe/`(24개 PNG, 3색×4방향×idle/chop)와
-`game/scenes/world/world.gd` 수정분이 커밋 안 된 채로 남아 있었다 — 바퀴 51 이후 어떤
-세션이 east/west `/rotate` 결함을 실제로 풀어서 통합 작업까지 다 끝내놓고 STATUS/INBOX
-갱신·커밋 전에 예산 초과로 죽은 것으로 보인다(바퀴 3 때와 같은 패턴, 결정 로그 참고).
-새로 그림을 그리지 않고 이 상태를 그대로 검수했다: 남은 PNG를 확대해서 직접 눈으로
-봤을 때 east/west chop이 더 이상 다리가 겹쳐 보이지 않고 자연스러운 옆모습 내려찍기
-자세였고, `world.gd` diff도 총(#42) 패턴을 그대로 따르고 있었다. 실제 게임을 헤드리스
-스크린샷으로 8방향×상태(idle/chop × south/east/north/west) 전부 렌더링해 재확인했고
-전부 합격 기준(①) 통과로 판단해 커밋했다.)
+바퀴 53 / 2026-09-03 (**INBOX #44 완료.** 세션을 열어보니 `/tmp/pickaxe_gen/`에 이미
+green/blue 3색 중 2색(각 4방향×idle/mining/gathering=12장씩, 24장)이 합성+인페인트+회전까지
+끝난 채로 남아 있었고, red는 south raw 합성본 3장만 있고 인페인트/회전이 안 된 상태였다 —
+바퀴 52 이후 어떤 세션이 작업 중 예산 초과로 죽은 것으로 보인다(바퀴 3, 51→52와 같은
+패턴). green/blue는 새로 만들지 않고 콘택트시트로 직접 눈으로 검수만 했고(도끼(#43) 때
+합격한 수준과 동등), red는 남은 절차(`pl.inpaint` south 3장 → `pl.rotate`로 east/north →
+PIL 좌우반전으로 west)만 이어서 완료했다. 3색×4방향×3모션=36장 전부
+`game/assets/sprites/character/pickaxe/`에 배치하고 `world.gd`에 총(#42)/도끼(#43)와 같은
+패턴으로 통합, 강제 재임포트 후 실제 게임 렌더링 헤드리스 스크린샷(green, 4방향×3상태
+12장)으로 애니메이션 이름 전환과 그림 품질을 재확인해 합격 기준(①) 통과로 판단하고
+커밋했다.)
 
 ## 끝난 것 (지금까지의 스냅샷 — 바퀴별 상세 이력은 git 커밋 메시지 `[INBOX #N] ...`에 있음)
 
+- INBOX #44 완료 (바퀴 53): 곡괭이낫의 "들고 있는"/"채광하는"/"채집하는" 세 모션을
+  `_held_item_sprite` 오버레이 대신 캐릭터 애니메이션 프레임(`pickaxe_idle_<dir>`/
+  `pickaxe_mining_<dir>`/`pickaxe_gathering_<dir>`)에 통합했다(총(#42)/도끼(#43)와 동일한
+  패턴). 이전(미커밋 상태로 죽은) 세션이 `/tmp/pickaxe_gen/pl.py`/`build_remaining.py`로
+  이미 레시피(기존 검증된 도구 아이콘 `pickaxe.png`/`pickaxe_mining.png`/
+  `pickaxe_gathering.png`을 PIL로 캐릭터 베이스에 합성 → 손 연결부만 PixelLab
+  `/inpaint`로 다듬음 → `/rotate`로 south→east/north → west는 PIL 좌우반전)을 정립해뒀고,
+  green/blue는 이미 36장 중 24장이 끝나 있었다 — red만 south 인페인트+회전을 이어서
+  완료해 36장(3색×4방향×3모션)을 채웠다. 코드: `play_pickaxe_use(kind)`가 더 이상
+  `_play_tool_swing()`으로 옆 아이콘을 바꾸지 않고 `_pickaxe_use_kind`를 기록한 뒤
+  `_tool_use_flash_timer`만 설정하도록 바꿨고, `_current_animation_name()`에 pickaxe
+  분기(마이닝/채집/idle 셋 중 고름)를 추가했다. `_select_hotbar()`/`_physics_process()`의
+  텍스처 리셋 조건에 `"pickaxe"`를 총/도끼와 같은 예외로 추가했다. 이제 안 쓰이는
+  `PICKAXE_USE_ICONS` 상수(옆 아이콘용 mining/gathering 텍스처)는 제거했다 — `TOOL_ICONS`의
+  `"pickaxe"`(핫바 아이콘)는 그대로 유지.
+  - 검증: green/blue 콘택트시트(합성 결과 PNG 직접 확대)로 눈으로 확인 — 도끼 때와 동등한
+    수준(손-도구 연결이 자연스럽고 채광/채집 모션이 서로 다른 그림으로 뚜렷이 구분됨).
+    강제 재임포트(`godot --headless --path . --import`) 후 `game/_verify_pickaxe_motion.gd`
+    (커밋 전 삭제)로 world 씬을 실제 렌더링 드라이버로 띄우고
+    `set_physics_process(false)` → `_facing`/`_held_tool="pickaxe"`/`_pickaxe_use_kind`/
+    `_tool_use_flash_timer`를 강제 설정 → `_update_player_animation()` → 4프레임 대기 →
+    캡처를 12가지 상태(south/east/north/west × idle/mining/gathering, green)에 대해
+    반복했다 — 콘솔에 `anim=pickaxe_idle_south` 등으로 애니메이션 전환이 코드대로 동작함을
+    확인했고, 크롭한 콘택트시트를 직접 눈으로 봤을 때도 자연스러웠다. 예산 문제로 blue/red는
+    게임 내 스크린샷 대신 PNG 확대 검수로만 확인했다(#42/#43과 같은 방식).
+  - 변경 파일: `game/scenes/world/world.gd`,
+    `game/assets/sprites/character/pickaxe/*.png`(+`.import`, 신규 72개 파일).
 - INBOX #43 완료 (바퀴 52): 도끼의 "들고 있는"/"패는" 모션을 `_held_item_sprite` 오버레이
   대신 캐릭터 애니메이션 프레임(`axe_idle_<dir>`/`axe_chop_<dir>`)에 통합했다(총(#42)과
   동일한 패턴). **작업 자체는 이전 바퀴(51 이후, STATUS에 기록되지 않은 세션)가 이미
@@ -135,8 +163,13 @@
 
 ## 다음에 할 것
 
-- **다음 바퀴는 INBOX #44(곡괭이낫 통합)부터 시작할 것.** #43(도끼)이 총(#42)과 완전히
-  같은 패턴으로 끝났으니, #44/#45도 같은 절차를 반복하면 된다:
+- **다음 바퀴는 INBOX #45(낚싯대 통합)부터 시작할 것.** #44(곡괭이낫)가 총(#42)/도끼(#43)와
+  완전히 같은 패턴으로 끝났으니, #45도 같은 절차를 반복하면 된다(단, 곡괭이낫이 아니라
+  낚싯대이므로 `/tmp/rod_gen/`처럼 새 폴더를 쓸 것, `/tmp/pickaxe_gen/pl.py`를 그대로
+  복사해 재사용 가능). **#45를 끝내면 INBOX 원문대로
+  `_held_item_sprite`/`HELD_ITEM_OFFSETS`/`HELD_ITEM_BEHIND_FACINGS`/`TOOL_USE_ICONS`/
+  `_play_tool_swing()` 등 이제 완전히 안 쓰이는 코드를 정리(삭제)할 것** — #44까지는
+  낚싯대가 아직 오버레이 방식을 쓰고 있어 남겨뒀다.
   1. 기존에 이미 합격한 도구 아이콘(`pickaxe_mining.png`/`pickaxe_gathering.png`,
      `fishing_rod.png`/`fishing_rod_fishing.png`, 전부 `game/assets/sprites/tools/`에
      있음)을 PIL로 캐릭터 베이스 이미지 위에 합성한 뒤 손 연결부만 인페인트하는

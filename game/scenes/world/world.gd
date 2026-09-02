@@ -72,21 +72,13 @@ const TOOL_ICONS := {
 
 ## 도구별 "실제로 쓰는 모션" 그림 (INBOX #37/#38/#40, DESIGN.md "도구 동작 표현"). TOOL_ICONS는
 ## "들고 있는" 정적 자세고, 이 딕셔너리에 있는 도구는 사용하는 순간 잠깐 이 텍스처로
-## 바뀐다(도끼는 날이 바닥/나무에 박히고 나무 조각이 튀는 모습, 낚싯대는 줄이 팽팽해지며
-## 바늘이 드리워진 모습). 곡괭이낫은 채광/채집 두 모션이 서로 달라야 해서 여기 대신 아래
-## PICKAXE_USE_ICONS를 따로 쓴다(INBOX #39). **총은 INBOX #42부터 여기 없다** — 옆 아이콘
-## 오버레이 방식을 버리고 캐릭터 애니메이션 프레임 자체(gun_idle_*/gun_fire_*, DESIGN.md
-## "캐릭터 애니메이션")에 통합됐다.
+## 바뀐다(낚싯대는 줄이 팽팽해지며 바늘이 드리워진 모습). **총(#42)/도끼(#43)/곡괭이낫(#44)은
+## 여기 없다** — 옆 아이콘 오버레이 방식을 버리고 캐릭터 애니메이션 프레임 자체
+## (gun_idle_*/gun_fire_*, axe_idle_*/axe_chop_*, pickaxe_idle_*/pickaxe_mining_*/
+## pickaxe_gathering_*, DESIGN.md "캐릭터 애니메이션")에 통합됐다. 낚싯대만 #45에서 이
+## 방식을 넘겨받을 예정이라 아직 남아 있다.
 const TOOL_USE_ICONS := {
 	"fishing_rod": preload("res://assets/sprites/tools/fishing_rod_fishing.png"),
-}
-## 곡괭이낫의 "쓰는 모션" 그림 — 채광(광물을 내려찍어 조각이 튐)과 채집(낫으로 작물을
-## 베어냄)이 같은 도구라도 서로 다른 그림이어야 한다(DESIGN.md "도구 동작 표현", INBOX #39).
-## resource_point.gd가 실제 채광/채집이 일어나는 순간 kind("mining"/"gathering")를 알려주면
-## play_pickaxe_use()가 여기서 골라 재생한다.
-const PICKAXE_USE_ICONS := {
-	"mining": preload("res://assets/sprites/tools/pickaxe_mining.png"),
-	"gathering": preload("res://assets/sprites/tools/pickaxe_gathering.png"),
 }
 ## "사용하는" 모션 텍스처가 유지되는 시간. GUN_FIRE_INTERVAL(0.5초)보다 짧아야 연사 중에도
 ## "들고 있는" 자세로 돌아왔다가 다시 반짝이는 것이 보인다.
@@ -162,6 +154,11 @@ var _reloading_ammo_type: String = "normal"
 ## 지금 "사용하는" 모션 텍스처가 표시 중이면 0보다 크다 (INBOX #37/#38). 매 물리 프레임
 ## 줄어들다가 0이 되면 지금 손에 든 도구의 "들고 있는" 텍스처로 되돌아간다.
 var _tool_use_flash_timer: float = 0.0
+## 곡괭이낫이 "쓰는" 모션 중일 때 채광("mining")인지 채집("gathering")인지 (INBOX #44).
+## play_pickaxe_use()가 호출될 때마다 갱신되고, _current_animation_name()이
+## _tool_use_flash_timer > 0인 동안 이 값으로 pickaxe_mining_*/pickaxe_gathering_* 중
+## 어느 애니메이션을 재생할지 고른다.
+var _pickaxe_use_kind: String = "mining"
 var _is_moving: bool = false
 var _was_moving: bool = false
 var _state_broadcast_timer: float = 0.0
@@ -271,7 +268,7 @@ func _physics_process(delta: float) -> void:
 	if _tool_use_flash_timer > 0.0:
 		_tool_use_flash_timer -= delta
 		if _tool_use_flash_timer <= 0.0 and _held_item_sprite != null and _held_tool != "gun" \
-				and _held_tool != "axe" and TOOL_ICONS.has(_held_tool):
+				and _held_tool != "axe" and _held_tool != "pickaxe" and TOOL_ICONS.has(_held_tool):
 			_held_item_sprite.texture = TOOL_ICONS[_held_tool]
 	if _is_reloading:
 		_reload_timer -= delta
@@ -360,13 +357,16 @@ func _play_tool_swing(override_texture: Texture2D = null) -> void:
 
 
 ## resource_point.gd가 실제로 채광/채집이 일어나는 순간(harvest 성공 시) 호출한다
-## (INBOX #39). kind는 "mining" 또는 "gathering" — 같은 곡괭이낫이라도 두 동작이 서로
-## 다른 그림으로 보여야 한다(DESIGN.md "도구 동작 표현"). 지금 손에 든 도구가 곡괭이낫이
-## 아니면(예: 이미 다른 도구로 바꿔 든 뒤 신호가 늦게 온 경우) 아무 것도 하지 않는다.
+## (INBOX #39, #44부터는 옆 아이콘이 아니라 캐릭터 애니메이션 프레임 자체
+## (pickaxe_mining_*/pickaxe_gathering_*)로 표현한다 — 총(#42)/도끼(#43)와 같은 패턴).
+## kind는 "mining" 또는 "gathering" — 같은 곡괭이낫이라도 두 동작이 서로 다른 그림으로
+## 보여야 한다(DESIGN.md "도구 동작 표현"). 지금 손에 든 도구가 곡괭이낫이 아니면(예: 이미
+## 다른 도구로 바꿔 든 뒤 신호가 늦게 온 경우) 아무 것도 하지 않는다.
 func play_pickaxe_use(kind: String) -> void:
-	if _held_tool != "pickaxe" or not PICKAXE_USE_ICONS.has(kind):
+	if _held_tool != "pickaxe" or (kind != "mining" and kind != "gathering"):
 		return
-	_play_tool_swing(PICKAXE_USE_ICONS[kind])
+	_pickaxe_use_kind = kind
+	_tool_use_flash_timer = AXE_CHOP_FLASH_DURATION
 
 
 ## 방향별 스프라이트(north/south/east/west)만 있으므로, 마우스가 가리키는
@@ -577,9 +577,10 @@ func _select_hotbar(index: int) -> void:
 	var slot = general_slots[index] if index < general_slots.size() else null
 	if slot != null and TOOL_ICONS.has(slot["item"]):
 		_held_tool = slot["item"]
-		if _held_tool == "gun" or _held_tool == "axe":
-			## 총(#42)/도끼(#43)는 옆 아이콘 오버레이를 쓰지 않는다 — 캐릭터 애니메이션
-			## 프레임(gun_idle_*/gun_fire_*, axe_idle_*/axe_chop_*) 자체가 든 모습을 보여준다.
+		if _held_tool == "gun" or _held_tool == "axe" or _held_tool == "pickaxe":
+			## 총(#42)/도끼(#43)/곡괭이낫(#44)은 옆 아이콘 오버레이를 쓰지 않는다 — 캐릭터
+			## 애니메이션 프레임(gun_idle_*/gun_fire_*, axe_idle_*/axe_chop_*,
+			## pickaxe_idle_*/pickaxe_mining_*/pickaxe_gathering_*) 자체가 든 모습을 보여준다.
 			_held_item_sprite.visible = false
 		else:
 			_held_item_sprite.texture = TOOL_ICONS[_held_tool]
@@ -759,6 +760,25 @@ func _build_player_sprite_frames(variant: String) -> SpriteFrames:
 		frames.add_animation(axe_chop_anim)
 		frames.set_animation_speed(axe_chop_anim, 1.0)
 		frames.add_frame(axe_chop_anim, load("res://assets/sprites/character/axe/%s_%s_chop.png" % [variant, direction]))
+
+		## 곡괭이낫(INBOX #44, 총(#42)/도끼(#43)와 같은 패턴): "들고 있는" 모션에 더해
+		## "채광하는"/"채집하는" 모션 두 가지가 서로 다른 그림이어야 한다(DESIGN.md
+		## "도구 동작 표현"). 걷기 전용 프레임은 다른 도구와 동일하게 옵션A(정지 idle 프레임
+		## 유지)를 따른다.
+		var pickaxe_idle_anim := "pickaxe_idle_%s" % direction
+		frames.add_animation(pickaxe_idle_anim)
+		frames.set_animation_speed(pickaxe_idle_anim, 1.0)
+		frames.add_frame(pickaxe_idle_anim, load("res://assets/sprites/character/pickaxe/%s_%s_idle.png" % [variant, direction]))
+
+		var pickaxe_mining_anim := "pickaxe_mining_%s" % direction
+		frames.add_animation(pickaxe_mining_anim)
+		frames.set_animation_speed(pickaxe_mining_anim, 1.0)
+		frames.add_frame(pickaxe_mining_anim, load("res://assets/sprites/character/pickaxe/%s_%s_mining.png" % [variant, direction]))
+
+		var pickaxe_gathering_anim := "pickaxe_gathering_%s" % direction
+		frames.add_animation(pickaxe_gathering_anim)
+		frames.set_animation_speed(pickaxe_gathering_anim, 1.0)
+		frames.add_frame(pickaxe_gathering_anim, load("res://assets/sprites/character/pickaxe/%s_%s_gathering.png" % [variant, direction]))
 	return frames
 
 
@@ -767,6 +787,10 @@ func _current_animation_name() -> String:
 		return ("gun_fire_" if _tool_use_flash_timer > 0.0 else "gun_idle_") + _facing
 	if _held_tool == "axe":
 		return ("axe_chop_" if _tool_use_flash_timer > 0.0 else "axe_idle_") + _facing
+	if _held_tool == "pickaxe":
+		if _tool_use_flash_timer > 0.0:
+			return ("pickaxe_mining_" if _pickaxe_use_kind == "mining" else "pickaxe_gathering_") + _facing
+		return "pickaxe_idle_" + _facing
 	return ("walk_" if _is_moving else "idle_") + _facing
 
 
