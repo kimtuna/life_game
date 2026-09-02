@@ -5,9 +5,43 @@
 
 ## 마지막 갱신
 
-바퀴 33 / 2026-09-02
+바퀴 34 / 2026-09-02
 
-## 끝난 것 (바퀴 33)
+## 끝난 것 (바퀴 34)
+
+- INBOX #32 완료: 총(또는 다른 도구)을 손에 든 채로 드래그해서 버리면 여전히 들고
+  있는 것처럼 보이고 발사도 되던 버그를 고쳤다.
+  - 원인: `world.gd`의 `_select_hotbar()`는 숫자키를 누를 때만 `_held_tool`/손
+    스프라이트를 갱신했다. `InventoryData.move_slot()`(슬롯 이동/교환)이나
+    `take_slot()`(버리기)으로 핫바 슬롯 내용이 바뀌어도 이 함수가 다시 호출되지
+    않아서, 화면에 총을 든 채로 남아있고 `_held_tool == "gun"`이라 좌클릭 발사도
+    그대로 됐다.
+  - `world.gd`에 `_revalidate_held_hotbar_slot()`을 추가해 `InventoryData.changed`
+    신호(이미 `_update_inventory_label`/`_refresh_inventory_window`/`_refresh_hotbar`가
+    구독 중이던 것과 같은 신호)에 새로 연결했다. 이 함수는 그냥
+    `_select_hotbar(_selected_hotbar_index)`를 다시 호출한다 — 지금 선택된 핫바
+    인덱스는 그대로 두고, 그 슬롯의 최신 내용만 다시 읽어 `_held_tool`/스프라이트를
+    갱신하는 식이라 기존 `_select_hotbar()` 로직을 전혀 바꾸지 않고 재사용했다.
+  - 검증: `godot --headless --path . --script <임시스크립트>.gd`로 world.tscn을 띄운
+    뒤 (1) 핫바 0번(시작 지급된 총)을 선택해 `get_held_tool()=="gun"` 확인, (2)
+    `InventoryData.move_slot("general",0,"general",5)`(드래그 이동과 동일한 데이터
+    경로)로 0번 슬롯을 비우자 숫자키를 다시 누르지 않아도 `get_held_tool()==""`,
+    `_held_item_sprite.visible==false`로 즉시 되돌아가는 것을 확인(수정 전이었다면
+    슬롯이 빈 뒤에도 `_held_tool`이 "gun"에 그대로 남아있었을 것), (3) 총이 옮겨간
+    5번 슬롯을 선택해 다시 `held_tool=="gun"`이 되는 것을 확인한 뒤
+    `world.discard_inventory_slot("general",5)`(실제 "창 밖으로 드래그해서 버리기"
+    코드 경로)를 호출해 같은 방식으로 빈손이 되는 것도 확인했다 — 콘솔에 `PASS` 출력.
+    `_held_tool=="gun"`이 아니므로 좌클릭 발사 조건(`world.gd:211`)도 통과하지 못해
+    발사가 안 되는 것을 코드 경로상으로 함께 확인했다(발사 조건 자체는 이번에 손대지
+    않음). 검증 전후로 `inventory.save`를 지워 깨끗한 상태를 유지했고, 임시 스크립트는
+    검증 후 삭제했다. **렌더링 스크린샷은 생략했다** — 이 버그는 "인벤토리 데이터가
+    바뀐 뒤 손 스프라이트 상태가 갱신되는가"라는 로직/타이밍 문제라 정적 스크린샷
+    한 장으로는 수정 전후 차이가 보이지 않고, 위 콘솔 상태 전이 확인(들고 있음→
+    사라짐→다시 들음→버림→사라짐)이 훨씬 정확하게 검증할 수 있는 방법이라고
+    판단했다(바퀴 30/28이 각도·타이밍 버그를 검증할 때와 같은 판단 기준).
+  - 변경 파일: `game/scenes/world/world.gd`.
+
+## 끝난 것 (바퀴 33, 이전 기록)
 
 - INBOX #31 완료: 인벤토리 창(#21)에 드래그 앤 드롭을 추가했다 — 슬롯 사이(일반↔일반,
   일반↔장비, 핫바 포함) 이동/교환과, 창 바깥으로 드래그해서 놓으면 버려서 바닥에
@@ -406,10 +440,20 @@
 
 ## 다음에 할 것
 
-- `docs/feedback/INBOX.md` "처리 대기"에 현재 미완료 항목이 없다(#1~#31 전부 완료).
-  다음 바퀴가 열렸다면 새 INBOX 항목이 추가된 것이니, 번호가 가장 작은 미완료 항목부터
-  확인할 것.
-- **INBOX #31(인벤토리 드래그 앤 드롭)은 이번 바퀴(33)에 완료했다.** 슬롯 이동/교환
+- `docs/feedback/INBOX.md` "처리 대기"에 다음 미완료 항목은 **#33(총 탄창/재장전)**이다.
+  DESIGN.md "총기 스탯" 절에 탄창 8발, R키 재장전(예비 탄약 무제한), 남은 발수 화면 표시
+  요구가 이미 정리돼 있으니 그대로 구현할 것. `world.gd`의 `_fire()`/`_fire_cooldown`/
+  `_update_ammo_label()` 근처에 이미 탄약 표시용 라벨(`_ammo_label`?)이 있는지부터 확인하고
+  (없다면 새로 만들 것), 좌클릭 발사 조건(`world.gd:211` 부근, `_held_tool == "gun"`)에
+  탄창이 0이면 발사되지 않는 조건을 추가할 것. 이어서 #34(목장 풀어놓기 방식 정정),
+  #35(도구 든 자세 4방향 품질) 순서로 처리.
+- **INBOX #32(총 버려도 계속 들고 있던 버그)는 이번 바퀴(34)에 완료했다.** 고친 파일은
+  `game/scenes/world/world.gd` 하나뿐이고, `InventoryData.changed` 신호에
+  `_revalidate_held_hotbar_slot()`을 새로 연결해 인벤토리가 바뀔 때마다 `_select_hotbar()`를
+  다시 호출하는 방식이다. **다음 바퀴가 주의할 점**: 앞으로 핫바/손에 든 아이템과 관련된
+  새 버그가 생기면, "숫자키를 누를 때만 갱신되는 상태"가 또 있는지부터 의심할 것 — 이번
+  버그와 같은 패턴(이벤트 기반 갱신 누락)일 가능성이 높다.
+- **INBOX #31(인벤토리 드래그 앤 드롭)은 바퀴 33에 완료했다.** 슬롯 이동/교환
   로직은 `game/scripts/inventory_data.gd`의 `move_slot()`/`take_slot()`에, UI 드래그
   훅은 `game/scripts/inventory_slot_cell.gd`(슬롯 셀)와
   `game/scripts/inventory_discard_zone.gd`(창 바깥 버리기)에 있다. 다음 바퀴가 인벤토리

@@ -140,6 +140,7 @@ func _ready() -> void:
 	InventoryData.changed.connect(_update_inventory_label)
 	InventoryData.changed.connect(_refresh_inventory_window)
 	InventoryData.changed.connect(_refresh_hotbar)
+	InventoryData.changed.connect(_revalidate_held_hotbar_slot)
 	_update_inventory_label()
 	_select_hotbar(0)
 	TimeData.phase_changed.connect(_on_time_phase_changed)
@@ -485,6 +486,13 @@ func _select_hotbar(index: int) -> void:
 		_held_tool = ""
 		_held_item_sprite.visible = false
 	_refresh_hotbar()
+
+
+## 인벤토리 내용이 바뀔 때마다(드래그로 슬롯이 비워지거나 아이템이 바뀌는 등) 지금
+## 선택된 핫바 슬롯을 다시 확인한다. 숫자키를 새로 누르지 않아도 그 슬롯이 비었거나
+## 도구가 아니게 되면 빈손으로 되돌아간다 (INBOX #32 — 총을 버려도 계속 들고 있던 버그).
+func _revalidate_held_hotbar_slot() -> void:
+	_select_hotbar(_selected_hotbar_index)
 
 
 ## 인벤토리 창의 일반 18칸 + 장비 9칸 슬롯 셀을 한 번만 만들어둔다 (INBOX #21).
