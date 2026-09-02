@@ -19,18 +19,18 @@
 </head>
 <body>
   <h1>auto-loop 진행 상황</h1>
-  <p class="updated">마지막 갱신: 2026-09-02 20:00:09</p>
+  <p class="updated">마지막 갱신: 2026-09-02 20:07:00</p>
   <div class="row">
-    <div class="card"><div class="label">남은 항목</div><div class="num">5</div></div>
-    <div class="card"><div class="label">완료된 항목</div><div class="num">15</div></div>
+    <div class="card"><div class="label">남은 항목</div><div class="num">4</div></div>
+    <div class="card"><div class="label">완료된 항목</div><div class="num">16</div></div>
   </div>
   <div class="card">
     <div class="label">지금 처리 중 / 다음으로 처리할 항목</div>
-    <div>#16 (버그 리포트) 전체적으로 스프라이트 크기가 너무 크다. 지금 각 씬의 Sprite scale이 플레이어/사슴=3, 목장(ranch_zone)=4, 채집/채광 포인트=2.2, 밭(farm_plot)=1.6~1.8로 제각각 크게 잡혀 있다. 전부 지금 값의 절반으로 줄인다(예: 3→1.5, 4→2, 2.2→1.1, 1.6~1.8→0.8~0.9). 줄인 뒤 실행해서 눈으로 전체 비율이 어색하지 않은지 확인하고, 필요하면 값을 미세 조정한다.</div>
+    <div>#17 (버그 리포트) 밭에 씨앗을 심으면 플레이어가 식물(새싹/작물) 스프라이트보다 뒤에 렌더링되어 어색하다. 플레이어가 항상 식물보다 앞에 보이도록 z_index/렌더 순서를 고친다 (다른 바닥 장식물과의 z_index 순서를 깨지 않도록 STATUS.md의 기존 z_index 관련 결정 로그를 먼저 확인할 것).</div>
   </div>
   <div class="card">
     <div class="label">마지막 작업 커밋</div>
-    <div><code>1a00910 [INBOX #15] 사슴 스프라이트를 PixelLab로 재생성해 방향별 개체 불일치 버그 수정</code></div>
+    <div><code>5934578 [INBOX #16] 전체 스프라이트 scale을 절반으로 줄여 과대 비율 버그 수정</code></div>
   </div>
 </body>
 </html>
