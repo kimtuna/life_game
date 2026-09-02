@@ -126,9 +126,12 @@ var _hotbar_selected_style: StyleBoxFlat
 var _ammo_type: String = "normal"
 var _fire_cooldown: float = 0.0
 var _recoil: float = 0.0
-var _ammo_in_magazine: int = GUN_MAGAZINE_SIZE
+## 탄종별로 완전히 분리된 탄창 (INBOX #36 — 기본탄/마취탄이 잔여 발수를 공유하면 안 됨).
+var _ammo_in_magazine: Dictionary = {"normal": GUN_MAGAZINE_SIZE, "tranq": GUN_MAGAZINE_SIZE}
 var _is_reloading: bool = false
 var _reload_timer: float = 0.0
+## 재장전이 시작된 탄종 — 재장전 도중 우클릭으로 탄종을 바꿔도 엉뚱한 탄창이 채워지지 않게 기억해둔다.
+var _reloading_ammo_type: String = "normal"
 var _is_moving: bool = false
 var _state_broadcast_timer: float = 0.0
 ## peer id -> 그 플레이어를 대신 그리는 Sprite2D (INBOX #14, remote_players_root의 자식).
@@ -229,10 +232,10 @@ func _physics_process(delta: float) -> void:
 		_reload_timer -= delta
 		if _reload_timer <= 0.0:
 			_is_reloading = false
-			_ammo_in_magazine = GUN_MAGAZINE_SIZE
+			_ammo_in_magazine[_reloading_ammo_type] = GUN_MAGAZINE_SIZE
 			_update_ammo_label()
 	if _held_tool == "gun" and Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT) and _fire_cooldown <= 0.0 \
-			and not _is_reloading and _ammo_in_magazine > 0:
+			and not _is_reloading and _ammo_in_magazine[_ammo_type] > 0:
 		_fire()
 
 	if NetworkSession.is_active():
@@ -245,7 +248,7 @@ func _physics_process(delta: float) -> void:
 ## 조준 방향에 반동(위로 튐)과 탄퍼짐(이동 중이면 커짐)을 섞어서 총알을 하나 쏜다.
 func _fire() -> void:
 	_fire_cooldown = GUN_FIRE_INTERVAL
-	_ammo_in_magazine -= 1
+	_ammo_in_magazine[_ammo_type] -= 1
 	_update_ammo_label()
 
 	var aim := get_global_mouse_position() - player_sprite.global_position
@@ -641,19 +644,21 @@ func _update_texture() -> void:
 
 func _update_ammo_label() -> void:
 	var ammo_name := "마취탄" if _ammo_type == "tranq" else "기본탄"
-	if _is_reloading:
+	if _is_reloading and _reloading_ammo_type == _ammo_type:
 		ammo_label.text = "탄약: %s 재장전 중..." % ammo_name
 	else:
-		ammo_label.text = "탄약: %s %d/%d" % [ammo_name, _ammo_in_magazine, GUN_MAGAZINE_SIZE]
+		ammo_label.text = "탄약: %s %d/%d" % [ammo_name, _ammo_in_magazine[_ammo_type], GUN_MAGAZINE_SIZE]
 
 
 ## 총을 든 채 R키를 누르면 호출된다 (DESIGN.md "탄창: 8발... R키로 재장전").
 ## 예비 탄약 제한은 없어서 누르면 항상 가득 차게 재장전되고, 재장전 중에는 좌클릭
-## 발사가 막힌다(위 _physics_process의 발사 조건 참고).
+## 발사가 막힌다(위 _physics_process의 발사 조건 참고). 기본탄/마취탄은 서로 다른
+## 탄창이라(INBOX #36) 지금 선택된 탄종의 탄창만 채운다.
 func _start_reload() -> void:
-	if _is_reloading or _ammo_in_magazine >= GUN_MAGAZINE_SIZE:
+	if _is_reloading or _ammo_in_magazine[_ammo_type] >= GUN_MAGAZINE_SIZE:
 		return
 	_is_reloading = true
+	_reloading_ammo_type = _ammo_type
 	_reload_timer = GUN_RELOAD_TIME
 	_update_ammo_label()
 
