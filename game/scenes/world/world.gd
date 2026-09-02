@@ -66,10 +66,19 @@ const STATE_BROADCAST_INTERVAL := 0.1
 @onready var net_label: Label = $UI/HUD/NetPanel/NetLabel
 @onready var day_night_modulate: CanvasModulate = $DayNightModulate
 @onready var rain_overlay: ColorRect = $UI/RainOverlay
+@onready var inventory_window: Control = $UI/InventoryWindow
+@onready var general_grid: GridContainer = $UI/InventoryWindow/CenterContainer/Panel/VBoxContainer/GeneralGrid
+@onready var equipment_grid: GridContainer = $UI/InventoryWindow/CenterContainer/Panel/VBoxContainer/EquipmentGrid
+
+## 장비 슬롯 부위 표시 이름 (InventoryData.EQUIPMENT_SLOT_TYPES와 같은 순서).
+const EQUIPMENT_LABELS := ["모자", "상의", "하의", "신발", "목걸이", "목걸이", "반지", "반지", "가방"]
 
 var _variant: String = "green"
 var _facing: String = "south"
 var _paused: bool = false
+var _inventory_open: bool = false
+var _general_slot_labels: Array = []
+var _equipment_slot_labels: Array = []
 var _ammo_type: String = "normal"
 var _fire_cooldown: float = 0.0
 var _recoil: float = 0.0
@@ -90,7 +99,9 @@ func _ready() -> void:
 	_spawn_resource_points()
 	_spawn_farm_plots()
 	_spawn_ranch_zone()
+	_build_inventory_slots()
 	InventoryData.changed.connect(_update_inventory_label)
+	InventoryData.changed.connect(_refresh_inventory_window)
 	_update_inventory_label()
 	TimeData.phase_changed.connect(_on_time_phase_changed)
 	TimeData.day_changed.connect(_on_time_day_changed)
@@ -108,15 +119,21 @@ func _process(_delta: float) -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE:
-		_set_paused(not _paused)
-	elif event is InputEventMouseButton and event.pressed and not _paused \
+		if _inventory_open:
+			_set_inventory_open(false)
+		else:
+			_set_paused(not _paused)
+	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_E \
+			and not _paused:
+		_set_inventory_open(not _inventory_open)
+	elif event is InputEventMouseButton and event.pressed and not _paused and not _inventory_open \
 			and event.button_index == MOUSE_BUTTON_RIGHT:
 		_ammo_type = "tranq" if _ammo_type == "normal" else "normal"
 		_update_ammo_label()
 
 
 func _physics_process(delta: float) -> void:
-	if _paused:
+	if _paused or _inventory_open:
 		return
 
 	var input_dir := Vector2.ZERO
@@ -253,6 +270,81 @@ func _spawn_ranch_zone() -> void:
 	zone.global_position = player_sprite.position + RANCH_ZONE_ORIGIN
 	zone.player_ref = player_sprite
 	add_child(zone)
+
+
+## 인벤토리 창의 일반 18칸 + 장비 9칸 슬롯 셀을 한 번만 만들어둔다 (INBOX #21).
+## 슬롯 배경색으로 핫바(맨 위 9칸)와 일반 슬롯을 구분한다.
+func _build_inventory_slots() -> void:
+	var hotbar_style := _make_slot_style(Color(0.22, 0.32, 0.22, 1))
+	var normal_style := _make_slot_style(Color(0.157, 0.212, 0.184, 1))
+	for i in range(InventoryData.GENERAL_SLOT_COUNT):
+		var style := hotbar_style if i < InventoryData.HOTBAR_SIZE else normal_style
+		var cell := _make_slot_cell(style)
+		general_grid.add_child(cell)
+		_general_slot_labels.append(cell.get_node("Label"))
+	for i in range(InventoryData.EQUIPMENT_SLOT_TYPES.size()):
+		var cell := _make_slot_cell(normal_style)
+		equipment_grid.add_child(cell)
+		_equipment_slot_labels.append(cell.get_node("Label"))
+
+
+func _make_slot_style(bg: Color) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = bg
+	style.border_width_left = 2
+	style.border_width_top = 2
+	style.border_width_right = 2
+	style.border_width_bottom = 2
+	style.border_color = Color(0.4, 0.49, 0.44, 1)
+	style.corner_radius_top_left = 6
+	style.corner_radius_top_right = 6
+	style.corner_radius_bottom_right = 6
+	style.corner_radius_bottom_left = 6
+	return style
+
+
+func _make_slot_cell(style: StyleBoxFlat) -> PanelContainer:
+	var cell := PanelContainer.new()
+	cell.custom_minimum_size = Vector2(72, 72)
+	cell.add_theme_stylebox_override("panel", style)
+	var label := Label.new()
+	label.name = "Label"
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.add_theme_font_size_override("font_size", 13)
+	cell.add_child(label)
+	return cell
+
+
+func _set_inventory_open(value: bool) -> void:
+	_inventory_open = value
+	inventory_window.visible = value
+	if value:
+		_refresh_inventory_window()
+
+
+## 일반 슬롯은 담긴 아이템 이름/개수를, 장비 슬롯은 부위 이름(비었을 때) 또는
+## 부위+아이템 이름(찼을 때)을 보여준다.
+func _refresh_inventory_window() -> void:
+	var general_slots := InventoryData.get_general_slots()
+	for i in range(general_slots.size()):
+		var slot = general_slots[i]
+		var label: Label = _general_slot_labels[i]
+		if slot == null:
+			label.text = ""
+		else:
+			var display: String = ITEM_LABELS.get(slot["item"], slot["item"])
+			label.text = "%s\nx%d" % [display, slot["count"]]
+	var equipment_slots := InventoryData.get_equipment_slots()
+	for i in range(equipment_slots.size()):
+		var slot = equipment_slots[i]
+		var label: Label = _equipment_slot_labels[i]
+		var part_name: String = EQUIPMENT_LABELS[i]
+		if slot == null:
+			label.text = part_name
+		else:
+			var display: String = ITEM_LABELS.get(slot["item"], slot["item"])
+			label.text = "%s\n%s" % [part_name, display]
 
 
 func _update_inventory_label() -> void:

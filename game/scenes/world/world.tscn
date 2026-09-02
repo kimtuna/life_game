@@ -146,6 +146,80 @@ grow_vertical = 2
 mouse_filter = 2
 color = Color(0.4, 0.5, 0.7, 0.22)
 
+[node name="InventoryWindow" type="Control" parent="UI"]
+visible = false
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("2_theme")
+mouse_filter = 1
+
+[node name="Dim" type="ColorRect" parent="UI/InventoryWindow"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.02, 0.03, 0.02, 0.6)
+
+[node name="CenterContainer" type="CenterContainer" parent="UI/InventoryWindow"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Panel" type="PanelContainer" parent="UI/InventoryWindow/CenterContainer"]
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_pause_panel")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="UI/InventoryWindow/CenterContainer/Panel"]
+layout_mode = 2
+theme_override_constants/separation = 12
+alignment = 1
+
+[node name="Title" type="Label" parent="UI/InventoryWindow/CenterContainer/Panel/VBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_font_sizes/font_size = 26
+text = "인벤토리"
+horizontal_alignment = 1
+
+[node name="GeneralLabel" type="Label" parent="UI/InventoryWindow/CenterContainer/Panel/VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "일반 (맨 위 줄 = 핫바)"
+
+[node name="GeneralGrid" type="GridContainer" parent="UI/InventoryWindow/CenterContainer/Panel/VBoxContainer"]
+layout_mode = 2
+columns = 9
+theme_override_constants/h_separation = 6
+theme_override_constants/v_separation = 6
+
+[node name="EquipmentLabel" type="Label" parent="UI/InventoryWindow/CenterContainer/Panel/VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "장비"
+
+[node name="EquipmentGrid" type="GridContainer" parent="UI/InventoryWindow/CenterContainer/Panel/VBoxContainer"]
+layout_mode = 2
+columns = 3
+theme_override_constants/h_separation = 6
+theme_override_constants/v_separation = 6
+
+[node name="CloseHint" type="Label" parent="UI/InventoryWindow/CenterContainer/Panel/VBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_font_sizes/font_size = 14
+horizontal_alignment = 1
+modulate = Color(1, 1, 1, 0.6)
+text = "E 키를 눌러 닫기"
+
 [node name="PauseMenu" type="Control" parent="UI"]
 visible = false
 layout_mode = 3
