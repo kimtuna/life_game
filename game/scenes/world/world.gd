@@ -69,16 +69,21 @@ const TOOL_ICONS := {
 	"fishing_rod": preload("res://assets/sprites/tools/fishing_rod.png"),
 }
 
-## 도구별 "실제로 쓰는 모션" 그림 (INBOX #37, DESIGN.md "도구 동작 표현"). TOOL_ICONS는
+## 도구별 "실제로 쓰는 모션" 그림 (INBOX #37/#38, DESIGN.md "도구 동작 표현"). TOOL_ICONS는
 ## "들고 있는" 정적 자세고, 이 딕셔너리에 있는 도구는 사용하는 순간 잠깐 이 텍스처로
-## 바뀐다(총은 발사 시 반동으로 총구가 들리고 총열 전체가 발사열로 빛나는 모습).
-## 아직 도끼/곡괭이낫/낚싯대는 이 항목의 범위가 아니라(#38~#40에서 각각 처리) 넣지 않는다.
-const TOOL_FIRING_ICONS := {
+## 바뀐다(총은 발사 시 반동으로 총구가 들리고 총열 전체가 발사열로 빛나는 모습, 도끼는
+## 날이 바닥/나무에 박히고 나무 조각이 튀는 모습). 곡괭이낫/낚싯대는 아직 이 항목의
+## 범위가 아니라(#39~#40에서 각각 처리) 넣지 않는다.
+const TOOL_USE_ICONS := {
 	"gun": preload("res://assets/sprites/tools/gun_firing.png"),
+	"axe": preload("res://assets/sprites/tools/axe_chopping.png"),
 }
-## 발사 모션 텍스처가 유지되는 시간. GUN_FIRE_INTERVAL(0.5초)보다 짧아야 연사 중에도
+## "사용하는" 모션 텍스처가 유지되는 시간. GUN_FIRE_INTERVAL(0.5초)보다 짧아야 연사 중에도
 ## "들고 있는" 자세로 돌아왔다가 다시 반짝이는 것이 보인다.
 const GUN_MUZZLE_FLASH_DURATION := 0.12
+## 도끼 패는 동작이 눈에 보이는 시간. 총 발사보다 한 동작이 느려 보여야 자연스러워서
+## 총의 발사열 지속 시간보다 길게 잡았다 — DESIGN.md에 구체적 수치가 없어 임의로 정함.
+const AXE_CHOP_FLASH_DURATION := 0.25
 
 ## 손에 든 도구 아이콘을 캐릭터 옆 어디에 띄울지, 바라보는 방향별 오프셋(플레이어 로컬 좌표계).
 ## south/north는 원래 몸통 중앙(x=3) 근처에 두고 있었는데, 도구 그림 자체가 옆에서 본
@@ -143,9 +148,9 @@ var _is_reloading: bool = false
 var _reload_timer: float = 0.0
 ## 재장전이 시작된 탄종 — 재장전 도중 우클릭으로 탄종을 바꿔도 엉뚱한 탄창이 채워지지 않게 기억해둔다.
 var _reloading_ammo_type: String = "normal"
-## 지금 발사 모션 텍스처가 표시 중이면 0보다 크다 (INBOX #37). 매 물리 프레임 줄어들다가
-## 0이 되면 다시 "들고 있는" 텍스처로 되돌아간다.
-var _firing_flash_timer: float = 0.0
+## 지금 "사용하는" 모션 텍스처가 표시 중이면 0보다 크다 (INBOX #37/#38). 매 물리 프레임
+## 줄어들다가 0이 되면 지금 손에 든 도구의 "들고 있는" 텍스처로 되돌아간다.
+var _tool_use_flash_timer: float = 0.0
 var _is_moving: bool = false
 var _state_broadcast_timer: float = 0.0
 ## peer id -> 그 플레이어를 대신 그리는 Sprite2D (INBOX #14, remote_players_root의 자식).
@@ -242,10 +247,10 @@ func _physics_process(delta: float) -> void:
 	_recoil = maxf(0.0, _recoil - GUN_RECOIL_DECAY_PER_SEC * delta)
 	if _fire_cooldown > 0.0:
 		_fire_cooldown -= delta
-	if _firing_flash_timer > 0.0:
-		_firing_flash_timer -= delta
-		if _firing_flash_timer <= 0.0 and _held_tool == "gun" and _held_item_sprite != null:
-			_held_item_sprite.texture = TOOL_ICONS["gun"]
+	if _tool_use_flash_timer > 0.0:
+		_tool_use_flash_timer -= delta
+		if _tool_use_flash_timer <= 0.0 and _held_item_sprite != null and TOOL_ICONS.has(_held_tool):
+			_held_item_sprite.texture = TOOL_ICONS[_held_tool]
 	if _is_reloading:
 		_reload_timer -= delta
 		if _reload_timer <= 0.0:
@@ -272,9 +277,9 @@ func _fire() -> void:
 	## "들고 있는" 정적 총 텍스처를 잠깐 "발사하는" 텍스처(반동으로 총구가 들리고
 	## 총열이 발사열로 빛나는 그림)로 바꿔서 들기/쏘기가 서로 다른 그림으로 보이게 한다
 	## (INBOX #37, DESIGN.md "도구 동작 표현").
-	if _held_item_sprite != null and TOOL_FIRING_ICONS.has("gun"):
-		_held_item_sprite.texture = TOOL_FIRING_ICONS["gun"]
-		_firing_flash_timer = GUN_MUZZLE_FLASH_DURATION
+	if _held_item_sprite != null and TOOL_USE_ICONS.has("gun"):
+		_held_item_sprite.texture = TOOL_USE_ICONS["gun"]
+		_tool_use_flash_timer = GUN_MUZZLE_FLASH_DURATION
 
 	var aim := get_global_mouse_position() - player_sprite.global_position
 	if aim.length() < 1.0:
@@ -313,9 +318,10 @@ func get_held_item() -> String:
 	return slot["item"] if slot != null else ""
 
 
-## 도끼/낚싯대는 아직 벌목 대상(나무)·낚시 스팟이 없어 실제 동작을 만들 수 없다
-## (DESIGN.md "범위 밖"). INBOX #23이 요구한 "좌클릭 애니메이션/동작만 연결"을
-## 위해 손에 든 아이콘을 짧게 확대했다 줄이는 최소한의 스윙 반응만 재생한다.
+## 도끼/낚싯대는 아직 벌목 대상(나무)·낚시 스팟이 없어 실제 결과물을 만들 수 없다
+## (DESIGN.md "범위 밖"). 대신 "패는/낚는" 동작 자체는 손에 든 아이콘을 짧게 확대했다
+## 줄이는 스윙 반응으로 표현한다(INBOX #23). 도끼는 여기에 더해 INBOX #38부터 실제
+## "패는 모션" 그림(TOOL_USE_ICONS["axe"])으로 잠깐 바뀐다(DESIGN.md "도구 동작 표현").
 func _play_tool_swing() -> void:
 	if _held_item_sprite == null or not _held_item_sprite.visible:
 		return
@@ -323,6 +329,9 @@ func _play_tool_swing() -> void:
 	var tween := create_tween()
 	tween.tween_property(_held_item_sprite, "scale", base_scale * 1.35, 0.08)
 	tween.tween_property(_held_item_sprite, "scale", base_scale, 0.12)
+	if TOOL_USE_ICONS.has(_held_tool):
+		_held_item_sprite.texture = TOOL_USE_ICONS[_held_tool]
+		_tool_use_flash_timer = AXE_CHOP_FLASH_DURATION
 
 
 ## 방향별 스프라이트(north/south/east/west)만 있으므로, 마우스가 가리키는
