@@ -1,0 +1,28 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scenes/resource_point/resource_point.gd" id="1_script"]
+
+[sub_resource type="LabelSettings" id="LabelSettings_prompt"]
+font_size = 16
+font_color = Color(1, 1, 1, 1)
+outline_size = 4
+outline_color = Color(0, 0, 0, 1)
+
+[node name="MiningPoint" type="Node2D"]
+script = ExtResource("1_script")
+item_name = "iron"
+item_amount = 1
+prompt_text = "F: 채광 (철)"
+texture_path = "res://assets/sprites/mining_point/mining_point.png"
+
+[node name="Sprite" type="Sprite2D" parent="."]
+scale = Vector2(2.2, 2.2)
+texture_filter = 1
+
+[node name="Prompt" type="Label" parent="."]
+offset_left = -60.0
+offset_top = -76.0
+offset_right = 60.0
+offset_bottom = -52.0
+horizontal_alignment = 1
+label_settings = SubResource("LabelSettings_prompt")

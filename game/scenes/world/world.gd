@@ -15,15 +15,28 @@ const GUN_RECOIL_DECAY_PER_SEC := 2.0
 
 const BulletScene := preload("res://scenes/bullet/bullet.tscn")
 const DeerScene := preload("res://scenes/deer/deer.tscn")
+const GatheringPointScene := preload("res://scenes/resource_point/gathering_point.tscn")
+const MiningPointScene := preload("res://scenes/resource_point/mining_point.tscn")
 
 const DEER_COUNT := 6
 const DEER_SPAWN_RADIUS := 1600.0
 const DEER_MIN_DISTANCE_FROM_PLAYER := 300.0
 
+const RESOURCE_POINT_COUNT := 5
+const RESOURCE_SPAWN_RADIUS := 1400.0
+const RESOURCE_MIN_DISTANCE_FROM_PLAYER := 200.0
+
+## InventoryData가 저장하는 아이템 키(내부 이름) -> 화면 표시 이름.
+const ITEM_LABELS := {
+	"rice_seed": "벼 씨앗",
+	"iron": "철",
+}
+
 @onready var player_sprite: Sprite2D = $Player
 @onready var camera: Camera2D = $Camera2D
 @onready var pause_menu: Control = $UI/PauseMenu
 @onready var ammo_label: Label = $UI/HUD/AmmoPanel/AmmoLabel
+@onready var inventory_label: Label = $UI/HUD/InventoryPanel/InventoryLabel
 
 var _variant: String = "green"
 var _facing: String = "south"
@@ -40,6 +53,9 @@ func _ready() -> void:
 	_update_texture()
 	_update_ammo_label()
 	_spawn_deer()
+	_spawn_resource_points()
+	InventoryData.changed.connect(_update_inventory_label)
+	_update_inventory_label()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -139,6 +155,44 @@ func _spawn_deer() -> void:
 		deer.global_position = pos
 		deer.player_ref = player_sprite
 		add_child(deer)
+
+
+## 필드에 채집 포인트(삽 → 벼 씨앗)와 채광 포인트(곡괭이 → 철)를 절반씩 흩어서 배치한다
+## (INBOX #10). DESIGN.md대로 삽/곡괭이를 한 세트로 다루므로, 포인트 종류에 따라
+## 알맞은 판정을 자동 적용한다(도구 선택 UI 없음) — resource_point.gd 참고.
+func _spawn_resource_points() -> void:
+	for i in range(RESOURCE_POINT_COUNT):
+		_spawn_one_resource_point(GatheringPointScene)
+	for i in range(RESOURCE_POINT_COUNT):
+		_spawn_one_resource_point(MiningPointScene)
+
+
+func _spawn_one_resource_point(scene: PackedScene) -> void:
+	var point := scene.instantiate()
+	var pos := Vector2.ZERO
+	for attempt in range(20):
+		pos = Vector2(
+			randf_range(-RESOURCE_SPAWN_RADIUS, RESOURCE_SPAWN_RADIUS),
+			randf_range(-RESOURCE_SPAWN_RADIUS, RESOURCE_SPAWN_RADIUS)
+		)
+		if pos.distance_to(player_sprite.position) >= RESOURCE_MIN_DISTANCE_FROM_PLAYER:
+			break
+	point.global_position = pos
+	point.player_ref = player_sprite
+	add_child(point)
+
+
+func _update_inventory_label() -> void:
+	var counts := InventoryData.all_counts()
+	if counts.is_empty():
+		inventory_label.text = "인벤토리: (비어 있음)"
+		return
+	var parts: Array[String] = []
+	for item_key in ITEM_LABELS.keys():
+		var count: int = counts.get(item_key, 0)
+		if count > 0:
+			parts.append("%s x%d" % [ITEM_LABELS[item_key], count])
+	inventory_label.text = "인벤토리: " + (", ".join(parts) if not parts.is_empty() else "(비어 있음)")
 
 
 func _update_texture() -> void:
