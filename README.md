@@ -8,7 +8,7 @@
 ```
 auto-loop/
   loop/
-    loop.sh                 루프 본체 (무한 반복, STOP 파일 감지)
+    loop.sh                 루프 본체 (INBOX 큐 소진 시 종료, STOP 파일 감지)
     env.sh                  설정 (모델 / 예산 / 시간 / 대기 / 최대 바퀴 / 권한 모드)
     PROMPT.md                매 바퀴 세션에 그대로 전달되는 지시서 (6절 틀)
     ctl.sh                   제어 스크립트 (install/start/stop/graceful-stop/status/uninstall)
@@ -18,22 +18,41 @@ auto-loop/
   docs/
     DESIGN.md                무엇을 만드는가 (초기 기획서, 거의 안 고침)
     STATUS.md                어디까지 했고 다음은 뭔가 (매 바퀴 갱신)
+    index.html               진행 상황 대시보드 (loop.sh가 매 바퀴 자동 생성/커밋)
     feedback/
-      INBOX.md                내가 던지는 지시 (루프가 가장 먼저 읽음)
+      INBOX.md                작업 큐 (체크박스 `- [ ] #N`, 번호가 작은 순서대로 한 바퀴에 하나씩 처리)
   logs/
-    loop-events.log          시작/종료/STOP 감지 등 이벤트 로그
+    loop-events.log          시작/종료/STOP/큐 소진/push 등 이벤트 로그
     YYYY-MM-DD.log           그날 실행된 각 바퀴의 claude 세션 출력
     launchd.out.log / .err.log   launchd로 띄웠을 때의 표준출력/에러 (자동 생성)
 ```
 
+## 작업 큐 (`docs/feedback/INBOX.md`)
+
+- "처리 대기"에 `- [ ] #N 내용`을 추가하면 루프가 번호가 작은 순서대로 **한 바퀴에 하나씩** 처리한다.
+- **큐가 비면(미완료 항목 0개) `loop.sh`는 claude 세션을 아예 열지 않고 그 자리에서 스스로 종료한다.**
+  무한 반복 대신 "할 일이 없으면 멈춘다"로 바꿔서, 시킨 적 없는데 토큰만 계속 나가는 상황을 막는다.
+  (launchd로 띄워둔 상태여도 `exit 0`은 "정상 종료"라 재시작되지 않는다 — 아래 동작 방식 참고.)
+- 완료된 항목은 세션이 직접 `- [x]`로 바꾸고 완료 날짜를 붙인다 (지우지 않음).
+- 즉, **새 작업을 시키려면 INBOX.md에 항목을 추가하고 `loop/ctl.sh start`(또는 이미 켜져 있으면 다음 바퀴 대기 중 자동으로)로 다시 돌리면 된다.**
+
+## 진행 상황 보기
+
+매 바퀴가 끝날 때마다 `docs/index.html`을 다시 그려서 커밋 + push하고, GitHub Pages로 공개해뒀다:
+
+**https://kimtuna.github.io/life_game/**
+
+남은 항목 수, 완료된 항목 수, 지금(또는 다음으로) 처리 중인 INBOX 항목, 마지막 작업 커밋을 보여준다.
+60초마다 자동 새로고침된다. (이 페이지 자체는 `loop.sh`가 기계적으로 만드는 것이라 별도 토큰 비용이 없다.)
+
 ## 채워야 할 것 (아직 전부 빈 틀)
 
 1. `docs/DESIGN.md` — 무엇을 만들지, 왜, 범위, 완성 기준
-2. `loop/PROMPT.md`의 ①(합격 기준)과 ③(규칙과 근거)
-3. 필요하면 `docs/feedback/INBOX.md`에 첫 지시 추가
+2. `loop/PROMPT.md`의 ①(합격 기준) — ③(규칙과 근거)은 큐/커밋 규칙을 채워뒀다
+3. `docs/feedback/INBOX.md`에 처리할 작업을 `- [ ] #1 ...` 형식으로 추가 (필수 — 없으면 루프가 바로 종료함)
 
-이 세 가지가 비어 있는 동안 루프는 (시험해본 결과) 임의로 프로젝트를 지어내지 않고
-"아직 정의된 작업 없음"을 `STATUS.md`에 기록만 하고 다음 바퀴로 넘어간다.
+DESIGN.md가 비어 있는 동안에도 루프는 (시험해본 결과) 임의로 프로젝트를 지어내지 않고,
+INBOX 항목 내용에 없는 범위는 추측하지 않는다.
 
 ## 설정 (`loop/env.sh`)
 
@@ -54,8 +73,29 @@ auto-loop/
 > `acceptEdits`에서는 `git add`/`git commit` 같은 Bash 명령이 승인 대기 상태로 막혀
 > **그 바퀴의 작업이 전혀 커밋되지 못했다.** 즉 `acceptEdits`로는 ⑤ 커밋 규칙 자체가
 > 지켜지지 않는다. 무인 실행에서 실제로 커밋까지 되게 하려면 `bypassPermissions`가 필요하다.
-> 대신 `loop/PROMPT.md` ③에 "이 폴더 밖은 건드리지 않는다", "원격 push는 하지 않는다" 같은
-> 안전 규칙을 반드시 채워 넣을 것.
+> `loop/PROMPT.md` ③에 이미 "세션 안에서 직접 push하지 않는다"를 넣어뒀다 (push는
+> `loop.sh`가 바퀴 종료 후 대시보드 커밋과 함께 처리). 필요하면 "이 폴더 밖은 건드리지
+> 않는다" 같은 규칙을 더 추가할 것.
+
+## 커밋 메시지 형식
+
+`loop/PROMPT.md` ⑤에 고정해둔 형식. 매 바퀴 세션이 이 형식으로 커밋한다.
+
+- **제목**: `[INBOX #N] <이번 바퀴에서 실제로 한 일 한 줄>`
+- **본문**: 아래 4개 소제목 고정 순서 (해당 없으면 "없음"이라고 적음, 절 자체는 생략하지 않음)
+  1. 전체 요약 1~2문장
+  2. 스스로 판단해서 고친 부분 (지시와 다르게, 더 낫다고 판단해 바꾼 것 — 예: "총기 디자인이 시대상과 안 맞아 다시 만듦")
+  3. 지시받지 않았지만 추가한 개선
+  4. 어려움 / 에러와 해결
+
+`docs/index.html` 갱신은 `loop.sh`가 별도로 "상태 페이지 갱신 (바퀴 N, 남은 K개)" 커밋으로
+분리해서 남긴다 — 에이전트의 작업 커밋 메시지를 기계적인 내용으로 오염시키지 않기 위해서다.
+
+## 원격 저장소
+
+`origin` = `https://github.com/kimtuna/life_game.git` (사용자 소유, `gh auth status`로 확인됨).
+`loop.sh`가 매 바퀴 후 `git push origin HEAD:main`을 자동 실행한다. push 실패(네트워크/인증
+문제 등)는 `logs/loop-events.log`에 기록만 하고 루프는 계속 진행한다(다음 바퀴에서 다시 push 시도).
 
 ## 2바퀴 시험 실행 결과 (등록 전 확인용)
 
@@ -106,4 +146,7 @@ loop/ctl.sh uninstall
 ## 지금 상태
 
 - launchd에 **아직 등록/시작하지 않았다** (요청대로 뼈대만 구성, 실제 가동은 보류).
-- `loop/ctl.sh start`를 실행하면 그때부터 로그인 시 자동 시작 + 무인 개발 루프가 돈다.
+- `origin`이 `https://github.com/kimtuna/life_game.git`로 연결되어 있고, 지금까지의 커밋은
+  이미 push되어 있다. GitHub Pages(`https://kimtuna.github.io/life_game/`)도 켜뒀다.
+- `docs/feedback/INBOX.md`의 "처리 대기"가 비어 있으므로, 지금 `loop/ctl.sh start`를 해도
+  세션 없이 바로 종료한다. **INBOX.md에 `- [ ] #1 ...` 형식으로 작업을 추가한 뒤** 켤 것.
