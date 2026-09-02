@@ -48,6 +48,31 @@ const ITEM_LABELS := {
 	"rice": "벼",
 	"iron": "철",
 	"captured_deer": "포획된 사슴",
+	"gun": "총",
+	"axe": "도끼",
+	"pickaxe": "곡괭이",
+	"sickle": "낫",
+	"fishing_rod": "낚싯대",
+}
+
+## 도구 아이템(INBOX #22). 순서대로 핫바 시작 슬롯(1~5번 키)에 지급된다.
+## 도끼는 아직 벌목 대상이 없고 낚싯대도 낚시 스팟이 없어 좌클릭 동작은 #23에서 연결한다
+## (DESIGN.md "범위 밖" 참고) — 이번 바퀴는 손에 드는 것(스프라이트 전환)까지만.
+const TOOL_KEYS := ["gun", "axe", "pickaxe", "sickle", "fishing_rod"]
+const TOOL_ICONS := {
+	"gun": preload("res://assets/sprites/tools/gun.png"),
+	"axe": preload("res://assets/sprites/tools/axe.png"),
+	"pickaxe": preload("res://assets/sprites/tools/pickaxe.png"),
+	"sickle": preload("res://assets/sprites/tools/sickle.png"),
+	"fishing_rod": preload("res://assets/sprites/tools/fishing_rod.png"),
+}
+
+## 손에 든 도구 아이콘을 캐릭터 옆 어디에 띄울지, 바라보는 방향별 오프셋(플레이어 로컬 좌표계).
+const HELD_ITEM_OFFSETS := {
+	"east": Vector2(15.0, 3.0),
+	"west": Vector2(-15.0, 3.0),
+	"north": Vector2(3.0, -15.0),
+	"south": Vector2(3.0, 15.0),
 }
 
 ## 다른 플레이어에게 내 위치/방향을 보내는 주기 (INBOX #14). 매 물리 프레임(60Hz)마다
@@ -69,6 +94,7 @@ const STATE_BROADCAST_INTERVAL := 0.1
 @onready var inventory_window: Control = $UI/InventoryWindow
 @onready var general_grid: GridContainer = $UI/InventoryWindow/CenterContainer/Panel/VBoxContainer/GeneralGrid
 @onready var equipment_grid: GridContainer = $UI/InventoryWindow/CenterContainer/Panel/VBoxContainer/EquipmentGrid
+@onready var hotbar_bar: HBoxContainer = $UI/HUD/HotbarBar
 
 ## 장비 슬롯 부위 표시 이름 (InventoryData.EQUIPMENT_SLOT_TYPES와 같은 순서).
 const EQUIPMENT_LABELS := ["모자", "상의", "하의", "신발", "목걸이", "목걸이", "반지", "반지", "가방"]
@@ -79,6 +105,14 @@ var _paused: bool = false
 var _inventory_open: bool = false
 var _general_slot_labels: Array = []
 var _equipment_slot_labels: Array = []
+## 핫바 9칸 셀(각 원소 {"panel": PanelContainer, "item_label": Label, "number_label": Label}).
+var _hotbar_cells: Array = []
+var _selected_hotbar_index: int = 0
+## 지금 손에 든 도구 키("gun"/"axe"/"pickaxe"/"sickle"/"fishing_rod") 또는 빈손("").
+var _held_tool: String = ""
+var _held_item_sprite: Sprite2D
+var _hotbar_normal_style: StyleBoxFlat
+var _hotbar_selected_style: StyleBoxFlat
 var _ammo_type: String = "normal"
 var _fire_cooldown: float = 0.0
 var _recoil: float = 0.0
@@ -99,10 +133,15 @@ func _ready() -> void:
 	_spawn_resource_points()
 	_spawn_farm_plots()
 	_spawn_ranch_zone()
+	_ensure_starting_tools()
 	_build_inventory_slots()
+	_build_held_item_sprite()
+	_build_hotbar()
 	InventoryData.changed.connect(_update_inventory_label)
 	InventoryData.changed.connect(_refresh_inventory_window)
+	InventoryData.changed.connect(_refresh_hotbar)
 	_update_inventory_label()
+	_select_hotbar(0)
 	TimeData.phase_changed.connect(_on_time_phase_changed)
 	TimeData.day_changed.connect(_on_time_day_changed)
 	TimeData.weather_changed.connect(_on_time_weather_changed)
@@ -126,8 +165,11 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_E \
 			and not _paused:
 		_set_inventory_open(not _inventory_open)
+	elif event is InputEventKey and event.pressed and not event.echo and not _paused and not _inventory_open \
+			and event.keycode >= KEY_1 and event.keycode <= KEY_9:
+		_select_hotbar(event.keycode - KEY_1)
 	elif event is InputEventMouseButton and event.pressed and not _paused and not _inventory_open \
-			and event.button_index == MOUSE_BUTTON_RIGHT:
+			and event.button_index == MOUSE_BUTTON_RIGHT and _held_tool == "gun":
 		_ammo_type = "tranq" if _ammo_type == "normal" else "normal"
 		_update_ammo_label()
 
@@ -156,13 +198,14 @@ func _physics_process(delta: float) -> void:
 		if new_facing != _facing:
 			_facing = new_facing
 			_update_texture()
+			_update_held_item_transform()
 
 	camera.global_position = player_sprite.global_position
 
 	_recoil = maxf(0.0, _recoil - GUN_RECOIL_DECAY_PER_SEC * delta)
 	if _fire_cooldown > 0.0:
 		_fire_cooldown -= delta
-	if Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT) and _fire_cooldown <= 0.0:
+	if _held_tool == "gun" and Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT) and _fire_cooldown <= 0.0:
 		_fire()
 
 	if NetworkSession.is_active():
@@ -270,6 +313,108 @@ func _spawn_ranch_zone() -> void:
 	zone.global_position = player_sprite.position + RANCH_ZONE_ORIGIN
 	zone.player_ref = player_sprite
 	add_child(zone)
+
+
+## 아직 도구를 얻는 채집/제작 경로가 없으므로(DESIGN.md 범위 밖), 캐릭터가 처음
+## 월드에 들어올 때 도구 5종을 한 벌씩 지급해 핫바 1~5번에서 바로 시험해볼 수 있게 한다
+## (INBOX #22, 스스로 판단해서 추가). 이미 총을 갖고 있으면(재입장) 다시 지급하지 않는다.
+func _ensure_starting_tools() -> void:
+	if InventoryData.has_item("gun", 1):
+		return
+	for tool_key in TOOL_KEYS:
+		InventoryData.add_item(tool_key, 1)
+
+
+## 손에 든 도구 아이콘을 보여줄 Sprite2D를 Player의 자식으로 만든다. Player의 스케일을
+## 그대로 물려받으므로 캐릭터 크기와 비례가 맞는다.
+func _build_held_item_sprite() -> void:
+	_held_item_sprite = Sprite2D.new()
+	_held_item_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_held_item_sprite.scale = Vector2(0.85, 0.85)
+	_held_item_sprite.visible = false
+	player_sprite.add_child(_held_item_sprite)
+
+
+## 바라보는 방향에 맞춰 손에 든 아이콘의 위치/좌우반전을 갱신한다.
+func _update_held_item_transform() -> void:
+	if _held_item_sprite == null:
+		return
+	_held_item_sprite.position = HELD_ITEM_OFFSETS.get(_facing, Vector2.ZERO)
+	_held_item_sprite.flip_h = _facing == "west"
+
+
+## 화면 아래 중앙에 핫바 9칸을 만든다 (INBOX #22). 인벤토리 창의 맨 위 9칸(핫바)과
+## 같은 슬롯을 그대로 보여주는 별도 뷰다 — 데이터는 항상 InventoryData.get_general_slots()
+## 에서 다시 읽어오므로 두 UI가 따로 놀 일이 없다.
+func _build_hotbar() -> void:
+	_hotbar_normal_style = _make_slot_style(Color(0.157, 0.212, 0.184, 1))
+	_hotbar_selected_style = _make_slot_style(Color(0.22, 0.32, 0.22, 1))
+	_hotbar_selected_style.border_width_left = 4
+	_hotbar_selected_style.border_width_top = 4
+	_hotbar_selected_style.border_width_right = 4
+	_hotbar_selected_style.border_width_bottom = 4
+	_hotbar_selected_style.border_color = Color(0.95, 0.85, 0.3, 1)
+	for i in range(InventoryData.HOTBAR_SIZE):
+		var cell := _make_hotbar_cell(i + 1)
+		hotbar_bar.add_child(cell["panel"])
+		_hotbar_cells.append(cell)
+	_refresh_hotbar()
+
+
+func _make_hotbar_cell(number: int) -> Dictionary:
+	var panel := PanelContainer.new()
+	panel.custom_minimum_size = Vector2(56, 56)
+	panel.add_theme_stylebox_override("panel", _hotbar_normal_style)
+	var item_label := Label.new()
+	item_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	item_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	item_label.add_theme_font_size_override("font_size", 11)
+	panel.add_child(item_label)
+	var number_label := Label.new()
+	number_label.text = str(number)
+	number_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	number_label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+	number_label.add_theme_font_size_override("font_size", 11)
+	number_label.modulate = Color(1, 1, 1, 0.55)
+	panel.add_child(number_label)
+	return {"panel": panel, "item_label": item_label, "number_label": number_label}
+
+
+## 핫바 칸의 아이템 표시와 선택 테두리를 InventoryData 상태에 맞춰 다시 그린다.
+func _refresh_hotbar() -> void:
+	var general_slots := InventoryData.get_general_slots()
+	for i in range(_hotbar_cells.size()):
+		var slot = general_slots[i] if i < general_slots.size() else null
+		var cell: Dictionary = _hotbar_cells[i]
+		var item_label: Label = cell["item_label"]
+		if slot == null:
+			item_label.text = ""
+		else:
+			var display: String = ITEM_LABELS.get(slot["item"], slot["item"])
+			item_label.text = display if TOOL_ICONS.has(slot["item"]) else "%s\nx%d" % [display, slot["count"]]
+		var panel: PanelContainer = cell["panel"]
+		panel.add_theme_stylebox_override(
+			"panel", _hotbar_selected_style if i == _selected_hotbar_index else _hotbar_normal_style
+		)
+
+
+## 숫자키 1~9로 핫바 슬롯을 고른다. 도구 아이템이면 손에 들고(아이콘 스프라이트 전환),
+## 빈 슬롯이거나 도구가 아닌 아이템이면 빈손으로 되돌린다 (INBOX #22 요구사항 그대로).
+func _select_hotbar(index: int) -> void:
+	if index < 0 or index >= InventoryData.HOTBAR_SIZE:
+		return
+	_selected_hotbar_index = index
+	var general_slots := InventoryData.get_general_slots()
+	var slot = general_slots[index] if index < general_slots.size() else null
+	if slot != null and TOOL_ICONS.has(slot["item"]):
+		_held_tool = slot["item"]
+		_held_item_sprite.texture = TOOL_ICONS[_held_tool]
+		_held_item_sprite.visible = true
+		_update_held_item_transform()
+	else:
+		_held_tool = ""
+		_held_item_sprite.visible = false
+	_refresh_hotbar()
 
 
 ## 인벤토리 창의 일반 18칸 + 장비 9칸 슬롯 셀을 한 번만 만들어둔다 (INBOX #21).
