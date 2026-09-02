@@ -46,7 +46,7 @@ centered = true
 region_enabled = true
 region_rect = Rect2(0, 0, 8000, 8000)
 
-[node name="Player" type="Sprite2D" parent="."]
+[node name="Player" type="AnimatedSprite2D" parent="."]
 position = Vector2(640, 360)
 scale = Vector2(1.5, 1.5)
 texture_filter = 1

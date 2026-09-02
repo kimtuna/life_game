@@ -1,6 +1,7 @@
 extends Node2D
 
 const MOVE_SPEED := 220.0
+const PLAYER_WALK_ANIM_FPS := 8.0
 
 ## 기본 소총 스탯 (DESIGN.md "총기 스탯" 절 그대로 적용)
 const GUN_RANGE := 800.0
@@ -117,7 +118,7 @@ const HELD_ITEM_BEHIND_FACINGS := ["north"]
 ## 패킷이 빠져도 다음 것으로 자연히 보정된다.
 const STATE_BROADCAST_INTERVAL := 0.1
 
-@onready var player_sprite: Sprite2D = $Player
+@onready var player_sprite: AnimatedSprite2D = $Player
 @onready var remote_players_root: Node2D = $RemotePlayers
 @onready var camera: Camera2D = $Camera2D
 @onready var pause_menu: Control = $UI/PauseMenu
@@ -163,6 +164,7 @@ var _reloading_ammo_type: String = "normal"
 ## 줄어들다가 0이 되면 지금 손에 든 도구의 "들고 있는" 텍스처로 되돌아간다.
 var _tool_use_flash_timer: float = 0.0
 var _is_moving: bool = false
+var _was_moving: bool = false
 var _state_broadcast_timer: float = 0.0
 ## peer id -> 그 플레이어를 대신 그리는 Sprite2D (INBOX #14, remote_players_root의 자식).
 var _remote_sprites: Dictionary = {}
@@ -173,7 +175,8 @@ var _remote_tex_paths: Dictionary = {}
 func _ready() -> void:
 	var character := CharacterData.get_character(CharacterData.active_slot_index)
 	_variant = character.get("variant", "green")
-	_update_texture()
+	player_sprite.sprite_frames = _build_player_sprite_frames(_variant)
+	_update_player_animation()
 	_update_ammo_label()
 	_spawn_deer()
 	_spawn_resource_points()
@@ -250,8 +253,11 @@ func _physics_process(delta: float) -> void:
 		var new_facing := _facing_from_direction(to_mouse)
 		if new_facing != _facing:
 			_facing = new_facing
-			_update_texture()
 			_update_held_item_transform()
+
+	if _is_moving != _was_moving or player_sprite.animation != _current_animation_name():
+		_was_moving = _is_moving
+		_update_player_animation()
 
 	camera.global_position = player_sprite.global_position
 
@@ -696,8 +702,35 @@ func _update_time_label() -> void:
 	time_label.text = "%s %d일차 · %s" % [TimeData.season_label(), TimeData.current_day_of_month(), phase_text]
 
 
-func _update_texture() -> void:
-	player_sprite.texture = load("res://assets/sprites/character/%s_%s.png" % [_variant, _facing])
+## 방향별 idle(1프레임)/walk(4프레임) 애니메이션을 담은 SpriteFrames를 만든다 (INBOX #41).
+## 정지 이미지 한 장을 텍스처로 갈아끼우던 기존 방식(#4~#40) 대신, 걷는 동안 다리가
+## 실제로 움직이는 것처럼 보이도록 AnimatedSprite2D 기반으로 바꿨다.
+func _build_player_sprite_frames(variant: String) -> SpriteFrames:
+	var frames := SpriteFrames.new()
+	if frames.has_animation("default"):
+		frames.remove_animation("default")
+	for direction in ["south", "north", "east", "west"]:
+		var idle_anim := "idle_%s" % direction
+		frames.add_animation(idle_anim)
+		frames.set_animation_speed(idle_anim, 1.0)
+		frames.add_frame(idle_anim, load("res://assets/sprites/character/%s_%s.png" % [variant, direction]))
+
+		var walk_anim := "walk_%s" % direction
+		frames.add_animation(walk_anim)
+		frames.set_animation_speed(walk_anim, PLAYER_WALK_ANIM_FPS)
+		for i in range(4):
+			frames.add_frame(walk_anim, load("res://assets/sprites/character/walk/%s_%s_walk_%d.png" % [variant, direction, i]))
+	return frames
+
+
+func _current_animation_name() -> String:
+	return ("walk_" if _is_moving else "idle_") + _facing
+
+
+func _update_player_animation() -> void:
+	var anim := _current_animation_name()
+	if player_sprite.animation != anim or not player_sprite.is_playing():
+		player_sprite.play(anim)
 
 
 func _update_ammo_label() -> void:
