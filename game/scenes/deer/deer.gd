@@ -19,6 +19,7 @@ const WANDER_MOVE_MAX := 2.5
 const WANDER_IDLE_MIN := 1.0
 const WANDER_IDLE_MAX := 3.0
 const WORLD_BOUNDS := 3800.0
+const FLEE_WALL_MARGIN := 80.0
 
 @onready var sprite: Sprite2D = $Sprite
 
@@ -62,6 +63,7 @@ func _physics_process(delta: float) -> void:
 				var to_deer := global_position - player_ref.global_position
 				if to_deer.length() > 1.0:
 					away = to_deer.normalized()
+			away = _wall_slide_direction(away)
 			_move(away, FLEE_SPEED, delta)
 			var far_enough := player_ref == null \
 					or global_position.distance_to(player_ref.global_position) > FLEE_CLEAR_RADIUS
@@ -92,6 +94,27 @@ func take_hit(damage: int, ammo_type: String) -> void:
 		_die()
 	else:
 		_start_flee()
+
+
+## 도주 방향 중 월드 경계 쪽으로 파고드는 성분을 0으로 눌러(벽을 따라 미끄러지듯) 실제로
+## 움직일 수 있는 방향으로 바꿔준다. 두 축 다 막힌 구석에서는 원래 방향에 수직인 방향으로
+## 벽을 타고 피한다. INBOX #18: 구석에 몰리면 그대로 멈춰버리던 버그 수정.
+func _wall_slide_direction(preferred: Vector2) -> Vector2:
+	if is_ranched or preferred.length() < 0.01:
+		return preferred
+	var adjusted := preferred
+	if position.x <= -WORLD_BOUNDS + FLEE_WALL_MARGIN and adjusted.x < 0.0:
+		adjusted.x = 0.0
+	elif position.x >= WORLD_BOUNDS - FLEE_WALL_MARGIN and adjusted.x > 0.0:
+		adjusted.x = 0.0
+	if position.y <= -WORLD_BOUNDS + FLEE_WALL_MARGIN and adjusted.y < 0.0:
+		adjusted.y = 0.0
+	elif position.y >= WORLD_BOUNDS - FLEE_WALL_MARGIN and adjusted.y > 0.0:
+		adjusted.y = 0.0
+	if adjusted.length() < 0.01:
+		# 두 축 다 막힌 구석: 원래 방향에 수직인 방향(벽을 타고 옆으로)으로 피한다.
+		adjusted = Vector2(-preferred.y, preferred.x)
+	return adjusted.normalized()
 
 
 func _move(direction: Vector2, speed: float, delta: float) -> void:
