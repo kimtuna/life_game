@@ -1,8 +1,10 @@
 extends Node2D
 ## 채집 포인트/채광 포인트 공용 스크립트 (INBOX #10).
-## INBOX #23부터는 F키 대신, `required_tool`로 지정된 도구(채집=낫/채광=곡괭이)를
-## 손에 든 채로 좌클릭해야 동작한다 — 포인트 종류별로 다른 도구를 요구하므로
-## `required_tool`을 씬(.tscn)에서 각각 지정한다.
+## INBOX #23부터는 F키 대신, `required_tool`로 지정된 도구를 손에 든 채로 좌클릭해야
+## 동작한다. INBOX #25부터는 채집/채광 둘 다 곡괭이낫(pickaxe) 하나로 통일됐다
+## (한때 채집=낫/채광=곡괭이로 나눴던 것을 다시 합침 — DESIGN.md 참고).
+## `required_tool`은 여전히 씬(.tscn)에서 지정하므로, 나중에 다른 도구가 필요한 포인트가
+## 추가되면 그때 다시 나눠 지정하면 된다.
 
 const INTERACT_RADIUS := 70.0
 const RESPAWN_SECONDS := 20.0
@@ -10,11 +12,11 @@ const DEPLETED_MODULATE := Color(0.45, 0.45, 0.45, 1.0)
 
 @export var item_name: String = "rice_seed"
 @export var item_amount: int = 1
-@export var prompt_text: String = "낫을 들고 좌클릭: 채집 (벼 씨앗)"
+@export var prompt_text: String = "곡괭이낫을 들고 좌클릭: 채집 (벼 씨앗)"
 ## 캐릭터/사슴과 같은 패턴: 변형별 텍스처는 ext_resource가 아니라 경로를 받아 load()한다.
 @export var texture_path: String = ""
-## 이 포인트를 쓰려면 손에 들고 있어야 하는 도구 키 ("sickle"/"pickaxe" 등).
-@export var required_tool: String = "sickle"
+## 이 포인트를 쓰려면 손에 들고 있어야 하는 도구 키 ("pickaxe" 등).
+@export var required_tool: String = "pickaxe"
 
 @onready var sprite: Sprite2D = $Sprite
 @onready var prompt: Label = $Prompt
@@ -54,7 +56,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _harvest() -> void:
-	InventoryData.add_item(item_name, item_amount)
+	world_ref.spawn_dropped_item(item_name, item_amount, global_position)
 	_cooldown = RESPAWN_SECONDS
 	sprite.modulate = DEPLETED_MODULATE
 	prompt.visible = false

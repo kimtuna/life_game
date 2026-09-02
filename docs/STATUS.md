@@ -5,9 +5,66 @@
 
 ## 마지막 갱신
 
-바퀴 26 / 2026-09-02
+바퀴 27 / 2026-09-02
 
-## 끝난 것 (바퀴 26)
+## 끝난 것 (바퀴 27)
+
+- **먼저: 세션 시작 시점에 이미 INBOX #24(바닥 드롭 아이템)가 완료 표시(`- [x]`)되어
+  있었는데, 관련 코드(`deer.gd`/`farm_plot.gd`/`resource_point.gd`/`world.gd`의
+  `spawn_dropped_item()` 배선, `scenes/dropped_item/`, `assets/sprites/items/`)는
+  전부 미커밋 상태로 작업 디렉터리에 남아 있었다** — 바퀴 3→4, 14→15, 24→25와 같은
+  패턴(이전 세션이 구현은 끝냈지만 커밋 전에 예산 초과로 죽음)으로 보인다. 처음부터
+  다시 만들지 않고, 이번 바퀴 검증 과정(아래)에서 이 코드가 실제로 동작하는지 함께
+  확인했다 — 채집/채광/농사 수확 시 `spawn_dropped_item()`이 호출되고, 플레이어가 그
+  위치에 있으면(접촉) 즉시 인벤토리에 들어가는 것을 직접 실행해 확인했다(사슴 사냥/포획
+  경로는 이번 바퀴에서 별도로 재검증하지 않음 — `deer.gd`의 `_capture()`가 `world_ref.
+  spawn_dropped_item()`을 호출하도록 바뀐 diff만 읽고 패턴이 동일함을 확인). 품질
+  기준을 통과한다고 판단해 이번 커밋에 함께 포함했다. **참고**: `deer.gd`의 `_die()`
+  (기본탄으로 사냥 성공한 경우)는 여전히 아무 아이템도 드롭하지 않는다 — 이건 #24 이전
+  부터 있던 기존 동작(사냥 성공 보상 자체가 DESIGN.md/INBOX에 정의된 적 없음, 마취탄
+  포획만 `captured_deer`를 준다)이라 이번 바퀴가 새로 만든 결함이 아니다. 다음에 "사냥
+  성공 시에도 뭔가 드롭해야 한다"는 지시가 오면 그때 추가할 것.
+- INBOX #25 완료: 곡괭이와 낫으로 나뉘어 있던 채집 도구를 곡괭이 하나("곡괭이낫")로
+  다시 합쳤다.
+  - `sickle` 아이템을 완전히 제거했다: `scenes/world/world.gd`의 `ITEM_LABELS`/
+    `TOOL_KEYS`/`TOOL_ICONS`에서 삭제하고, `pickaxe`의 표시 이름을 "곡괭이"에서
+    "곡괭이낫"으로 바꿨다(DESIGN.md가 이 도구를 부르는 이름을 그대로 UI에 반영).
+    `assets/sprites/tools/sickle.png`(+`.import`)도 `git rm`으로 삭제했다(이제 아무
+    코드도 참조하지 않음).
+  - `scenes/resource_point/gathering_point.tscn`(채집 포인트)의 `required_tool`을
+    `"sickle"`→`"pickaxe"`로 바꿨다. `mining_point.tscn`(채광 포인트)은 이미
+    `"pickaxe"`였으므로 그대로 뒀다. 두 포인트 모두 프롬프트 텍스트를 "곡괭이낫을 들고
+    좌클릭: ..."으로 통일했다.
+  - `scenes/farm_plot/farm_plot.gd`의 `REQUIRED_TOOL`도 `"sickle"`→`"pickaxe"`로
+    바꿨다(#27이 아직 처리 대기 상태라, 심기 방식 자체는 이번에 건드리지 않고 "도구
+    요구 조건"만 곡괭이로 맞췄다 — DESIGN.md에도 아직 "수확은 곡괭이낫" 요구만 확정돼
+    있고 심기는 #27이 바꿀 예정).
+  - **곡괭이 이미지를 새로 그리지 않았다**(스스로 판단해서 고른 부분): INBOX #25가
+    "곡괭이 이미지가 이미 곡괭이+낫 형태로 그려져 있다면 새로 그리지 않아도 된다(먼저
+    확인)"고 했는데, 기존 `pickaxe.png`를 32배 확대해서 직접 봤더니 이미 뾰족한 픽
+    (곡괭이 날)과 반대쪽의 넓적한 날(낫/도끼날에 가까운 모양)이 함께 있는 투헤드
+    구조였다 — 이 정도 아이콘 해상도(32x32, 게임 내에서는 더 작게 표시됨)에서는 이미
+    "곡괭이+낫 통합 도구"로 충분히 읽힌다고 판단했다. 참고로 PixelLab로 같은 설명
+    ("pickaxe combined with sickle blade")을 다시 생성도 해봤는데 결과가 기존 이미지와
+    사실상 구분이 안 될 정도로 비슷해서(같은 실루엣), 새로 교체할 실익이 없다고 보고
+    기존 파일을 그대로 유지했다 — 예산도 아꼈다.
+  - 검증: `godot --path . --script <임시스크립트>.gd`로 world.tscn을 띄운 뒤
+    (1) `InventoryData.has_item("pickaxe")==true`, `has_item("sickle")==false` 확인,
+    (2) 핫바 3번(곡괭이)을 선택한 채로 좌클릭 → 채집 포인트에서 벼 씨앗 +1, 같은
+    좌클릭으로(같은 프레임 그룹에서 위치만 겹쳐놓고) 채광 포인트에서도 철 +1이 함께
+    올라가는 것을 확인(둘 다 `required_tool=="pickaxe"`이므로 도구 하나로 양쪽 다
+    가능해졌다는 게 핵심 확인 포인트), (3) 별도 스크립트로 곡괭이를 든 채 밭에 좌클릭
+    → EMPTY(0)에서 GROWING(1)으로 전환되고 씨앗이 소비되는 것 확인. 추가로 `godot
+    --path .`(렌더링 모드)로 인벤토리 창을 열어 스크린샷을 찍어 핫바에 "곡괭이낫"
+    한 칸만 있고(4개: 총/도끼/곡괭이낫/낚싯대) 선택 테두리도 정상 표시되는 것을 눈으로
+    확인했다. 임시 스크립트/스크린샷/`user://inventory.save`는 검증 후 모두 삭제했다.
+  - 변경 파일: `game/scenes/world/world.gd`, `game/scenes/farm_plot/farm_plot.gd`,
+    `game/scenes/resource_point/resource_point.gd`,
+    `game/scenes/resource_point/gathering_point.tscn`,
+    `game/scenes/resource_point/mining_point.tscn`(prompt_text만),
+    `game/assets/sprites/tools/sickle.png`(+`.import`, 삭제).
+
+## 끝난 것 (바퀴 26, 이전 기록)
 
 - INBOX #23 완료: `farm_plot.gd`/`resource_point.gd`/`ranch_zone.gd`의 F키 상호작용을
   전부 없애고, `world.gd`가 공개한 `get_held_tool()`로 "지금 손에 든 도구"를 확인해
@@ -129,13 +186,15 @@
 
 ## 다음에 할 것
 
-- `docs/feedback/INBOX.md` "처리 대기"의 다음 미완료 항목은 `#24`(사냥/채집/채광 결과물을
-  바로 인벤토리에 넣지 않고 바닥에 드롭 → 접촉하면 자동 습득)이다. 지금은 사슴 사냥/포획,
-  `resource_point.gd`의 `_harvest()`, 농사 수확이 전부 `InventoryData.add_item()`을 즉시
-  호출한다 — 이 호출 지점들을 "바닥에 드롭 아이템 오브젝트 생성"으로 바꾸고, 새 드롭
-  아이템 씬이 플레이어와 접촉(Area2D 등)하면 그때 `add_item()`을 호출하도록 옮겨야 한다.
-  좌클릭은 이미 도구 동작(#22/#23)에 쓰이고 있으므로 드롭 습득은 반드시 접촉 기반으로
-  만들 것(지시문에 명시됨).
+- `docs/feedback/INBOX.md` "처리 대기"의 다음 미완료 항목은 `#26`(목장 경계를 clamp가
+  아니라 실제 충돌체(StaticBody2D+CollisionShape2D)로 막기)이다. `ranch_zone.gd`가 지금
+  사슴 위치를 매 프레임 강제로 되돌리는 방식(clamp)을 쓰는 부분을 찾아 담장류 충돌체로
+  바꿀 것.
+- **INBOX #27(농사 심기 방식 변경)이 다음다음 항목으로 대기 중** — 지금 `farm_plot.gd`는
+  여전히 "도구(곡괭이낫)를 든 채 좌클릭"으로 심기/수확 둘 다 처리한다(이번 바퀴 #25는
+  도구 이름만 sickle→pickaxe로 바꿨을 뿐, 상호작용 방식 자체는 안 건드렸다). #27이 오면
+  `_can_interact()`/`_unhandled_input()`의 EMPTY 상태 분기를 "씨앗 아이템을 손에 든 상태"
+  기준으로 바꾸고, READY(수확) 분기만 `REQUIRED_TOOL(="pickaxe")` 기준을 유지할 것.
 - INBOX #23은 farm_plot/resource_point/ranch_zone의 F키 상호작용을 좌클릭+도구 확인
   방식으로 바꿨다. `world.gd.get_held_tool()`을 공개 접근자로 추가했으니, 앞으로 새
   상호작용 오브젝트를 추가할 때도 이 패턴(`world_ref.get_held_tool() == required_tool`)을

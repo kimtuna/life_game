@@ -23,6 +23,7 @@ const GatheringPointScene := preload("res://scenes/resource_point/gathering_poin
 const MiningPointScene := preload("res://scenes/resource_point/mining_point.tscn")
 const FarmPlotScene := preload("res://scenes/farm_plot/farm_plot.tscn")
 const RanchZoneScene := preload("res://scenes/ranch_zone/ranch_zone.tscn")
+const DroppedItemScene := preload("res://scenes/dropped_item/dropped_item.tscn")
 
 const DEER_COUNT := 6
 const DEER_SPAWN_RADIUS := 1600.0
@@ -50,20 +51,19 @@ const ITEM_LABELS := {
 	"captured_deer": "포획된 사슴",
 	"gun": "총",
 	"axe": "도끼",
-	"pickaxe": "곡괭이",
-	"sickle": "낫",
+	"pickaxe": "곡괭이낫",
 	"fishing_rod": "낚싯대",
 }
 
-## 도구 아이템(INBOX #22). 순서대로 핫바 시작 슬롯(1~5번 키)에 지급된다.
-## 도끼는 아직 벌목 대상이 없고 낚싯대도 낚시 스팟이 없어 좌클릭 동작은 #23에서 연결한다
-## (DESIGN.md "범위 밖" 참고) — 이번 바퀴는 손에 드는 것(스프라이트 전환)까지만.
-const TOOL_KEYS := ["gun", "axe", "pickaxe", "sickle", "fishing_rod"]
+## 도구 아이템(INBOX #22). 순서대로 핫바 시작 슬롯(1~4번 키)에 지급된다.
+## 곡괭이낫(pickaxe) 하나로 채집+채광을 둘 다 한다(INBOX #25 — 한때 별도 "낫" 아이템으로
+## 나눴던 것을 다시 합침, DESIGN.md 참고). 도끼는 아직 벌목 대상이 없고 낚싯대도 낚시
+## 스팟이 없어 좌클릭 동작은 #23에서 최소 반응만 연결했다(DESIGN.md "범위 밖" 참고).
+const TOOL_KEYS := ["gun", "axe", "pickaxe", "fishing_rod"]
 const TOOL_ICONS := {
 	"gun": preload("res://assets/sprites/tools/gun.png"),
 	"axe": preload("res://assets/sprites/tools/axe.png"),
 	"pickaxe": preload("res://assets/sprites/tools/pickaxe.png"),
-	"sickle": preload("res://assets/sprites/tools/sickle.png"),
 	"fishing_rod": preload("res://assets/sprites/tools/fishing_rod.png"),
 }
 
@@ -108,7 +108,7 @@ var _equipment_slot_labels: Array = []
 ## 핫바 9칸 셀(각 원소 {"panel": PanelContainer, "item_label": Label, "number_label": Label}).
 var _hotbar_cells: Array = []
 var _selected_hotbar_index: int = 0
-## 지금 손에 든 도구 키("gun"/"axe"/"pickaxe"/"sickle"/"fishing_rod") 또는 빈손("").
+## 지금 손에 든 도구 키("gun"/"axe"/"pickaxe"/"fishing_rod") 또는 빈손("").
 var _held_tool: String = ""
 var _held_item_sprite: Sprite2D
 var _hotbar_normal_style: StyleBoxFlat
@@ -290,6 +290,7 @@ func _spawn_deer() -> void:
 				break
 		deer.global_position = pos
 		deer.player_ref = player_sprite
+		deer.world_ref = self
 		add_child(deer)
 
 
@@ -338,6 +339,18 @@ func _spawn_ranch_zone() -> void:
 	zone.player_ref = player_sprite
 	zone.world_ref = self
 	add_child(zone)
+
+
+## 사냥/채집/채광 결과물을 바닥에 드롭 오브젝트로 스폰한다 (INBOX #24, DESIGN.md
+## "아이템 획득 방식 — 바닥 드롭"). 드롭 오브젝트가 player_ref로 플레이어와의 거리를
+## 직접 재서 접촉하면 스스로 인벤토리에 들어가고 사라진다.
+func spawn_dropped_item(item_name: String, amount: int, pos: Vector2) -> void:
+	var drop := DroppedItemScene.instantiate()
+	drop.global_position = pos
+	drop.item_name = item_name
+	drop.item_amount = amount
+	drop.player_ref = player_sprite
+	add_child(drop)
 
 
 ## 아직 도구를 얻는 채집/제작 경로가 없으므로(DESIGN.md 범위 밖), 캐릭터가 처음

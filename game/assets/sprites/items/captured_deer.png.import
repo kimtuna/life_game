@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://wfdnju1pjvfs"
-path="res://.godot/imported/sickle.png-b6aaee7cb5f54bcc137370b298751f3b.ctex"
+uid="uid://d0w4uk6nr8xne"
+path="res://.godot/imported/captured_deer.png-42315a53f30d07dc43bd9b63ec262905.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/sprites/tools/sickle.png"
-dest_files=["res://.godot/imported/sickle.png-b6aaee7cb5f54bcc137370b298751f3b.ctex"]
+source_file="res://assets/sprites/items/captured_deer.png"
+dest_files=["res://.godot/imported/captured_deer.png-42315a53f30d07dc43bd9b63ec262905.ctex"]
 
 [params]
 

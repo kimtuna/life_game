@@ -1,7 +1,8 @@
 extends Node2D
 ## 밭 한 칸 (INBOX #11). 벼 씨앗(rice_seed)을 심으면 시간이 지나 벼(rice)로 자라고
-## 수확할 수 있다. INBOX #23부터는 F키 대신, 낫(sickle)을 손에 든 채로 좌클릭해야
-## 심기/수확이 동작한다(다른 채집 계열과 같은 "낫" 도구를 재사용).
+## 수확할 수 있다. INBOX #23부터는 F키 대신, 도구를 손에 든 채로 좌클릭해야 심기/수확이
+## 동작한다. INBOX #25부터는 그 도구가 곡괭이낫(pickaxe) 하나로 통일됐다(한때 별도
+## "낫" 아이템을 썼던 것을 다시 합침 — DESIGN.md 참고).
 
 enum State { EMPTY, GROWING, READY }
 
@@ -10,7 +11,7 @@ const GROW_SECONDS := 60.0
 const SEED_ITEM := "rice_seed"
 const CROP_ITEM := "rice"
 const CROP_YIELD := 2
-const REQUIRED_TOOL := "sickle"
+const REQUIRED_TOOL := "pickaxe"
 
 const SPROUT_TEXTURE := preload("res://assets/sprites/farm_plot/rice_sprout.png")
 const GROWN_TEXTURE := preload("res://assets/sprites/farm_plot/rice_grown.png")
@@ -70,7 +71,7 @@ func _interact() -> void:
 				_grow_timer = GROW_SECONDS
 				_update_visual()
 		State.READY:
-			InventoryData.add_item(CROP_ITEM, CROP_YIELD)
+			world_ref.spawn_dropped_item(CROP_ITEM, CROP_YIELD, global_position)
 			_state = State.EMPTY
 			_update_visual()
 
@@ -79,11 +80,11 @@ func _update_visual() -> void:
 	match _state:
 		State.EMPTY:
 			crop.visible = false
-			prompt.text = "낫을 들고 좌클릭: 씨앗 심기"
+			prompt.text = "곡괭이낫을 들고 좌클릭: 씨앗 심기"
 		State.GROWING:
 			crop.visible = true
 			crop.texture = SPROUT_TEXTURE
 		State.READY:
 			crop.visible = true
 			crop.texture = GROWN_TEXTURE
-			prompt.text = "낫을 들고 좌클릭: 수확"
+			prompt.text = "곡괭이낫을 들고 좌클릭: 수확"

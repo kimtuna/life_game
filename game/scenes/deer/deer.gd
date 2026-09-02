@@ -33,6 +33,10 @@ const HEALTH_BAR_COLOR_CAPTURABLE := Color(0.95, 0.85, 0.15, 1.0)
 
 ## world.gd가 스폰 직후 채워준다 (플레이어 접근 감지용).
 var player_ref: Node2D = null
+## world.gd가 스폰 직후 채워준다 — 포획 시 바닥 드롭 오브젝트를 스폰하기 위해 필요
+## (INBOX #24). 목장에서 풀려난 사슴(is_ranched)은 _capture()가 호출되지 않으므로
+## world_ref 없이도 안전하다.
+var world_ref: Node2D = null
 
 ## 목장에 풀어놓은 사슴이면 true (INBOX #12). ranch_zone.gd가 스폰 직후 채워준다.
 ## 배회만 하고 도주하지 않으며, 이동 범위가 WORLD_BOUNDS 대신 zone_center 기준
@@ -202,5 +206,6 @@ func _die() -> void:
 
 func _capture() -> void:
 	_dead = true
-	InventoryData.add_item(CAPTURED_ITEM, 1)
+	if world_ref != null:
+		world_ref.spawn_dropped_item(CAPTURED_ITEM, 1, global_position)
 	queue_free()
