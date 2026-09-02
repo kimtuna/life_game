@@ -19,18 +19,18 @@
 </head>
 <body>
   <h1>auto-loop 진행 상황</h1>
-  <p class="updated">마지막 갱신: 2026-09-02 21:15:45</p>
+  <p class="updated">마지막 갱신: 2026-09-02 21:23:10</p>
   <div class="row">
-    <div class="card"><div class="label">남은 항목</div><div class="num">2</div></div>
-    <div class="card"><div class="label">완료된 항목</div><div class="num">22</div></div>
+    <div class="card"><div class="label">남은 항목</div><div class="num">1</div></div>
+    <div class="card"><div class="label">완료된 항목</div><div class="num">23</div></div>
   </div>
   <div class="card">
     <div class="label">지금 처리 중 / 다음으로 처리할 항목</div>
-    <div>#23 도구 상호작용을 전부 좌클릭으로 통일한다. 지금 `scenes/farm_plot/farm_plot.gd`, `scenes/resource_point/resource_point.gd`, `scenes/ranch_zone/ranch_zone.gd`가 전부 F키(`KEY_F`)로 상호작용을 처리하고 있는데, 이걸 없애고 #22에서 만든 "지금 손에 든 도구"가 맞는 도구일 때 좌클릭으로 동작하게 바꾼다: 곡괭이를 들고 채광 포인트 앞에서 좌클릭→채광, 낫을 들고 채집 포인트/밭(수확) 앞에서 좌클릭→채집·수확, 도끼는 아직 벌목 대상(나무)이 없으니 좌클릭 애니메이션/동작만 연결해두고 실제 벌목은 만들지 않는다(DESIGN.md 범위 밖), 낚싯대는 낚시 스팟이 아직 없으면 좌클릭 시 최소한의 반응(예: 낚시 시작 애니메이션/상태)만 만들고 실제 낚시 결과물 로직까지는 범위에 넣지 않아도 된다. 목장(ranch_zone)의 F키 상호작용(사슴 넣기 등)도 같은 방식(맞는 도구/빈손 좌클릭)으로 바꾼다.</div>
+    <div>#24 사냥/채집/채광 결과물을 바로 인벤토리에 넣지 않고 바닥에 드롭되게 만든다. 사슴을 사냥/포획했을 때, 채집·채광 포인트를 사용했을 때 그 자리에 아이템 드롭 오브젝트(픽업 가능한 스프라이트)가 생기고, 플레이어가 가까이 다가가면(접촉하면) 자동으로 인벤토리(#21의 일반 슬롯)에 들어가면서 사라진다. 좌클릭으로 줍는 방식은 쓰지 않는다(좌클릭은 도구 동작에 이미 쓰이고 있음).</div>
   </div>
   <div class="card">
     <div class="label">마지막 작업 커밋</div>
-    <div><code>0f7c251 [INBOX #22] 총/도끼/곡괭이/낫/낚싯대를 인벤토리 도구 아이템으로 추가하고 핫바(1~9)로 손에 들게 함</code></div>
+    <div><code>43fded5 [INBOX #23] 도구 상호작용을 F키에서 좌클릭+도구 확인 방식으로 통일</code></div>
   </div>
 </body>
 </html>
