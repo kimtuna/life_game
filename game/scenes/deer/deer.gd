@@ -19,6 +19,12 @@ const FLEE_SPEED := 200.0
 const DETECT_RADIUS := 260.0
 const FLEE_CLEAR_RADIUS := 360.0
 const FLEE_MIN_DURATION := 3.0
+## INBOX #30: 도주가 플레이어 반대 방향으로 일직선이면 맞추기 너무 쉬워서, 일정 시간마다
+## 반대 방향에 무작위 각도 편차를 섞어 지그재그로 만든다. 편차 범위를 90도 이내로 제한해
+## "대체로 플레이어에게서 멀어지는" 방향성 자체는 유지한다.
+const FLEE_ZIGZAG_MIN_INTERVAL := 0.3
+const FLEE_ZIGZAG_MAX_INTERVAL := 0.6
+const FLEE_ZIGZAG_MAX_ANGLE_DEG := 60.0
 const WANDER_MOVE_MIN := 1.0
 const WANDER_MOVE_MAX := 2.5
 const WANDER_IDLE_MIN := 1.0
@@ -58,6 +64,8 @@ var _state: String = "idle"  # idle, wander, flee
 var _state_timer: float = 0.0
 var _wander_dir: Vector2 = Vector2.ZERO
 var _flee_timer: float = 0.0
+var _flee_zigzag_angle: float = 0.0
+var _flee_zigzag_timer: float = 0.0
 var _dead: bool = false
 
 
@@ -78,11 +86,16 @@ func _physics_process(delta: float) -> void:
 	match _state:
 		"flee":
 			_flee_timer -= delta
+			_flee_zigzag_timer -= delta
+			if _flee_zigzag_timer <= 0.0:
+				_flee_zigzag_timer = randf_range(FLEE_ZIGZAG_MIN_INTERVAL, FLEE_ZIGZAG_MAX_INTERVAL)
+				_flee_zigzag_angle = deg_to_rad(randf_range(-FLEE_ZIGZAG_MAX_ANGLE_DEG, FLEE_ZIGZAG_MAX_ANGLE_DEG))
 			var away := Vector2.RIGHT
 			if player_ref != null:
 				var to_deer := global_position - player_ref.global_position
 				if to_deer.length() > 1.0:
 					away = to_deer.normalized()
+			away = away.rotated(_flee_zigzag_angle)
 			away = _wall_slide_direction(away)
 			_move(away, FLEE_SPEED, delta)
 			var far_enough := player_ref == null \
@@ -202,6 +215,7 @@ func _pick_wander() -> void:
 func _start_flee() -> void:
 	_state = "flee"
 	_flee_timer = FLEE_MIN_DURATION
+	_flee_zigzag_timer = 0.0
 
 
 func _die() -> void:
