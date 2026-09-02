@@ -248,6 +248,16 @@ func get_held_tool() -> String:
 	return _held_tool
 
 
+## 지금 선택된 핫바 슬롯의 아이템 키(도구가 아닌 아이템도 포함)를 밖에서 읽을 수
+## 있게 하는 공개 접근자 (INBOX #27). get_held_tool()은 도구(TOOL_ICONS에 있는
+## 아이템)만 반환하므로, 씨앗처럼 도구가 아닌 아이템을 "손에 들었는지" 확인하려면
+## 이 함수를 쓴다.
+func get_held_item() -> String:
+	var general_slots := InventoryData.get_general_slots()
+	var slot = general_slots[_selected_hotbar_index] if _selected_hotbar_index < general_slots.size() else null
+	return slot["item"] if slot != null else ""
+
+
 ## 도끼/낚싯대는 아직 벌목 대상(나무)·낚시 스팟이 없어 실제 동작을 만들 수 없다
 ## (DESIGN.md "범위 밖"). INBOX #23이 요구한 "좌클릭 애니메이션/동작만 연결"을
 ## 위해 손에 든 아이콘을 짧게 확대했다 줄이는 최소한의 스윙 반응만 재생한다.

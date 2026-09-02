@@ -1,8 +1,8 @@
 extends Node2D
 ## 밭 한 칸 (INBOX #11). 벼 씨앗(rice_seed)을 심으면 시간이 지나 벼(rice)로 자라고
-## 수확할 수 있다. INBOX #23부터는 F키 대신, 도구를 손에 든 채로 좌클릭해야 심기/수확이
-## 동작한다. INBOX #25부터는 그 도구가 곡괭이낫(pickaxe) 하나로 통일됐다(한때 별도
-## "낫" 아이템을 썼던 것을 다시 합침 — DESIGN.md 참고).
+## 수확할 수 있다. INBOX #23부터는 F키 대신 좌클릭으로 상호작용한다. INBOX #27부터는
+## 심기와 수확이 서로 다른 것을 손에 들어야 한다: 심기는 씨앗 아이템(rice_seed)을 손에
+## 든 채 좌클릭, 수확은 곡괭이낫(pickaxe)을 손에 든 채 좌클릭 (DESIGN.md "생산 계열" 참고).
 
 enum State { EMPTY, GROWING, READY }
 
@@ -21,7 +21,8 @@ const GROWN_TEXTURE := preload("res://assets/sprites/farm_plot/rice_grown.png")
 
 ## world.gd가 스폰 직후 채워준다 (사슴/자원 포인트와 같은 패턴).
 var player_ref: Node2D = null
-## world.gd가 스폰 직후 채워준다 — get_held_tool()로 지금 손에 든 도구를 물어본다.
+## world.gd가 스폰 직후 채워준다 — get_held_item()/get_held_tool()로 지금 손에 든
+## 아이템/도구를 물어본다.
 var world_ref: Node2D = null
 
 var _state: State = State.EMPTY
@@ -56,11 +57,17 @@ func _can_interact() -> bool:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if not prompt.visible:
+	if not prompt.visible or world_ref == null:
 		return
-	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT \
-			and world_ref != null and world_ref.get_held_tool() == REQUIRED_TOOL:
-		_interact()
+	if not (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT):
+		return
+	match _state:
+		State.EMPTY:
+			if world_ref.get_held_item() == SEED_ITEM:
+				_interact()
+		State.READY:
+			if world_ref.get_held_tool() == REQUIRED_TOOL:
+				_interact()
 
 
 func _interact() -> void:
@@ -80,7 +87,7 @@ func _update_visual() -> void:
 	match _state:
 		State.EMPTY:
 			crop.visible = false
-			prompt.text = "곡괭이낫을 들고 좌클릭: 씨앗 심기"
+			prompt.text = "벼 씨앗을 들고 좌클릭: 씨앗 심기"
 		State.GROWING:
 			crop.visible = true
 			crop.texture = SPROUT_TEXTURE
