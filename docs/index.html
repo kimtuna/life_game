@@ -19,18 +19,18 @@
 </head>
 <body>
   <h1>auto-loop 진행 상황</h1>
-  <p class="updated">마지막 갱신: 2026-09-02 22:30:16</p>
+  <p class="updated">마지막 갱신: 2026-09-02 23:30:52</p>
   <div class="row">
-    <div class="card"><div class="label">남은 항목</div><div class="num">0</div></div>
+    <div class="card"><div class="label">남은 항목</div><div class="num">4</div></div>
     <div class="card"><div class="label">완료된 항목</div><div class="num">31</div></div>
   </div>
   <div class="card">
     <div class="label">지금 처리 중 / 다음으로 처리할 항목</div>
-    <div>(없음 — 큐 비어있음)</div>
+    <div>#32 (버그 리포트) 총을 든 채로 그 총을 버리면(#31의 드래그 버리기) 여전히 총을 들고 있고 심지어 발사도 된다. 원인 확인됨: `scenes/world/world.gd`의 `_select_hotbar()`는 숫자키를 누를 때만 `_held_tool`/손 스프라이트를 갱신하고, 인벤토리 내용이 바뀌는 것(드래그로 슬롯이 비워지는 등)에는 반응하지 않는다. 인벤토리가 바뀔 때마다(`InventoryData`의 변경 신호 등을 이용해) 현재 선택된 핫바 슬롯을 다시 확인해서, 그 슬롯이 비었거나 도구가 아니면 빈손 상태로 되돌리도록 고친다.</div>
   </div>
   <div class="card">
     <div class="label">마지막 작업 커밋</div>
-    <div><code>9c1f14a [INBOX #31] 인벤토리 창에 드래그 앤 드롭(슬롯 이동/교환, 창 밖 버리기) 추가</code></div>
+    <div><code>09f5eb0 버그/기능 4건을 큐에 등록 (#32~#35)</code></div>
   </div>
 </body>
 </html>
