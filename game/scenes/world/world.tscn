@@ -34,6 +34,7 @@ content_margin_bottom = 28.0
 script = ExtResource("1_script")
 
 [node name="Ground" type="Polygon2D" parent="."]
+z_index = -2
 polygon = PackedVector2Array(-4000, -4000, 4000, -4000, 4000, 4000, -4000, 4000)
 color = Color(0.267, 0.443, 0.235, 1)
 

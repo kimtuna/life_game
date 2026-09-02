@@ -6,6 +6,8 @@ const MAX_HEALTH := 100
 ## 100체력/25데미지 조합에서는 정확히 10% 지점을 "지나치는" 한 방(예: 25→0)만 가능하므로,
 ## "이 한 발을 맞은 결과 체력이 10% 이하로 떨어지는가"를 기준으로 판정한다.
 const CAPTURE_HEALTH_THRESHOLD := MAX_HEALTH * 0.1
+## 포획 성공 시 InventoryData에 쌓이는 아이템 키 (INBOX #12: 목장에 풀어놓을 때 소비됨).
+const CAPTURED_ITEM := "captured_deer"
 
 const WANDER_SPEED := 60.0
 const FLEE_SPEED := 200.0
@@ -22,6 +24,13 @@ const WORLD_BOUNDS := 3800.0
 
 ## world.gd가 스폰 직후 채워준다 (플레이어 접근 감지용).
 var player_ref: Node2D = null
+
+## 목장에 풀어놓은 사슴이면 true (INBOX #12). ranch_zone.gd가 스폰 직후 채워준다.
+## 배회만 하고 도주하지 않으며, 이동 범위가 WORLD_BOUNDS 대신 zone_center 기준
+## zone_radius 원형 범위로 제한된다.
+var is_ranched: bool = false
+var zone_center: Vector2 = Vector2.ZERO
+var zone_radius: float = 0.0
 
 var health: int = MAX_HEALTH
 var _facing: String = "south"
@@ -41,7 +50,7 @@ func _physics_process(delta: float) -> void:
 	if _dead:
 		return
 
-	if _state != "flee" and player_ref != null \
+	if not is_ranched and _state != "flee" and player_ref != null \
 			and global_position.distance_to(player_ref.global_position) < DETECT_RADIUS:
 		_start_flee()
 
@@ -70,8 +79,9 @@ func _physics_process(delta: float) -> void:
 
 
 ## 총알에 맞았을 때 world.gd/bullet.gd가 호출한다.
+## 목장에 풀어놓은 사슴은 이미 길들여진 가축이므로 다시 사냥/포획 대상이 되지 않는다.
 func take_hit(damage: int, ammo_type: String) -> void:
-	if _dead:
+	if _dead or is_ranched:
 		return
 	var resulting := health - damage
 	if ammo_type == "tranq" and resulting <= CAPTURE_HEALTH_THRESHOLD:
@@ -88,8 +98,13 @@ func _move(direction: Vector2, speed: float, delta: float) -> void:
 	if direction.length() < 0.01:
 		return
 	position += direction * speed * delta
-	position.x = clampf(position.x, -WORLD_BOUNDS, WORLD_BOUNDS)
-	position.y = clampf(position.y, -WORLD_BOUNDS, WORLD_BOUNDS)
+	if is_ranched:
+		var offset := position - zone_center
+		if offset.length() > zone_radius:
+			position = zone_center + offset.normalized() * zone_radius
+	else:
+		position.x = clampf(position.x, -WORLD_BOUNDS, WORLD_BOUNDS)
+		position.y = clampf(position.y, -WORLD_BOUNDS, WORLD_BOUNDS)
 	var new_facing := _facing_from_direction(direction)
 	if new_facing != _facing:
 		_facing = new_facing
@@ -142,4 +157,5 @@ func _die() -> void:
 
 func _capture() -> void:
 	_dead = true
+	InventoryData.add_item(CAPTURED_ITEM, 1)
 	queue_free()

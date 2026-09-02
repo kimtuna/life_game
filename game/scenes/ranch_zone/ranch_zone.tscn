@@ -1,0 +1,28 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scenes/ranch_zone/ranch_zone.gd" id="1_script"]
+[ext_resource type="Texture2D" path="res://assets/sprites/ranch_zone/pasture.png" id="2_pasture"]
+
+[sub_resource type="LabelSettings" id="LabelSettings_prompt"]
+font_size = 16
+font_color = Color(1, 1, 1, 1)
+outline_size = 4
+outline_color = Color(0, 0, 0, 1)
+
+[node name="RanchZone" type="Node2D"]
+script = ExtResource("1_script")
+
+[node name="Pasture" type="Sprite2D" parent="."]
+z_index = -1
+scale = Vector2(4, 4)
+texture_filter = 1
+texture = ExtResource("2_pasture")
+
+[node name="Prompt" type="Label" parent="."]
+offset_left = -70.0
+offset_top = -150.0
+offset_right = 70.0
+offset_bottom = -126.0
+horizontal_alignment = 1
+label_settings = SubResource("LabelSettings_prompt")
+text = "F: 사슴 풀어놓기"

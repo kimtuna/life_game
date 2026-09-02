@@ -18,6 +18,7 @@ const DeerScene := preload("res://scenes/deer/deer.tscn")
 const GatheringPointScene := preload("res://scenes/resource_point/gathering_point.tscn")
 const MiningPointScene := preload("res://scenes/resource_point/mining_point.tscn")
 const FarmPlotScene := preload("res://scenes/farm_plot/farm_plot.tscn")
+const RanchZoneScene := preload("res://scenes/ranch_zone/ranch_zone.tscn")
 
 const DEER_COUNT := 6
 const DEER_SPAWN_RADIUS := 1600.0
@@ -34,11 +35,15 @@ const FARM_PLOT_ROWS := 2
 const FARM_PLOT_SPACING := 120.0
 const FARM_PLOT_ORIGIN := Vector2(500.0, -400.0)
 
+## 목장 구역도 밭과 같은 이유(DESIGN.md "정해진 구역")로 스폰 지점 기준 고정 오프셋에 둔다.
+const RANCH_ZONE_ORIGIN := Vector2(-650.0, -300.0)
+
 ## InventoryData가 저장하는 아이템 키(내부 이름) -> 화면 표시 이름.
 const ITEM_LABELS := {
 	"rice_seed": "벼 씨앗",
 	"rice": "벼",
 	"iron": "철",
+	"captured_deer": "포획된 사슴",
 }
 
 @onready var player_sprite: Sprite2D = $Player
@@ -64,6 +69,7 @@ func _ready() -> void:
 	_spawn_deer()
 	_spawn_resource_points()
 	_spawn_farm_plots()
+	_spawn_ranch_zone()
 	InventoryData.changed.connect(_update_inventory_label)
 	_update_inventory_label()
 
@@ -201,6 +207,14 @@ func _spawn_farm_plots() -> void:
 			plot.global_position = base + Vector2(col * FARM_PLOT_SPACING, row * FARM_PLOT_SPACING)
 			plot.player_ref = player_sprite
 			add_child(plot)
+
+
+## 스폰 지점에서 고정된 오프셋에 목장 구역을 배치한다 (INBOX #12).
+func _spawn_ranch_zone() -> void:
+	var zone := RanchZoneScene.instantiate()
+	zone.global_position = player_sprite.position + RANCH_ZONE_ORIGIN
+	zone.player_ref = player_sprite
+	add_child(zone)
 
 
 func _update_inventory_label() -> void:
