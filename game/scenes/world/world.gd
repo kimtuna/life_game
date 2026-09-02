@@ -69,15 +69,16 @@ const TOOL_ICONS := {
 	"fishing_rod": preload("res://assets/sprites/tools/fishing_rod.png"),
 }
 
-## 도구별 "실제로 쓰는 모션" 그림 (INBOX #37/#38, DESIGN.md "도구 동작 표현"). TOOL_ICONS는
+## 도구별 "실제로 쓰는 모션" 그림 (INBOX #37/#38/#40, DESIGN.md "도구 동작 표현"). TOOL_ICONS는
 ## "들고 있는" 정적 자세고, 이 딕셔너리에 있는 도구는 사용하는 순간 잠깐 이 텍스처로
 ## 바뀐다(총은 발사 시 반동으로 총구가 들리고 총열 전체가 발사열로 빛나는 모습, 도끼는
-## 날이 바닥/나무에 박히고 나무 조각이 튀는 모습). 곡괭이낫은 채광/채집 두 모션이 서로
-## 달라야 해서 여기 대신 아래 PICKAXE_USE_ICONS를 따로 쓴다(INBOX #39). 낚싯대는 아직
-## 이 항목의 범위가 아니다(#40에서 처리).
+## 날이 바닥/나무에 박히고 나무 조각이 튀는 모습, 낚싯대는 줄이 팽팽해지며 바늘이 드리워진
+## 모습). 곡괭이낫은 채광/채집 두 모션이 서로 달라야 해서 여기 대신 아래 PICKAXE_USE_ICONS를
+## 따로 쓴다(INBOX #39).
 const TOOL_USE_ICONS := {
 	"gun": preload("res://assets/sprites/tools/gun_firing.png"),
 	"axe": preload("res://assets/sprites/tools/axe_chopping.png"),
+	"fishing_rod": preload("res://assets/sprites/tools/fishing_rod_fishing.png"),
 }
 ## 곡괭이낫의 "쓰는 모션" 그림 — 채광(광물을 내려찍어 조각이 튐)과 채집(낫으로 작물을
 ## 베어냄)이 같은 도구라도 서로 다른 그림이어야 한다(DESIGN.md "도구 동작 표현", INBOX #39).

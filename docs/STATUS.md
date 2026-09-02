@@ -5,59 +5,52 @@
 
 ## 마지막 갱신
 
-바퀴 41 / 2026-09-03
+바퀴 42 / 2026-09-03
 
 ## 끝난 것 (지금까지의 스냅샷 — 바퀴별 상세 이력은 git 커밋 메시지 `[INBOX #N] ...`에 있음)
 
-- INBOX #39 완료: 곡괭이낫의 "채광하는 모션"과 "채집하는 모션"을 서로 다른 그림으로
-  분리(들고 있는 모션은 기존 `pickaxe.png` 그대로 재사용 — #37/#38과 같은 패턴).
-  PixelLab(`/generate-image-pixflux`, 32x32, no_background, `pickaxe.png`를
-  `color_image`로 줘서 팔레트 통일)로 `pickaxe_mining.png`(곡괭이가 회색 돌을 내려찍고
-  돌조각이 튀는 그림)와 `pickaxe_gathering.png`(낫날이 밀 이삭을 베는 그림)를 생성했다.
-  `world.gd`에 `PICKAXE_USE_ICONS`(kind→텍스처) 딕셔너리와 공개 함수
-  `play_pickaxe_use(kind)`를 추가하고, 기존 `_play_tool_swing()`이 선택적
-  `override_texture` 인자를 받도록 넓혀서 재사용했다. `resource_point.gd`에 새 export
-  `use_kind`("mining"/"gathering")를 추가하고 `_harvest()`에서
-  `world_ref.play_pickaxe_use(use_kind)`를 호출하도록 했다 — `gathering_point.tscn`은
-  `use_kind="gathering"`, `mining_point.tscn`은 `use_kind="mining"`으로 지정.
-  - 검증: `game/_verify_pickaxe_motion.gd`(커밋 전 삭제)로 world 씬을 실제 렌더링
-    드라이버로 띄운 뒤 south/east/north/west 4방향 각각 holding/mining/gathering 3상태로
-    강제 전환하며 스크린샷 12장을 찍어 직접 확인했다(축소 조합/원본 크롭 둘 다 확인).
-    4방향 모두 기존 오프셋/`show_behind_parent`(north에서 몸 뒤) 규칙이 정상 적용되고,
-    채광(회색 돌더미)과 채집(황금빛 밀 이삭)이 뚜렷이 다른 그림으로 구분되며 캐릭터와의
-    비율도 도끼 때와 비슷한 수준으로 자연스러웠다 — 합격 기준(①) 통과로 판단.
-  - 변경 파일: `game/scenes/world/world.gd`, `game/scenes/resource_point/resource_point.gd`,
-    `game/scenes/resource_point/gathering_point.tscn`,
-    `game/scenes/resource_point/mining_point.tscn`,
-    `game/assets/sprites/tools/pickaxe_mining.png`(+`.import`),
-    `game/assets/sprites/tools/pickaxe_gathering.png`(+`.import`).
+- INBOX #40 완료: 낚싯대의 "낚시하는 모션"을 별도 그림으로 분리(들고 있는 모션은 기존
+  `fishing_rod.png` 그대로 재사용 — #37/#38/#39와 같은 패턴). PixelLab
+  (`/generate-image-pixflux`, 32x32, no_background, 기존 `fishing_rod.png`을
+  `color_image`로 줘서 팔레트/각도 통일)로 `fishing_rod_fishing.png`(낚싯대가 휘어지고
+  줄이 팽팽하게 늘어져 바늘이 매달린 그림)을 생성했다. 첫 시도는 프롬프트가 막연해서
+  "낚싯대를 든 작은 사람 전체"가 그려져 나왔다(다른 도구 아이콘들은 전부 "도구 자체만"
+  그려져 있어 스타일 불일치) — 프롬프트에 "no person, no hand, item icon only, 기존
+  구도와 동일한 대각선"을 명시해서 재생성해 통일했다. `world.gd`의 `TOOL_USE_ICONS`
+  딕셔너리에 `"fishing_rod"` 키만 추가했고, 기존 `_unhandled_input`의 axe/fishing_rod
+  공용 분기가 이미 `_play_tool_swing()`을 호출하고 있어 이 이상 코드 변경은 필요 없었다
+  (STATUS.md 이전 메모가 예측한 대로 가장 단순한 케이스였음).
+  - 검증: `game/_verify_fishing_motion.gd`(커밋 전 삭제)로 world 씬을 실제 렌더링
+    드라이버로 띄운 뒤 south/east/north/west 4방향 × holding/fishing 2상태로 강제
+    전환하며 스크린샷 8장을 찍어 직접 확인했다. **처음 시도에서 `set_physics_process
+    (false)`를 빼먹어서 4방향이 전부 같은(마우스 추종에 의해 덮어써진) 옆모습으로
+    찍히는 문제를 겪었다** — world.gd의 `_physics_process`가 매 프레임 마우스 방향으로
+    `_facing`을 다시 계산해 덮어쓰기 때문(바퀴 37 결정 로그에 이미 있던 주의사항인데
+    이번에 빠뜨렸다가 재확인). `set_physics_process(false)`를 추가하고 나서 4방향이
+    정상적으로 구분되어 찍혔고, 들고 있기(직선 낚싯대)와 낚시(휜 낚싯대+바늘)이 뚜렷이
+    다른 그림으로 보이며 도끼/곡괭이낫과 비슷한 수준으로 자연스러웠다 — 합격 기준(①)
+    통과로 판단.
+  - 변경 파일: `game/scenes/world/world.gd`,
+    `game/assets/sprites/tools/fishing_rod_fishing.png`(+`.import`).
 
 ## 다음에 할 것
 
-- **다음은 INBOX #40**(낚싯대의 "들고 있는 모션"/"낚시하는 모션" 2종을 PixelLab로 서로
-  다른 그림으로 만들기 — #37/#38/#39와 같은 패턴, DESIGN.md "도구 동작 표현" 규칙).
-  낚싯대는 지금 `world.gd`의 `_unhandled_input`에서 axe와 같은 분기(`_held_tool == "axe"
-  or _held_tool == "fishing_rod"`)로 `_play_tool_swing()`을 직접 호출하고 있으므로(별도
-  포인트 스크립트를 거치지 않음), #39처럼 새 공개 함수를 만들 필요 없이
-  `TOOL_USE_ICONS["fishing_rod"]`에 새 텍스처만 추가하면 기존 `_play_tool_swing()`
-  경로가 그대로 동작한다 — 가장 단순한 케이스다.
-- #39에서 재확인된 검증 패턴(그대로 재사용 가능): "상태 설정 → 최소 3~4프레임 대기 →
-  그 다음에 `root.get_texture().get_image().save_png()`로 캡처"를 상태별로 반복하는
-  단계 머신(phase: set→wait→capture→next) 방식이 안정적으로 동작했다. `_select_hotbar(i)`
-  로 원하는 도구를 핫바에서 먼저 선택하고 `set_physics_process(false)`로 마우스 추종을
-  끈 뒤 `_facing`/`_update_texture()`/`_update_held_item_transform()`을 스크립트에서
-  직접 호출하는 것도 그대로 재사용 가능(바퀴 37 결정 로그 참고).
-- #40도 PixelLab로 실제 그림을 새로 그려야 하는 작업이라 시간/토큰을 어느 정도 쓸
-  가능성이 높다 — 세션 예산이 빠듯하면 PROMPT.md ⑤대로 그림 생성이 끝나는 대로 더
-  일찍 커밋하는 것을 고려할 것.
+- **INBOX.md에 남은 미완료 항목이 없다(#1~#40 전부 완료).** 다음 바퀴가 열린다면
+  loop.sh가 새 지시를 INBOX.md에 추가한 뒤일 것이므로, 우선 INBOX.md를 다시 읽어 새
+  항목 번호부터 확인할 것.
 - 다음 지시가 들어오면 참고할 만한 백로그(강제 사항 아님, 아래 "막힌 것/보류"·"오래된
   메모" 참고):
   - 멀티플레이 실제 두 클라이언트 접속/동기화를 실기기로 아직 검증 못함.
   - 농사 성장 시간(60초)이 여전히 실시간 초 단위(게임 내 날짜 기준 아님).
   - 목장 개체 수 제한/재포획(다시 꺼내기) 기능 없음.
-  - 낚싯대는 최소 스윙 동작만 있고 실제 결과물(낚시)이 없음(DESIGN.md 범위 밖,
-    의도된 상태) — #40에서 "드는/쓰는 모션"만 만들고 실제 낚시 결과물은 여전히
-    범위 밖이다.
+  - 도끼/낚싯대는 여전히 "드는/쓰는 모션" 그림까지만 있고 실제 결과물(벌목/낚시)이
+    없음(DESIGN.md "범위 밖"에 명시돼 있어 의도된 상태) — #38/#40에서 모션은 전부
+    끝났고, 실제 낚시 스팟·벌목 대상 나무는 여전히 범위 밖이다.
+  - 스크립트로 world.gd의 `_facing`을 강제 조작하며 검증할 때는 **반드시
+    `world_node.set_physics_process(false)`를 먼저 호출할 것** — 안 하면 마우스 추종
+    로직이 매 프레임 `_facing`을 덮어써서 4방향 스크린샷이 전부 같은 방향으로 찍힌다
+    (바퀴 37에서 이미 발견했던 문제인데 바퀴 42에서 다시 빠뜨렸다가 재확인 — 이 문서
+    "헤드리스 CLI 검증" 절에도 같은 내용이 있으니 다음엔 거기부터 확인할 것).
 - **아직 남아 있는 오래된 메모(여전히 유효)**:
   - 멀티플레이 실제 두 클라이언트 간 연결/동기화를 실기기(스크린샷 등)로 아직 검증하지
     못했다(바퀴 17부터 이월 — 아래 "막힌 것/보류", "헤드리스 CLI 검증" 참고).
