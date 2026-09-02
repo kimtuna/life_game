@@ -12,6 +12,12 @@ const ITEM_ICONS := {
 	"rice": preload("res://assets/sprites/items/rice.png"),
 	"iron": preload("res://assets/sprites/items/iron.png"),
 	"captured_deer": preload("res://assets/sprites/items/captured_deer.png"),
+	# 도구도 인벤토리 버리기(INBOX #31)로 바닥에 떨어질 수 있어서 함께 추가했다 —
+	# world.gd의 TOOL_ICONS와 같은 텍스처를 재사용한다.
+	"gun": preload("res://assets/sprites/tools/gun.png"),
+	"axe": preload("res://assets/sprites/tools/axe.png"),
+	"pickaxe": preload("res://assets/sprites/tools/pickaxe.png"),
+	"fishing_rod": preload("res://assets/sprites/tools/fishing_rod.png"),
 }
 
 @export var item_name: String = ""

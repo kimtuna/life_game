@@ -101,6 +101,66 @@ func remove_item(item_name: String, amount: int) -> bool:
 	return true
 
 
+## ---- 슬롯 이동/버리기 (드래그 앤 드롭, INBOX #31) ----
+
+func _array_for(kind: String) -> Variant:
+	if kind == "general":
+		return _general_slots
+	if kind == "equipment":
+		return _equipment_slots
+	return null
+
+
+## 슬롯 사이에서 아이템을 옮긴다(일반↔일반, 일반↔장비, 핫바 포함 — 핫바는 일반 슬롯의
+## 앞 9칸일 뿐이라 별도 kind가 없다). general↔general이고 같은 아이템이면 스택을
+## 합치고(공간이 남는 만큼만), 그 외에는 두 슬롯 내용을 통째로 교환한다(swap) — 대상이
+## 비어 있으면 그냥 이동한 것과 같다.
+func move_slot(from_kind: String, from_index: int, to_kind: String, to_index: int) -> void:
+	if from_kind == to_kind and from_index == to_index:
+		return
+	var from_array = _array_for(from_kind)
+	var to_array = _array_for(to_kind)
+	if from_array == null or to_array == null:
+		return
+	if from_index < 0 or from_index >= from_array.size():
+		return
+	if to_index < 0 or to_index >= to_array.size():
+		return
+	var from_val = from_array[from_index]
+	if from_val == null:
+		return
+	var to_val = to_array[to_index]
+	if from_kind == "general" and to_kind == "general" and to_val != null \
+			and to_val.get("item") == from_val.get("item"):
+		var space: int = STACK_MAX - int(to_val["count"])
+		var move_amount: int = min(space, int(from_val["count"]))
+		if move_amount > 0:
+			to_val["count"] = int(to_val["count"]) + move_amount
+			from_val["count"] = int(from_val["count"]) - move_amount
+			from_array[from_index] = from_val if int(from_val["count"]) > 0 else null
+			_save()
+			changed.emit()
+		return
+	to_array[to_index] = from_val
+	from_array[from_index] = to_val
+	_save()
+	changed.emit()
+
+
+## 슬롯 내용을 반환하고 그 자리를 비운다(버리기용). 빈 슬롯이면 빈 딕셔너리를 반환한다.
+func take_slot(kind: String, index: int) -> Dictionary:
+	var arr = _array_for(kind)
+	if arr == null or index < 0 or index >= arr.size():
+		return {}
+	var val = arr[index]
+	if val == null:
+		return {}
+	arr[index] = null
+	_save()
+	changed.emit()
+	return val
+
+
 func all_counts() -> Dictionary:
 	var counts := {}
 	for slot in _general_slots:

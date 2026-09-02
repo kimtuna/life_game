@@ -5,9 +5,63 @@
 
 ## 마지막 갱신
 
-바퀴 32 / 2026-09-02
+바퀴 33 / 2026-09-02
 
-## 끝난 것 (바퀴 32)
+## 끝난 것 (바퀴 33)
+
+- INBOX #31 완료: 인벤토리 창(#21)에 드래그 앤 드롭을 추가했다 — 슬롯 사이(일반↔일반,
+  일반↔장비, 핫바 포함) 이동/교환과, 창 바깥으로 드래그해서 놓으면 버려서 바닥에
+  드롭되는 것까지 DESIGN.md "인벤토리 / 장비" 절 그대로 구현했다.
+  - `game/scripts/inventory_data.gd`에 `move_slot(from_kind, from_index, to_kind,
+    to_index)`와 `take_slot(kind, index)`를 추가했다. `move_slot`은 general↔general이고
+    같은 아이템이면 스택을 합치고(공간이 남는 만큼만, 다 못 옮기면 나머지는 원래 슬롯에
+    남는다), 그 외에는 두 슬롯 내용을 통째로 교환(swap)한다 — 대상이 비어있으면 그냥
+    이동한 것과 같다. `take_slot`은 슬롯 내용을 반환하고 그 자리를 비운다(버리기용).
+  - `game/scripts/inventory_slot_cell.gd`(신규)를 만들어 `world.gd`가 코드로 만드는
+    슬롯 `PanelContainer` 각각에 동적으로 붙였다(`set_script`). `slot_kind`("general"/
+    "equipment")와 `slot_index`를 들고 있고, Godot의 `_get_drag_data`/`_can_drop_data`/
+    `_drop_data` 가상 함수로 `InventoryData.move_slot()`을 직접 호출한다 — 슬롯 셀은
+    자기가 어느 슬롯인지만 알면 되고 인벤토리 로직 자체를 몰라도 되게 분리했다.
+  - `game/scripts/inventory_discard_zone.gd`(신규)를 `UI/InventoryWindow` 루트
+    Control에 동적으로 붙였다. 슬롯 셀들이 먼저 드롭을 받으므로, 이 스크립트의
+    `_drop_data`까지 올라오는 경우는 실제로 슬롯이 아닌 곳(빈 배경, 창 여백)에 놓았을
+    때뿐이다 — Godot이 드롭 대상을 찾을 때 마우스 아래 Control에서 시작해
+    `_can_drop_data`가 true를 반환할 때까지 부모 Control로 거슬러 올라가는 표준 동작을
+    그대로 활용했다(별도로 "창 바깥 영역"을 좌표로 계산할 필요가 없다).
+  - `world.gd`에 `discard_inventory_slot(kind, index)`를 추가했다 — `InventoryData.
+    take_slot()`으로 슬롯을 비우고, `spawn_dropped_item()`(#24가 만든 바닥 드롭
+    오브젝트, 재사용)으로 플레이어가 **바라보는 방향 앞쪽 60유닛**에 드롭한다. 발밑
+    (거리 0)에 놓으면 `DroppedItem`의 픽업 판정 반경(40)보다 가까워서 놓자마자 바로
+    다시 주워져 버려지지 않는 버그가 생기므로, 방향 오프셋을 새로 추가했다.
+  - **지시받지 않았지만 추가한 개선**: `game/scenes/dropped_item/dropped_item.gd`의
+    `ITEM_ICONS`에 도구 4종(gun/axe/pickaxe/fishing_rod) 아이콘을 추가했다. 이전까지는
+    사냥/채집/채광/농사 산출물만 있어서, 도구를 버리면 빈 스프라이트(아이콘 없음)로
+    떨어졌을 것 — 새 버리기 기능이 도구도 버릴 수 있게 만들어서 함께 고쳤다(기존
+    `world.gd`의 `TOOL_ICONS`와 같은 텍스처를 재사용, 새 그림 없음).
+  - 검증: `godot --headless --path . --script <임시스크립트>.gd`로 world.tscn을 실제로
+    띄운 뒤 `InventoryData.move_slot`/`take_slot`을 11개 케이스(빈 슬롯 이동, 같은
+    아이템 병합+스택상한 초과 시 나머지 잔류, 다른 아이템 교환, 일반↔장비 교환,
+    범위 밖/제자리 이동 무시, 슬롯 셀에 스크립트/kind/index가 올바르게 연결됐는지,
+    `_get_drag_data`→`_can_drop_data`→`_drop_data`를 직접 호출한 end-to-end 드래그,
+    빈 슬롯에서는 드래그 데이터가 안 나오는 것, 버리기 존의 `_drop_data`가 실제로
+    `world._world_ref` 연결과 함께 슬롯을 비우고 플레이어로부터 40(픽업 반경)보다 먼
+    거리에 드롭 오브젝트를 생성하는 것)로 전부 확인했다(콘솔에 `PASS`로 출력). 추가로
+    `godot --path .`(렌더링 모드)로 인벤토리 창을 열어 스크린샷을 찍어 슬롯 레이아웃/
+    핫바/장비 그리드가 이전과 시각적으로 동일하게 나오는 것(드래그 앤 드롭은 정적
+    스크린샷으로는 안 보이므로 회귀 없음만 확인)을 눈으로 확인했다. 검증 전후로
+    `inventory.save`를 지워 깨끗한 상태를 유지했고, 임시 스크립트와 스크린샷은 커밋 전
+    모두 삭제했다.
+  - **실제 마우스 드래그(OS 이벤트) 자체는 시뮬레이션하지 않았다** — Godot의 드래그
+    시작/버블링 판정(`Viewport`가 마우스 아래 Control에서 `_can_drop_data`를 부모로
+    거슬러 올라가며 찾는 것)은 엔진 자체의 표준 동작이라 이 프로젝트 코드가 구현한
+    부분이 아니므로, 위처럼 세 가상 함수(`_get_drag_data`/`_can_drop_data`/
+    `_drop_data`)를 직접 호출해 "우리 코드가 올바른 입출력을 만드는지"를 검증하는
+    것으로 충분하다고 판단했다(엔진 내부 버블링 로직까지 재검증할 필요는 없음).
+  - 변경 파일: `game/scripts/inventory_data.gd`, `game/scenes/world/world.gd`,
+    `game/scenes/dropped_item/dropped_item.gd`, `game/scripts/inventory_slot_cell.gd`
+    (신규), `game/scripts/inventory_discard_zone.gd`(신규).
+
+## 끝난 것 (바퀴 32, 이전 기록)
 
 - INBOX #30 완료: 사슴 도주 로직이 플레이어 반대 방향으로 일직선으로만 움직이던 것을
   지그재그(주기적 각도 편차)로 바꿨다. DESIGN.md "동물 AI" 절 "도주는 플레이어 반대
@@ -352,20 +406,21 @@
 
 ## 다음에 할 것
 
-- `docs/feedback/INBOX.md` "처리 대기"의 다음 미완료 항목은 `#31`(인벤토리 드래그 앤
-  드롭 이동/버리기)이다.
-- **INBOX #30(사슴 도주 지그재그)는 이번 바퀴(32)에 완료했다.**
-  `game/scenes/deer/deer.gd`의 `"flee"` 상태에서 0.3~0.6초마다 -60~+60도 무작위
-  각도로 "플레이어 반대 방향"을 회전시킨 뒤 기존 `_wall_slide_direction()`(#18)에
-  넘기는 방식이다. 다음 바퀴가 도주 관련 요구를 또 받으면 `_flee_zigzag_*` 상수/
-  변수부터 확인할 것 — 각도 범위(60도)나 간격(0.3~0.6초)을 밸런스 피드백에 맞게
-  조정하면 된다.
-- INBOX #31(인벤토리 드래그 앤 드롭)을 만들 때는 `game/scenes/world/world.tscn`의
-  `UI/InventoryWindow`(바퀴 24가 만든 그리드 UI)와 `game/scripts/inventory_data.gd`의
-  슬롯 API(`_general_slots`/`_equipment_slots`)부터 확인할 것. DESIGN.md "인벤토리 /
-  장비" 절에 "일반↔일반, 일반↔장비, 핫바 포함"과 "창 바깥으로 드래그하면 버리기(바닥
-  드롭)"가 명시돼 있다 — 버리기는 INBOX #24가 만든 `spawn_dropped_item()`(바닥 드롭
-  아이템 오브젝트)을 재사용할 것, 새로 만들지 말 것.
+- `docs/feedback/INBOX.md` "처리 대기"에 현재 미완료 항목이 없다(#1~#31 전부 완료).
+  다음 바퀴가 열렸다면 새 INBOX 항목이 추가된 것이니, 번호가 가장 작은 미완료 항목부터
+  확인할 것.
+- **INBOX #31(인벤토리 드래그 앤 드롭)은 이번 바퀴(33)에 완료했다.** 슬롯 이동/교환
+  로직은 `game/scripts/inventory_data.gd`의 `move_slot()`/`take_slot()`에, UI 드래그
+  훅은 `game/scripts/inventory_slot_cell.gd`(슬롯 셀)와
+  `game/scripts/inventory_discard_zone.gd`(창 바깥 버리기)에 있다. 다음 바퀴가 인벤토리
+  관련 요구를 또 받으면(예: "장비 슬롯은 맞는 부위 아이템만 넣을 수 있어야 한다") 이
+  파일들부터 확인할 것 — 지금은 장비 슬롯에 아이템 종류 제한이 전혀 없다(DESIGN.md에
+  아직 아이템별 "장비 부위" 데이터 자체가 없어서, 제한을 걸면 임의로 새 데이터 모델을
+  만드는 것이라 이번 바퀴 범위에 넣지 않았다 — 필요해지면 그때 정할 것).
+- 도끼/낚싯대는 여전히 좌클릭 시 손에 든 아이콘이 잠깐 커졌다 줄어드는 최소 스윙
+  애니메이션(`world._play_tool_swing()`)만 있고 실제 결과물(벌목/낚시)은 없다. 나무
+  자원이나 낚시 스팟이 INBOX로 들어오면 그때 실제 로직을 연결할 것 — DESIGN.md
+  "범위 밖"에 이미 명시돼 있어 지금은 손대지 않았다.
 - INBOX #23은 farm_plot/resource_point/ranch_zone의 F키 상호작용을 좌클릭+도구 확인
   방식으로 바꿨다. `world.gd.get_held_tool()`을 공개 접근자로 추가했으니, 앞으로 새
   상호작용 오브젝트를 추가할 때도 이 패턴(`world_ref.get_held_tool() == required_tool`)을

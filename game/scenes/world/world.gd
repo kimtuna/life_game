@@ -364,6 +364,27 @@ func spawn_dropped_item(item_name: String, amount: int, pos: Vector2) -> void:
 	add_child(drop)
 
 
+## 사거리(방향별 단위 벡터). 버리기(discard_inventory_slot)가 플레이어 발밑이 아니라
+## 바라보는 방향 앞쪽에 드롭 오브젝트를 놓는 데 쓴다.
+const FACING_VECTORS := {
+	"north": Vector2(0, -1), "south": Vector2(0, 1),
+	"east": Vector2(1, 0), "west": Vector2(-1, 0),
+}
+## DroppedItemScene의 PICKUP_RADIUS(40)보다 커야 놓자마자 바로 다시 주워지지 않는다.
+const DISCARD_OFFSET := 60.0
+
+
+## 인벤토리 창 바깥으로 아이템을 드래그해서 놓았을 때 호출된다 (INBOX #31,
+## inventory_discard_zone.gd → 여기). 슬롯을 비우고 바로 앞쪽에 드롭 오브젝트를 놓는다
+## (플레이어 발밑에 놓으면 접촉 판정 때문에 그 자리에서 바로 다시 주워져 버려지지 않는다).
+func discard_inventory_slot(kind: String, index: int) -> void:
+	var slot := InventoryData.take_slot(kind, index)
+	if slot.is_empty():
+		return
+	var offset: Vector2 = FACING_VECTORS.get(_facing, Vector2.DOWN) * DISCARD_OFFSET
+	spawn_dropped_item(slot["item"], int(slot.get("count", 1)), player_sprite.global_position + offset)
+
+
 ## 아직 도구를 얻는 채집/제작 경로가 없으므로(DESIGN.md 범위 밖), 캐릭터가 처음
 ## 월드에 들어올 때 도구 5종을 한 벌씩 지급해 핫바 1~5번에서 바로 시험해볼 수 있게 한다
 ## (INBOX #22, 스스로 판단해서 추가). 이미 총을 갖고 있으면(재입장) 다시 지급하지 않는다.
@@ -473,13 +494,17 @@ func _build_inventory_slots() -> void:
 	var normal_style := _make_slot_style(Color(0.157, 0.212, 0.184, 1))
 	for i in range(InventoryData.GENERAL_SLOT_COUNT):
 		var style := hotbar_style if i < InventoryData.HOTBAR_SIZE else normal_style
-		var cell := _make_slot_cell(style)
+		var cell := _make_slot_cell(style, "general", i)
 		general_grid.add_child(cell)
 		_general_slot_labels.append(cell.get_node("Label"))
 	for i in range(InventoryData.EQUIPMENT_SLOT_TYPES.size()):
-		var cell := _make_slot_cell(normal_style)
+		var cell := _make_slot_cell(normal_style, "equipment", i)
 		equipment_grid.add_child(cell)
 		_equipment_slot_labels.append(cell.get_node("Label"))
+	# 인벤토리 창 바깥(빈 배경)으로 드래그해서 놓으면 버려지도록, 창 루트 Control에도
+	# 드롭 처리를 붙인다 — 슬롯 셀이 먼저 드롭을 못 받았을 때만 여기까지 올라온다.
+	inventory_window.set_script(load("res://scripts/inventory_discard_zone.gd"))
+	inventory_window.world_ref = self
 
 
 func _make_slot_style(bg: Color) -> StyleBoxFlat:
@@ -497,10 +522,15 @@ func _make_slot_style(bg: Color) -> StyleBoxFlat:
 	return style
 
 
-func _make_slot_cell(style: StyleBoxFlat) -> PanelContainer:
+## slot_kind/slot_index는 드래그 앤 드롭(INBOX #31)이 "어느 슬롯인지" 알아야 해서 필요하다
+## — inventory_slot_cell.gd가 InventoryData.move_slot()을 호출할 때 이 값을 그대로 쓴다.
+func _make_slot_cell(style: StyleBoxFlat, slot_kind: String, slot_index: int) -> PanelContainer:
 	var cell := PanelContainer.new()
 	cell.custom_minimum_size = Vector2(72, 72)
 	cell.add_theme_stylebox_override("panel", style)
+	cell.set_script(load("res://scripts/inventory_slot_cell.gd"))
+	cell.slot_kind = slot_kind
+	cell.slot_index = slot_index
 	var label := Label.new()
 	label.name = "Label"
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
