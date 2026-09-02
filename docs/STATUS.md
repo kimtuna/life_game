@@ -5,7 +5,8 @@
 
 ## 마지막 갱신
 
-바퀴 47 / 2026-09-03 (INBOX #42 완료 — 총을 캐릭터 애니메이션 프레임에 통합)
+바퀴 48 / 2026-09-03 (INBOX #43 시도했으나 예산 소진으로 미완료 — 도끼 인페인트 프롬프트/마스크
+탐색만 하고 코드는 건드리지 않음, 아래 "다음에 할 것" 참고)
 
 ## 끝난 것 (지금까지의 스냅샷 — 바퀴별 상세 이력은 git 커밋 메시지 `[INBOX #N] ...`에 있음)
 
@@ -106,37 +107,50 @@
 
 ## 다음에 할 것
 
-- **다음 바퀴는 INBOX #43(도끼 통합)부터 시작할 것.** #42(총)가 캐릭터 프레임 통합의
-  첫 사례로 끝났으니, 같은 절차를 도끼에 그대로 반복하면 된다:
-  1. PixelLab `/inpaint`로 기존 `axe_south.png`류가 아니라 **맨몸 idle_south.png(64x64
-     크롭)를 `inpainting_image`로, 손 부위를 마스킹**해서 도끼를 쥔 손을 그려 넣는다
-     (총과 같은 마스크 좌표대 x:10-56,y:18-42 근처에서 시작해보고, 도끼 형태에 맞게
-     조정). `description`은 도끼를 쥔 모습으로("hands holding a wood axe, pixel art"
-     류), `text_guidance_scale=9` 근처에서 시작.
-  2. "패는" 모션은 그 결과를 다시 `inpainting_image`로 삼아 도끼날 쪽만 마스킹하고
-     "axe swinging down, mid-chop pose, pixel art"류로 2차 inpaint.
-  3. east/north는 south 결과를 `/rotate`(`from_view=to_view="low top-down"`)로,
-     west는 east를 PIL `ImageOps.mirror`로 반전 — 이번 바퀴에 이 조합으로 3색×4방향
-     24장을 실제로 문제없이 만들었다(green은 순수 inpaint, blue/red는 같은 파라미터에
-     `seed`만 다르게 줘서 재현). **`seed`를 반드시 고정할 것** — 안 주면 색상별로 결과가
-     들쭉날쭉해진다(바퀴 45가 겪은 실패 원인).
-  4. 3색×4방향×{idle,use} 콘택트시트를 직접 눈으로 검수(합격 기준 ①) → 통과한 것만
-     `game/assets/sprites/character/axe/{variant}_{dir}_{idle,use}.png`로 저장 →
-     `godot --headless --path . --import` 강제 재임포트.
-  5. `world.gd`에 `_build_player_sprite_frames()`의 총 처리(방향별
-     `gun_idle_<dir>`/`gun_fire_<dir>` 애니메이션 추가, `_current_animation_name()`이
-     `_held_tool`을 보고 분기, `_select_hotbar()`가 해당 도구일 때 `_held_item_sprite`를
-     숨김)를 그대로 본떠 도끼용으로 복제한다. 도끼는 "쓰는" 순간이 `_play_tool_swing()`
-     (탄창처럼 발사 즉시가 아니라 좌클릭 즉시 스윙)이므로, 총의 `_tool_use_flash_timer`
-     타이머 재사용 방식을 그대로 쓰되 지속 시간은 `AXE_CHOP_FLASH_DURATION`(0.25초,
-     기존 상수)을 쓰면 된다.
-  6. 이동 중 도끼를 든 상태는 총과 같은 옵션A(정적 idle 프레임 유지, walk 전용 프레임은
-     안 만듦)로 통일해서 일관성을 유지할 것 — 이번 바퀴에 총에서 이미 그렇게 결정했다
-     (DESIGN.md에 walk-with-tool 명시가 없어 확장하지 않기로 함, 아래 결정 로그 참고).
-  7. 검증은 `game/_verify_*.gd`(커밋 전 삭제) 헤드리스 스크린샷 스크립트를
-     `set_physics_process(false)` → 상태 강제 설정 → 몇 프레임 대기 → 캡처 패턴으로
-     재사용할 것(이번 바퀴 `_verify_gun_motion.gd` 참고, 커밋 전 삭제했으므로 파일 자체는
-     없지만 위 절차를 그대로 다시 작성하면 됨).
+- **다음 바퀴는 INBOX #43(도끼 통합)부터 계속할 것 — 이번 바퀴(48)는 코드를 전혀
+  건드리지 않고 PixelLab 프롬프트/마스크만 탐색하다 예산이 떨어져 중단했다.** 아래는
+  이번 바퀴가 실제로 시도해서 확인한 결과(전부 `/tmp/axe_gen/`에 남아있음, git에는
+  없음 — 다음 바퀴가 같은 세션이 아니면 파일이 없을 수 있으니 그 경우 처음부터 다시
+  생성).
+  - **총(#42)에 썼던 마스크(x:10-56,y:18-42, 몸통 중앙 대칭)를 도끼에 그대로 쓰면
+    안 된다.** 이 마스크로 4번(프롬프트/시드 조합 다르게) 시도했는데 매번 도끼머리가
+    양손에 하나씩, 즉 **좌우 대칭으로 도끼 두 자루**가 그려졌다(`green_south_idle_v1~v4.png`).
+    "single axe", "not dual wielding" 같은 문구를 프롬프트에 명시해도, `text_guidance_scale`을
+    8~10 사이로 바꿔도 대칭 마스크에서는 대칭 결과가 계속 나왔다 — 총은 원래 좌우
+    대칭으로 두 손에 걸쳐 드는 형태(가로로 긴 총열)라 이 마스크가 맞았지만, 도끼는
+    비대칭(머리 하나+긴 자루) 도구라 같은 마스크가 구조적으로 안 맞는다.
+  - 마스크를 몸 오른쪽 절반만(예: x:30-58,y:20-46)으로 좁히면 대칭 문제는 사라지지만
+    (`green_south_idle_v3.png`) 이번엔 도끼 자체가 거의 안 그려지거나 손이 사라졌다.
+    마스크를 어깨/머리 쪽까지 늘리면(x:28-60,y:6-46, "도끼를 어깨에 걸침" 프롬프트)
+    물체 하나는 그려지지만(`green_south_idle_v5.png`) 크기가 너무 작아서 도끼인지
+    횃불/보석인지 구분이 안 됐다.
+  - **다음 시도 방향(가설, 검증 안 됨)**: (a) 비대칭 마스크를 v5보다 더 크게(예:
+    x:20-60,y:4-50, 몸 오른쪽 절반 전체 + 어깨~허리) 잡아서 도끼머리(위)~자루(아래)가
+    들어갈 공간을 충분히 주기, (b) `inpaint`에 `mask_image`뿐 아니라 `init_image`+
+    `init_image_strength`(예: 300~500)도 같이 줘서 포즈를 더 강하게 앵커링하기(지금까지는
+    `strength` 인자를 안 줬음 — `/tmp/pl.py`의 `inpaint()` 함수가 이미 `strength` 파라미터를
+    받게 돼 있으니 그대로 쓰면 됨), (c) 총처럼 "양손으로 자루를 야구방망이처럼 대각선으로
+    쥔" 자세 대신 스타듀밸리류 참고 게임이 실제로 쓰는 "한 손으로 자루 중간을 쥐고 도끼를
+    비스듬히 앞으로 내민" 자세로 프롬프트를 더 구체화하기.
+  - 예산이 실험 5회(inpaint 호출 5번)만에 $2 중 약 $1.5를 넘게 써서 중단했다 — 다음
+    바퀴는 이 노트의 가설을 1~2회만 더 시도해보고, 그래도 대칭/누락 문제가 반복되면
+    더 이상 파라미터를 바꿔가며 시행착오하지 말고 STATUS.md "막힌 것/보류"에 남기고
+    도끼는 건너뛰어 곡괭이낫(#44)이나 낚싯대(#45) — 이미 손 위치가 더 단순한 도구 —
+    부터 먼저 시도하는 것도 고려할 것(낚싯대/곡괭이낫은 자루가 더 얇고 손 하나로 쥐는
+    형태라 대칭 문제가 덜할 수 있음, 검증 안 된 추측).
+  - 위 실험이 통과 수준에 도달하면, 이어서 할 절차는 #42와 동일하다: south 결과를
+    `/rotate`(`from_view=to_view="low top-down"`)로 east/north 생성, west는 east를 PIL
+    `ImageOps.mirror`로 반전, blue/red는 같은 파라미터에 `seed`만 다르게 줘서 재현(seed
+    반드시 고정 — 안 주면 색상별 결과가 들쭉날쭉함, 바퀴 45가 겪은 실패 원인). 이후
+    3색×4방향×{idle,use} 콘택트시트를 직접 검수 → 통과한 것만
+    `game/assets/sprites/character/axe/{variant}_{dir}_{idle,use}.png`로 저장 →
+    `godot --headless --path . --import` 강제 재임포트 → `world.gd`의
+    `_build_player_sprite_frames()`/`_current_animation_name()`/`_select_hotbar()`를
+    총(#42) 패턴 그대로 도끼용으로 복제(쓰는 순간은 `_play_tool_swing()`이 이미 호출되고
+    있으니 `_tool_use_flash_timer` 지속시간만 `AXE_CHOP_FLASH_DURATION` 재사용). 이동 중
+    정적 idle 프레임 유지(옵션A)도 총과 동일하게 적용. 검증은 `game/_verify_*.gd`(커밋 전
+    삭제) 헤드리스 스크린샷 스크립트를 `set_physics_process(false)` → 상태 강제 설정 →
+    몇 프레임 대기 → 캡처 패턴으로 재사용할 것.
   - #44(곡괭이낫: 들고 있기/채광/채집 세 모션), #45(낚싯대: 들고 있기/낚시)도 각각 같은
     절차를 반복하면 된다. #45를 끝으로 더 이상 안 쓰이는 `_held_item_sprite`/
     `HELD_ITEM_OFFSETS`/`HELD_ITEM_BEHIND_FACINGS`를 정리하라는 것이 INBOX #45 원문
