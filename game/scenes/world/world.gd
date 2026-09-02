@@ -14,6 +14,11 @@ const GUN_RECOIL_MAX := 0.6
 const GUN_RECOIL_DECAY_PER_SEC := 2.0
 
 const BulletScene := preload("res://scenes/bullet/bullet.tscn")
+const DeerScene := preload("res://scenes/deer/deer.tscn")
+
+const DEER_COUNT := 6
+const DEER_SPAWN_RADIUS := 1600.0
+const DEER_MIN_DISTANCE_FROM_PLAYER := 300.0
 
 @onready var player_sprite: Sprite2D = $Player
 @onready var camera: Camera2D = $Camera2D
@@ -34,6 +39,7 @@ func _ready() -> void:
 	_variant = character.get("variant", "green")
 	_update_texture()
 	_update_ammo_label()
+	_spawn_deer()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -116,6 +122,23 @@ func _facing_from_direction(direction: Vector2) -> String:
 		return "north"
 	else:
 		return "west"
+
+
+## 필드에 사슴 몇 마리를 흩어서 배치한다 (DESIGN.md "동물 AI": 평소 배회, 접근/피격 시 도주).
+func _spawn_deer() -> void:
+	for i in range(DEER_COUNT):
+		var deer := DeerScene.instantiate()
+		var pos := Vector2.ZERO
+		for attempt in range(20):
+			pos = Vector2(
+				randf_range(-DEER_SPAWN_RADIUS, DEER_SPAWN_RADIUS),
+				randf_range(-DEER_SPAWN_RADIUS, DEER_SPAWN_RADIUS)
+			)
+			if pos.distance_to(player_sprite.position) >= DEER_MIN_DISTANCE_FROM_PLAYER:
+				break
+		deer.global_position = pos
+		deer.player_ref = player_sprite
+		add_child(deer)
 
 
 func _update_texture() -> void:
