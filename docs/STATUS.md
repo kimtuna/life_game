@@ -5,6 +5,49 @@
 
 ## 마지막 갱신
 
+바퀴 121 / 2026-09-03 ([DESIGN] **INBOX #69 완료 — 도끼 chop(패기) 모션
+`green_south_chop.png`에 있던, 캐릭터/도끼 어디에도 안 붙은 낙서 같은 곡선 아티팩트를
+SpriteCook `generate-sync`(`edit_asset_id` 인페인트)로 제거.**
+1) **잔액 확인**: 세션 시작 시 `GET /v1/api/credits` → SpriteCook 10크레딧(바퀴
+   94(#66) 종료 시점 기록과 정확히 일치, 자연 회복 없음), PixelLab `/v1/balance` →
+   여전히 $0. 이번 항목은 파일 1장의 인페인트라 10크레딧으로 충분히 진행 가능하다고
+   판단해 바로 착수(막힘 없음, "처음 발견" 절차를 밟을 필요 없었음).
+2) **방법**: `green_south_chop.png`(68x68)를 `/v1/api/assets/import`로 무료 업로드 →
+   `POST /v1/api/generate-sync`에 `edit_asset_id` + `smart_crop:false` +
+   `model:"gpt-image-2"` + `quality:"low"`(바퀴 94가 찾은 6배 저렴한 조합, 2크레딧/장) +
+   `variations:3`으로 "머리 위 왼쪽 빈 공간에 떠 있는, 캐릭터/도끼 어디에도 안 붙은
+   가늘고 끊어진 낙서 곡선을 제거하고 그 자리는 나머지 배경처럼 완전히 투명하게
+   만들되, 포즈/정체성/도끼 모양/캔버스 내 위치는 그대로 유지"를 요청 — 총 6크레딧
+   소모(잔액 10→4).
+3) **후보 3장 모두 낙서가 깔끔히 사라졌다**(8배 확대로 직접 확인). 그중 캔버스 크기가
+   원본(68x68)에 가장 가까운 후보(71x67, 나머지 둘은 76x71/144x144)를 채택했다.
+4) **정렬 보정**: 채택 후보의 알파 bbox(11,8)-(56,58)를 원본 chop의 bbox
+   (8,9)-(54,59)에 맞춰 PIL로 (-3, +1)px 이동시켜 68x68 캔버스에 재배치 → 결과 bbox
+   (8,9)-(53,59)로 원본과 사실상 동일해짐(idle↔chop 전환 시 위치 튐 방지, 바퀴 94가
+   겪은 "캔버스 확장" 함정을 이번엔 원본 크기로 되돌려 사전에 차단).
+5) **검증**: `game/qa/full_sweep.gd`(기존 재사용 캡처 스크립트, INBOX #67/#63이 만든
+   것)를 `project.godot` `[autoload]`에 임시로 추가해 `godot --path .`(실제 렌더러)로
+   전체 30스텝을 실행 → **처음 실행에서는 여전히 낙서가 보였다**(원인: Godot의
+   `.godot/imported/*.ctex` 임포트 캐시가 소스 PNG 교체를 자동 감지하지 못함 — 에디터
+   GUI 없이 `godot --path .`로 그냥 실행하는 것만으로는 재임포트가 트리거되지 않는다).
+   `.godot/imported/green_south_chop.png-*.{md5,ctex}`를 수동 삭제하고
+   `godot --path . --headless --import`로 강제 재임포트한 뒤 다시 캡처하니 정상
+   반영됨(`/tmp/qa67/11_tool_axe_use.png`) — **다음에 PNG를 교체할 때는 반드시 이
+   재임포트 단계를 거칠 것, 안 그러면 스크린샷 검증이 캐시된 옛 이미지를 보고 "문제
+   없음"으로 오판할 위험이 있다.** idle/use 두 장을 확대 크롭으로 나란히 비교: 낙서
+   없음, 자세/정체성 동일, idle↔use 전환에도 캐릭터 위치가 튀지 않음을 확인했다.
+   `project.godot`의 임시 autoload 추가분은 검증 후 원상복구(커밋 전 diff 없음).
+6) 커밋 대상은 `game/assets/sprites/character/axe/green_south_chop.png` 1장뿐이다
+   (`.godot/` 임포트 캐시는 `.gitignore` 대상이라 git diff에 안 잡힘, `.import` 메타
+   파일은 내용 변경 없어 그대로).
+7) **BUILD/DESIGN 완료 카운터: 바퀴 119(#67, QA 전체 스윕)에서 0으로 리셋된 뒤 바퀴
+   120(#68)으로 1, 이번(#69)으로 2가 됨.** 5 미만이라 새 QA 스윕은 추가하지 않았다.
+**다음 바퀴가 참고할 것**: INBOX에 미완료 항목이 없다 — `[BUILD]`/`[DESIGN]`/`[QA]`
+전부 처리 대상 없음. 사람이 새 항목을 추가할 때까지 대기. **SpriteCook 잔액은 이번
+바퀴 종료 시점 4크레딧**(gpt-image-2 quality:low 기준 2회분) — 다음에 그림 작업이
+생기면 세션 시작 시 잔액을 재확인하고, 여러 후보(`variations`)가 필요한 작업이면
+미리 크레딧이 부족하지 않은지 가늠할 것. PixelLab은 여전히 $0.
+
 바퀴 120 / 2026-09-03 ([BUILD] **INBOX #68 완료 — CanvasLayer가 월드 콘텐츠보다 뒤에
 그려지던 버그를 `world.tscn`의 `UI` CanvasLayer에 `layer = 10`을 명시해 고침(한 줄
 변경).**
