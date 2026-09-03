@@ -15,7 +15,7 @@ extends Node
 ## 실행 후 project.godot의 [autoload] 임시 추가분은 반드시 되돌리고, 이 스크립트 자체는
 ## `game/qa/`에 남겨서 다음 전체 스윕(5개마다 자동 등록)이 재사용할 수 있게 한다.
 
-const OUT_DIR := "/tmp/qa56"
+const OUT_DIR := "/tmp/qa63"
 
 var _step := 0
 var _plan: Array = []
@@ -113,7 +113,7 @@ func _step_character_customization() -> void:
 
 
 func _step_multiplayer_lobby() -> void:
-	_current()._on_confirm_pressed()
+	pass  # 로비 화면 자체를 캡처만 한다 (_on_confirm_pressed는 존재한 적 없는 함수였다).
 
 
 func _step_world_enter() -> void:
