@@ -5,6 +5,54 @@
 
 ## 마지막 갱신
 
+바퀴 150 / 2026-09-04 ([BUILD] **INBOX #97 완료 — 스폰 지점 근처 저장 상자(#96)에
+크래프팅 재료 15종을 999개씩 채워 넣는 테스트 편의 초기화를 추가함.** 사용자 지시
+(2026-09-04): #96이 상자 시스템 자체는 만들었지만 처음엔 비어 있었다 — 지금까지 만든
+가공/조리 라인(가공대/제련로/조리대/조리용 화로) 레시피를 매번 재료를 채집/제작하지
+않고 바로 테스트할 수 있도록 채워달라는 요청.)
+1) **`world.gd`에 `DEBUG_STARTER_CHEST_ITEMS`(15개 아이템 키 상수 배열)와
+   `DEBUG_STARTER_CHEST_AMOUNT`(999) 상수를 추가**하고, `_spawn_storage_chest()`가 상자를
+   `add_child()`한 직후 이 15종을 `chest.add_item(item_name, 999)`로 채우도록 한 줄
+   반복문을 추가했다. `storage_chest.gd`의 `add_item()`(#96에서 이미 만들어짐, 스택 제한
+   없음)을 그대로 재사용해서 새 API를 만들 필요가 없었다.
+2) **15종 목록**: 원재료(`rice_seed`/`iron_ore`/`stone`/`sulfur_ore`/`wood`), 곡물(`rice`),
+   육류(`meat`), 가공물(`plank`/`stone_block`/`iron`/`charcoal`/`gunpowder`), 완성품
+   (`ammo`), 가공식품(`cooked_rice`/`cooked_meat`) — INBOX #97 원문 그대로. 도구(`gun`/
+   `axe`/`pickaxe`/`fishing_rod`)와 `captured_deer`는 원문 지시대로 제외했다.
+3) **"테스트/개발 편의용, 정식 밸런스 아님"을 코드 주석에 명시**(INBOX #97 원문 요구사항)
+   — `_spawn_storage_chest()` 바로 위에 ⚠️ 표시와 함께 "나중에 실제 밸런스를 잡을 시점에는
+   이 자동 채우기를 없애거나 디버그 전용 빌드로 옮기는 정리가 필요하다"는 문구를 남겼고,
+   이 STATUS.md에도 동일 내용을 기록해둔다(**다음 바퀴 참고**: 정식 출시 준비 단계가
+   오면 `world.gd`의 `DEBUG_STARTER_CHEST_ITEMS` 루프 호출 한 줄만 지우면 이 편의 기능을
+   끌 수 있다 — 상자 시스템 자체(#96)는 그대로 유지).
+4) **검증**: 새 QA 스크립트 `game/qa/starter_chest_check.gd`(커밋, 재사용 가능)로
+   `project.godot` `[autoload]`에 임시 등록 후 `godot --path .`로 실제 렌더링 실행 — (a)
+   상자가 스폰 시점에 **수동 `add_item()` 호출 없이** 이미 15종 x 999개로 채워져 있는지
+   콘솔 로그로 확인, (b) 상자 UI를 열어 스크린샷(`/tmp/qa97/01_chest_open_prefilled.png`,
+   Read로 직접 확인 — "벼 씨앗 x999", "철광석 x999" 등이 스크롤 목록에 정상 표시됨), (c)
+   상자에서 목재/철광석/벼/고기를 인벤토리로 옮긴 뒤 가공대(목재→판자)/제련로(철광석→철)/
+   조리용 화로(벼→밥, 고기→익힌고기) 레시피 4개를 실제로 `world._on_craft_pressed()`로
+   제작해 전부 성공(수량 정상 증가)함을 확인. 전부 통과(`QA_STARTER_CHEST_CHECK_PASS`).
+5) **원상복구**: `project.godot`에 임시로 넣은 autoload 등록을 제거하고
+   `diff game/project.godot /tmp/project.godot.bak`로 완전히 동일함을 확인(`window/stretch/
+   aspect="keep"` 줄도 그대로 남아있음 — 바퀴 126이 남긴 주의사항 재확인). 저장/캐릭터
+   세이브 파일을 지우고 재확인했다.
+6) `docs/feedback/INBOX.md`의 `#97`을 `[x]`로 갱신. **INBOX에 남은 미완료 항목 없음** —
+   다음 세션이 열릴 때 `loop.sh`가 자동으로 종료할 것이다(사람이 새 지시를 추가해야
+   다시 돈다). **BUILD/DESIGN 완료 카운터**: #96에서 3이었던 것이 이번(#97)으로 **4**가
+   됨 — 5에 도달하려면 1개 더 필요(다음 BUILD/DESIGN 항목이 처리되면 QA 전체 스윕이
+   자동으로 큐에 추가된다).
+
+**다음에 할 것**: **INBOX.md에 미완료 항목이 없다.** 사용자가 새 `[BUILD]`/`[DESIGN]`/
+`[QA]` 지시를 추가할 때까지 대기. 다음 항목을 추가할 때 참고할 것: (1) BUILD/DESIGN
+완료 카운터가 4이므로, 다음 BUILD/DESIGN 항목 하나가 끝나면 QA 전체 스윕이 자동으로
+큐에 추가된다. (2) 이번에 만든 `game/qa/starter_chest_check.gd`는 상자의 999개 초기
+채우기 로직을 재검증할 때 그대로 재사용 가능하다. (3) 위 3번 항목 참고 — 정식 밸런스
+단계가 오면 `_spawn_storage_chest()`의 `DEBUG_STARTER_CHEST_ITEMS` 채우기 루프를 없애는
+정리 작업이 필요하다는 걸 잊지 말 것.
+
+## 지난 바퀴 기록 (바퀴 149, 그대로 보존)
+
 바퀴 149 / 2026-09-04 ([BUILD] **INBOX #96 완료 — 저장 상자(Storage Chest) 시스템을
 신설함.** 사용자 지시(2026-09-04): 제작 시스템(#83~#95) 테스트를 위해 재료를 매번
 채집/제작하지 않아도 되도록, 플레이어 인벤토리와 별개의 큰 저장 슬롯을 가진 상자를
@@ -2749,6 +2797,13 @@ grep으로 이 심볼들이 world.gd 밖(resource_point.gd 등)에서 쓰이지 
 
 ## 끝난 것 (지금까지의 스냅샷 — 바퀴별 상세 이력은 git 커밋 메시지 `[INBOX #N] ...`에 있음)
 
+- INBOX #97 완료 (바퀴 150, BUILD): 위 "마지막 갱신" 참고. 스폰 지점 근처 저장 상자
+  (#96)에 크래프팅 재료 15종(원재료 5/곡물/육류/가공물 5/완성품/가공식품 2)을 999개씩
+  채워 넣는 테스트 편의 초기화(`world.gd`의 `DEBUG_STARTER_CHEST_ITEMS` 상수 +
+  `_spawn_storage_chest()`의 채우기 루프)를 추가했다. 코드 주석과 이 문서에 "정식
+  밸런스 아님, 나중에 정리 필요"를 명시. `game/qa/starter_chest_check.gd`로 상자가
+  수동 개입 없이 자동으로 채워짐 + 가공대/제련로/조리용 화로 레시피 4개가 그 재료로
+  실제 제작됨을 검증.
 - INBOX #96 완료 (바퀴 149, BUILD): 위 "마지막 갱신" 참고. 저장 상자 시스템
   (`scenes/storage_chest/`)을 신설했다 — 플레이어 인벤토리와 별개의 20슬롯 배열,
   99 스택 제한 없음, `world.gd`의 범용 저장 상자 창(가공대의 범용 제작 창과 같은

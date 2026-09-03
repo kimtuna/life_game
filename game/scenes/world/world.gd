@@ -573,13 +573,39 @@ func _spawn_cooking_stove() -> void:
 	add_child(stove)
 
 
-## 스폰 지점에서 고정된 오프셋에 저장 상자를 배치한다 (INBOX #96). 처음엔 비어 있다.
+## ⚠️ 테스트/개발 편의용 — 정식 게임 밸런스가 아니다 (INBOX #97, 사용자 지시 2026-09-04).
+## 크래프팅 재료를 채집/제작하지 않고도 가공대/제련로/조리대/조리용 화로 레시피를 바로
+## 테스트할 수 있도록, 스폰 상자에 카테고리별 재료 15종을 999개씩 미리 채워둔다. 도구
+## (gun/axe/pickaxe/fishing_rod)는 이미 무료 지급되고 captured_deer는 생포 전용이라 제외.
+## 나중에 실제 밸런스를 잡을 시점에는 이 자동 채우기를 없애거나 디버그 전용 빌드로 옮기는
+## 정리가 필요하다 — STATUS.md에도 같은 내용을 기록해뒀다.
+const DEBUG_STARTER_CHEST_AMOUNT := 999
+const DEBUG_STARTER_CHEST_ITEMS := [
+	# 원재료
+	"rice_seed", "iron_ore", "stone", "sulfur_ore", "wood",
+	# 곡물
+	"rice",
+	# 육류
+	"meat",
+	# 가공물
+	"plank", "stone_block", "iron", "charcoal", "gunpowder",
+	# 완성품
+	"ammo",
+	# 가공식품
+	"cooked_rice", "cooked_meat",
+]
+
+
+## 스폰 지점에서 고정된 오프셋에 저장 상자를 배치한다 (INBOX #96). 테스트 편의를 위해
+## 위 DEBUG_STARTER_CHEST_ITEMS를 즉시 채워둔다(INBOX #97 — 정식 밸런스 아님, 위 주석 참고).
 func _spawn_storage_chest() -> void:
 	var chest := StorageChestScene.instantiate()
 	chest.global_position = player_sprite.position + STORAGE_CHEST_ORIGIN
 	chest.player_ref = player_sprite
 	chest.world_ref = self
 	add_child(chest)
+	for item_name in DEBUG_STARTER_CHEST_ITEMS:
+		chest.add_item(item_name, DEBUG_STARTER_CHEST_AMOUNT)
 
 
 ## 사냥/채집/채광 결과물을 바닥에 드롭 오브젝트로 스폰한다 (INBOX #24, DESIGN.md
