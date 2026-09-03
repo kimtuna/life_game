@@ -36,6 +36,7 @@ const MINING_POINT_WEIGHTS := [
 ]
 const FarmPlotScene := preload("res://scenes/farm_plot/farm_plot.tscn")
 const RanchZoneScene := preload("res://scenes/ranch_zone/ranch_zone.tscn")
+const ProcessingTableScene := preload("res://scenes/processing_table/processing_table.tscn")
 const DroppedItemScene := preload("res://scenes/dropped_item/dropped_item.tscn")
 
 const DEER_COUNT := 6
@@ -56,6 +57,10 @@ const FARM_PLOT_ORIGIN := Vector2(500.0, -400.0)
 ## 목장 구역도 밭과 같은 이유(DESIGN.md "정해진 구역")로 스폰 지점 기준 고정 오프셋에 둔다.
 const RANCH_ZONE_ORIGIN := Vector2(-650.0, -300.0)
 
+## 가공대(INBOX #87)도 밭/목장과 같은 이유로 스폰 지점 기준 고정 오프셋에 둔다. 위치는
+## 재량 — 밭/목장 구역과 겹치지 않는 남동쪽에 둔다.
+const PROCESSING_TABLE_ORIGIN := Vector2(300.0, 500.0)
+
 ## InventoryData가 저장하는 아이템 키(내부 이름) -> 화면 표시 이름.
 const ITEM_LABELS := {
 	"rice_seed": "벼 씨앗",
@@ -66,6 +71,8 @@ const ITEM_LABELS := {
 	"wood": "나무",
 	"captured_deer": "포획된 사슴",
 	"meat": "고기",
+	"plank": "판자",
+	"stone_block": "석재",
 	"gun": "총",
 	"axe": "도끼",
 	"pickaxe": "곡괭이낫",
@@ -86,6 +93,8 @@ const ITEM_CATEGORIES := {
 	"wood": "원재료",
 	"captured_deer": "가축",
 	"meat": "육류",
+	"plank": "가공물",
+	"stone_block": "가공물",
 	"gun": "도구",
 	"axe": "도구",
 	"pickaxe": "도구",
@@ -129,6 +138,7 @@ const STATE_BROADCAST_INTERVAL := 0.1
 @onready var net_label: Label = $UI/HUD/NetPanel/NetLabel
 @onready var day_night_modulate: CanvasModulate = $DayNightModulate
 @onready var rain_overlay: ColorRect = $UI/RainOverlay
+@onready var ui_layer: CanvasLayer = $UI
 @onready var inventory_window: Control = $UI/InventoryWindow
 @onready var general_grid: GridContainer = $UI/InventoryWindow/CenterContainer/Panel/VBoxContainer/GeneralGrid
 @onready var equipment_grid: GridContainer = $UI/InventoryWindow/CenterContainer/Panel/VBoxContainer/EquipmentGrid
@@ -141,10 +151,18 @@ var _variant: String = "green"
 var _facing: String = "south"
 var _paused: bool = false
 var _inventory_open: bool = false
+## 가공대/제련로 등 생산 라인 작업대가 공유하는 범용 제작 창이 열려 있는지 (INBOX #87).
+var _crafting_open: bool = false
+## 지금 열려 있는 제작 창의 레시피 목록 (open_crafting_window()가 채운다).
+var _crafting_recipes: Array = []
 var _general_slot_labels: Array = []
 var _equipment_slot_labels: Array = []
 ## 핫바 9칸 셀(각 원소 {"panel": PanelContainer, "item_label": Label, "number_label": Label}).
 var _hotbar_cells: Array = []
+## 범용 제작 창(코드로 조립, INBOX #87 — _build_crafting_window() 참고).
+var _crafting_window: Control
+var _crafting_title_label: Label
+var _crafting_list: VBoxContainer
 var _selected_hotbar_index: int = 0
 ## 지금 손에 든 도구 키("gun"/"axe"/"pickaxe"/"fishing_rod") 또는 빈손("").
 var _held_tool: String = ""
@@ -187,9 +205,11 @@ func _ready() -> void:
 	_spawn_resource_points()
 	_spawn_farm_plots()
 	_spawn_ranch_zone()
+	_spawn_processing_table()
 	_ensure_starting_tools()
 	_build_inventory_slots()
 	_build_hotbar()
+	_build_crafting_window()
 	InventoryData.changed.connect(_update_inventory_label)
 	InventoryData.changed.connect(_refresh_inventory_window)
 	InventoryData.changed.connect(_refresh_hotbar)
@@ -212,30 +232,32 @@ func _process(_delta: float) -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE:
-		if _inventory_open:
+		if _crafting_open:
+			close_crafting_window()
+		elif _inventory_open:
 			_set_inventory_open(false)
 		else:
 			_set_paused(not _paused)
 	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_E \
-			and not _paused:
+			and not _paused and not _crafting_open:
 		_set_inventory_open(not _inventory_open)
 	elif event is InputEventKey and event.pressed and not event.echo and not _paused and not _inventory_open \
-			and event.keycode >= KEY_1 and event.keycode <= KEY_9:
+			and not _crafting_open and event.keycode >= KEY_1 and event.keycode <= KEY_9:
 		_select_hotbar(event.keycode - KEY_1)
 	elif event is InputEventKey and event.pressed and not event.echo and not _paused and not _inventory_open \
-			and event.keycode == KEY_R and _held_tool == "gun":
+			and not _crafting_open and event.keycode == KEY_R and _held_tool == "gun":
 		_start_reload()
 	elif event is InputEventMouseButton and event.pressed and not _paused and not _inventory_open \
-			and event.button_index == MOUSE_BUTTON_RIGHT and _held_tool == "gun":
+			and not _crafting_open and event.button_index == MOUSE_BUTTON_RIGHT and _held_tool == "gun":
 		_ammo_type = "tranq" if _ammo_type == "normal" else "normal"
 		_update_ammo_label()
 	elif event is InputEventMouseButton and event.pressed and not _paused and not _inventory_open \
-			and event.button_index == MOUSE_BUTTON_LEFT and _held_tool == "axe":
+			and not _crafting_open and event.button_index == MOUSE_BUTTON_LEFT and _held_tool == "axe":
 		## 도끼는 INBOX #43부터 옆 아이콘이 아니라 캐릭터 애니메이션 프레임 자체
 		## (axe_chop_*)로 패는 모션을 보여준다 (총(#42)과 같은 패턴).
 		_tool_use_flash_timer = AXE_CHOP_FLASH_DURATION
 	elif event is InputEventMouseButton and event.pressed and not _paused and not _inventory_open \
-			and event.button_index == MOUSE_BUTTON_LEFT and _held_tool == "pickaxe":
+			and not _crafting_open and event.button_index == MOUSE_BUTTON_LEFT and _held_tool == "pickaxe":
 		## 곡괭이낫은 INBOX #73부터 도끼(#43)와 같은 방식으로, 채집/채광 대상이 없어도
 		## (허공에 대고) 좌클릭하면 항상 스윙 모션이 나가야 한다 (DESIGN.md "생활 스킬 —
 		## 채집 계열": 총/도끼/곡괭이낫은 대상 유무와 무관하게 항상 사용 모션 — 근접무기
@@ -245,14 +267,14 @@ func _unhandled_input(event: InputEvent) -> void:
 		## 입력 이벤트 처리 중에 play_pickaxe_use(kind)로 올바른 kind를 덮어써 준다.
 		_tool_use_flash_timer = AXE_CHOP_FLASH_DURATION
 	elif event is InputEventMouseButton and event.pressed and not _paused and not _inventory_open \
-			and event.button_index == MOUSE_BUTTON_LEFT and _held_tool == "fishing_rod":
+			and not _crafting_open and event.button_index == MOUSE_BUTTON_LEFT and _held_tool == "fishing_rod":
 		## 낚싯대는 INBOX #45부터 옆 아이콘이 아니라 캐릭터 애니메이션 프레임 자체
 		## (fishing_rod_fishing_*)로 낚시하는 모션을 보여준다 (도끼(#43)와 같은 패턴).
 		_tool_use_flash_timer = AXE_CHOP_FLASH_DURATION
 
 
 func _physics_process(delta: float) -> void:
-	if _paused or _inventory_open:
+	if _paused or _inventory_open or _crafting_open:
 		return
 
 	var input_dir := Vector2.ZERO
@@ -460,6 +482,15 @@ func _spawn_ranch_zone() -> void:
 	zone.player_ref = player_sprite
 	zone.world_ref = self
 	add_child(zone)
+
+
+## 스폰 지점에서 고정된 오프셋에 가공대를 배치한다 (INBOX #87).
+func _spawn_processing_table() -> void:
+	var table := ProcessingTableScene.instantiate()
+	table.global_position = player_sprite.position + PROCESSING_TABLE_ORIGIN
+	table.player_ref = player_sprite
+	table.world_ref = self
+	add_child(table)
 
 
 ## 사냥/채집/채광 결과물을 바닥에 드롭 오브젝트로 스폰한다 (INBOX #24, DESIGN.md
@@ -674,6 +705,131 @@ func _refresh_inventory_window() -> void:
 		else:
 			var display: String = ITEM_LABELS.get(slot["item"], slot["item"])
 			label.text = "%s\n%s" % [part_name, display]
+
+
+## 가공대(#87)/제련로(#88 이후) 등 생산 라인 작업대가 공유하는 범용 제작 창을 코드로
+## 한 번만 조립해둔다(인벤토리 창처럼 .tscn에 미리 심어두지 않고, 핫바 셀처럼 런타임에
+## 만든다 — 작업대마다 레시피만 다를 뿐 UI 구조는 완전히 같아서, 새 작업대가 추가될 때마다
+## .tscn을 새로 만들 필요 없이 open_crafting_window()만 호출하면 되게 하기 위함).
+func _build_crafting_window() -> void:
+	var window := Control.new()
+	window.name = "CraftingWindow"
+	window.visible = false
+	window.set_anchors_preset(Control.PRESET_FULL_RECT)
+	window.mouse_filter = Control.MOUSE_FILTER_STOP
+
+	var dim := ColorRect.new()
+	dim.color = Color(0, 0, 0, 0.55)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	window.add_child(dim)
+
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	window.add_child(center)
+
+	var panel := PanelContainer.new()
+	panel.custom_minimum_size = Vector2(380, 0)
+	center.add_child(panel)
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 10)
+	panel.add_child(vbox)
+
+	_crafting_title_label = Label.new()
+	_crafting_title_label.add_theme_font_size_override("font_size", 22)
+	vbox.add_child(_crafting_title_label)
+
+	_crafting_list = VBoxContainer.new()
+	_crafting_list.add_theme_constant_override("separation", 6)
+	vbox.add_child(_crafting_list)
+
+	var close_hint := Label.new()
+	close_hint.text = "ESC: 닫기"
+	close_hint.modulate = Color(1, 1, 1, 0.6)
+	vbox.add_child(close_hint)
+
+	ui_layer.add_child(window)
+	_crafting_window = window
+	InventoryData.changed.connect(_refresh_crafting_window)
+
+
+## RECIPES 형식: [{"inputs": {아이템: 개수, ...}, "output": 아이템, "amount": 개수}, ...]
+## (DESIGN.md "생산 라인" 절 그대로). 상호작용 오브젝트(가공대 등)가 근처에서 좌클릭됐을
+## 때 호출한다.
+func open_crafting_window(title: String, recipes: Array) -> void:
+	if _paused or _inventory_open:
+		return
+	_crafting_title_label.text = title
+	_crafting_recipes = recipes
+	_crafting_open = true
+	_crafting_window.visible = true
+	_refresh_crafting_window()
+
+
+func close_crafting_window() -> void:
+	_crafting_open = false
+	_crafting_window.visible = false
+
+
+## processing_table.gd 등이 "지금 다른 작업대 창이 이미 열려 있는지" 확인할 때 쓴다
+## (get_held_tool()/get_held_item()과 같은 공개 접근자 패턴).
+func is_crafting_open() -> bool:
+	return _crafting_open
+
+
+## 레시피 목록을 다시 그린다 — 창이 열려 있는 동안 인벤토리가 바뀔 때마다(재료를 다 써서
+## 더 이상 제작 못 하게 되는 등) 버튼의 활성/비활성 상태가 즉시 갱신돼야 하므로
+## InventoryData.changed에도 연결돼 있다.
+func _refresh_crafting_window() -> void:
+	if not _crafting_open:
+		return
+	for child in _crafting_list.get_children():
+		child.queue_free()
+	for recipe in _crafting_recipes:
+		_crafting_list.add_child(_make_recipe_row(recipe))
+
+
+func _make_recipe_row(recipe: Dictionary) -> Control:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+
+	var inputs: Dictionary = recipe.get("inputs", {})
+	var input_parts: Array[String] = []
+	var affordable := true
+	for item_key in inputs.keys():
+		var need := int(inputs[item_key])
+		if InventoryData.get_count(item_key) < need:
+			affordable = false
+		input_parts.append("%s x%d" % [ITEM_LABELS.get(item_key, item_key), need])
+	var output: String = recipe.get("output", "")
+	var amount: int = int(recipe.get("amount", 1))
+
+	var desc := Label.new()
+	desc.text = "%s → %s x%d" % [", ".join(input_parts), ITEM_LABELS.get(output, output), amount]
+	desc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	desc.autowrap_mode = TextServer.AUTOWRAP_WORD
+	row.add_child(desc)
+
+	var button := Button.new()
+	button.text = "제작" if affordable else "재료 부족"
+	button.disabled = not affordable
+	button.pressed.connect(_on_craft_pressed.bind(recipe))
+	row.add_child(button)
+	return row
+
+
+## 부족한 재료가 있으면 아무것도 소모하지 않고 조용히 무시한다 — 버튼이 이미
+## disabled=true라 정상 플레이에서는 눌릴 수 없지만, 클릭과 인벤토리 변화(재료 소모) 사이의
+## 경합을 대비해 실행 시점에도 다시 확인한다.
+func _on_craft_pressed(recipe: Dictionary) -> void:
+	var inputs: Dictionary = recipe.get("inputs", {})
+	for item_key in inputs.keys():
+		if InventoryData.get_count(item_key) < int(inputs[item_key]):
+			return
+	for item_key in inputs.keys():
+		InventoryData.remove_item(item_key, int(inputs[item_key]))
+	InventoryData.add_item(recipe.get("output", ""), int(recipe.get("amount", 1)))
 
 
 func _update_inventory_label() -> void:
