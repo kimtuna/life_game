@@ -5,6 +5,52 @@
 
 ## 마지막 갱신
 
+바퀴 81 / 2026-09-03 (**INBOX #53 완료 — #52의 총 "들고 있는"/"발사하는" 모션을 blue/red로
+확장, world.gd 코드 변경 없이 에셋만 추가, 4방향×2색×2상태 인게임 스크린샷으로 검증 후
+커밋.**
+1) 세션 시작 시 잔액 재확인: SpriteCook 2548크레딧(넉넉함), PixelLab 여전히 $0 —
+   SpriteCook만으로 진행.
+2) **바퀴 80이 정립한 레시피(`generate-sync`+`edit_asset_id`+`smart_crop=false`)를 그대로
+   재사용**, south/north/east를 각 색상별로 `variations` 파라미터로 여러 후보를 받아
+   8배 확대 비교 후 채택, west는 east를 `ImageOps.mirror()`로 좌우반전(재생성 안 함) —
+   총 6회(3방향×2색) 업로드+idle 생성, 6회 fire 생성(idle 결과를 `edit_asset_id`로 연쇄
+   편집), 약 400크레딧 소모.
+3) **새로 확인된 함정(다음 바퀴가 참고할 것): `smart_crop=false`를 줘도 출력 크기가
+   요청한 `width`/`height`와 정확히 일치하지 않을 때가 있다** — blue east idle의 첫
+   variations 2개 중 하나는 68x68, 다른 하나는 66x68로 나왔고, 그걸 그대로 채택한 fire는
+   66x66/75x71까지 벌어졌다(바퀴 80은 이 문제를 문서에 남기지 않았는데, 아마 우연히 항상
+   정확한 크기가 나왔던 것으로 보인다). 크기가 어긋난 프레임을 그대로 쓰면 idle↔fire
+   전환 시 캐릭터가 몇 픽셀 튀어 보일 위험이 있다(AnimatedSprite2D가 기본적으로 프레임을
+   중심 정렬하므로). **해결책**: `variations`를 2~3으로 넉넉히 받아서 그중 입력과 정확히
+   같은 크기(68x68)로 나온 것만 채택하고, 정확한 크기가 하나도 없으면 그 asset_id를
+   `edit_asset_id`로 다시 호출해 재시도할 것 — 실제로 blue east는 이 방식으로 재시도해
+   3개 다 68x68로 나온 결과 중 하나를 채택했다. **다음 바퀴부터는 처음부터 `variations:3`
+   이상으로 요청해 이 문제를 줄일 것을 권장.**
+4) 색상별 프롬프트는 바퀴 80의 green 프롬프트를 그대로 재사용(south/north/east idle 및
+   fire 프롬프트 원문은 바로 아래 "SpriteCook API 실측 조사 > 바퀴 80 추가 조사" 절 참고,
+   이번 바퀴는 새 프롬프트를 만들지 않았다) — 셔츠 색만 바뀔 뿐 실루엣이 동일해 튜닝
+   없이도 즉시 합격 수준이 나왔다(걷기 애니메이션 확장(#51) 때와 같은 패턴 재확인).
+5) `world.gd`는 전혀 수정하지 않았다 — 바퀴 80이 만든 `ResourceLoader.exists()` 가드
+   패턴(파일이 있는 색상만 gun_idle/gun_fire 애니메이션을 추가)이 이미 색상 확장을
+   전제로 설계되어 있어, `game/assets/sprites/character/gun/{blue,red}_*.png` 8×2=16개
+   파일만 올바른 경로에 추가하면 자동으로 동작했다.
+6) **4방향×2색×2상태(idle/fire) 인게임 스크린샷 검증**: 바퀴 80과 동일한 방법
+   (`--headless --path . --import`로 재임포트 후 `godot --path .`(실제 렌더러)로 world
+   씬을 띄우고 `set_physics_process(false)` → `_variant`/`_facing`/`_held_tool="gun"`/
+   `_tool_use_flash_timer`를 강제 설정 → `_update_player_animation()` → 3프레임 대기 →
+   `img.get_size()` 기준으로 캡처 크롭)를 재사용해 16장을 콘택트시트 2장(색상별)으로
+   묶어 직접 눈으로 봤다 — 두 색 모두 4방향 전부 손과 총이 자연스럽게 붙어 있고,
+   south/north는 조준 방향으로 뚜렷이 기울어져 있으며, 발사 시 머즐 플래시가 총구
+   위치에 정확히 나타났다. green과 동일한 품질, idle↔fire 전환 시 캐릭터 위치 점프도
+   없음을 확인, 스타듀밸리/코어키퍼 대비 손색없는 수준으로 판단해 합격.
+7) `git status`에는 새 `game/assets/sprites/character/gun/{blue,red}_*.png`(및 `.import`)
+   16개 파일만 남았다(임시 스크립트/스크린샷은 `/tmp/gun53/`에서 실행해 레포에 남기지
+   않음).
+**다음 바퀴가 참고할 것**: 다음 미완료 `[DESIGN]` 항목은 INBOX #54(곡괭이낫 모션,
+green 기준)다 — 이번 바퀴가 남긴 "출력 크기 불일치" 함정(위 3번)을 처음부터
+`variations:3`으로 완화하며 진행할 것. BUILD/DESIGN 완료 카운터는 이번 바퀴로 3이 됨
+(자세한 것은 아래 "다음에 할 것" 참고).
+
 바퀴 80 / 2026-09-03 (**INBOX #52 완료 — 총을 든 캐릭터의 "들고 있는"/"발사하는" 모션을
 SpriteCook `generate-sync`의 `edit_asset_id`(이미지 편집/인페인트) 기능으로 green 4방향
 전부 새로 만들어 캐릭터 애니메이션 프레임에 직접 통합, 4방향×2상태 인게임 스크린샷으로
@@ -572,19 +618,22 @@ grep으로 이 심볼들이 world.gd 밖(resource_point.gd 등)에서 쓰이지 
 
 ## 다음에 할 것
 
-- **(바퀴 80 갱신, 최우선) 다음 미완료 `[DESIGN]` 항목은 INBOX #53(총 모션을 blue/red로
-  확장)이다.** 세션 시작 시 여느 때처럼 `GET /v1/api/credits`(SpriteCook)와
-  `/v1/balance`(PixelLab)를 먼저 확인할 것 — 바퀴 80 종료 시점 SpriteCook 약
-  2600크레딧대(넉넉함, 정확한 수치는 위 "마지막 갱신" 절 호출 로그 참고), PixelLab
-  $0. **#52가 정립한 레시피를 그대로 재사용할 것**: `POST /v1/api/generate-sync`에
-  `edit_asset_id`(기존 blue_south.png 등을 `/v1/api/assets/import`로 업로드한 asset
-  id) + `smart_crop=false` + 업로드 때와 같은 `width`/`height` 조합이면 정렬 후처리
-  없이 바로 68x68 결과가 나온다(아래 "SpriteCook API 실측 조사 > 바퀴 80 추가 조사"
-  절에 프롬프트 원문 있음). green과 실루엣이 동일하므로 프롬프트도 그대로 재사용
-  가능할 것으로 보이나(걷기 때와 같은 가정), 총은 새 포즈라 blue 1건을 먼저 검증한
-  뒤 나머지를 일괄 진행할 것(색상 튜닝이 필요하면 그때 프롬프트를 조정).
+- **(바퀴 81 갱신, 최우선) 다음 미완료 `[DESIGN]` 항목은 INBOX #54(곡괭이낫 "들고
+  있는"/"채광하는"/"채집하는" 모션을 SpriteCook으로, green 기준)다.** 세션 시작 시
+  여느 때처럼 `GET /v1/api/credits`(SpriteCook)와 `/v1/balance`(PixelLab)를 먼저
+  확인할 것 — 바퀴 81 종료 시점 SpriteCook 약 2150크레딧대(넉넉함, 정확한 수치는 위
+  "마지막 갱신" 절 호출 로그 참고), PixelLab $0. **#52/#53이 정립한 레시피를 그대로
+  재사용할 것**: `POST /v1/api/generate-sync`에 `edit_asset_id` + `smart_crop=false` +
+  업로드 때와 같은 `width`/`height` 조합, idle을 만든 뒤 그 asset_id를 `edit_asset_id`로
+  다시 넣어 mining/gathering을 연쇄 편집(아래 "SpriteCook API 실측 조사 > 바퀴 80 추가
+  조사" 절에 총 프롬프트 원문 있음 — 곡괭이낫용 프롬프트는 새로 작성해야 함, "곡괭이질/
+  채집하는 동작이 실제로 캐고 있는 것처럼" 보이도록 팔 동작을 구체적으로 서술할 것).
+  **바퀴 81이 새로 발견한 함정: `smart_crop=false`를 줘도 출력 크기가 요청 크기와
+  정확히 일치하지 않을 때가 있다(idle↔mining↔gathering 전환 시 캐릭터가 튀어 보일
+  위험).** 처음부터 `variations:3` 이상으로 받아서 그중 입력과 정확히 같은 크기로
+  나온 것만 채택할 것 — 정확한 크기가 하나도 없으면 그 asset_id로 재시도.
 - **BUILD/DESIGN 완료 카운터(마지막 전체 QA 스윕 이후 완료한 BUILD/DESIGN 항목 수):
-  현재 2** (바퀴 79의 #51 + 바퀴 80의 #52). 5가 되면
+  현재 3** (바퀴 79의 #51 + 바퀴 80의 #52 + 바퀴 81의 #53). 5가 되면
   `[QA] 전체 스윕: 메인 메뉴부터 모든 시스템을 실제로 플레이해보며 문제를 찾는다` 항목을
   INBOX 큐 끝에 추가하고 카운터를 0으로 리셋할 것 (PROMPT_BUILD.md ③ / PROMPT_DESIGN.md
   ③과 동일 규칙, BUILD·DESIGN 완료를 합산해서 센다).
