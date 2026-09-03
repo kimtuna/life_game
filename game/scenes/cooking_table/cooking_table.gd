@@ -6,7 +6,8 @@ extends Node2D
 ## RECIPES가 비어있는 건 결함이 아니다 — DESIGN.md가 명시한 "조합 요리"(밥+익힌고기+
 ## 익힌채소→스테이크 등)는 채소 아이템이 아직 정해지지 않아 이번 범위 밖이라, 조리대는
 ## 오브젝트로만 먼저 자리잡고 레시피는 채소 추가 뒤 별도 지시로 채운다.
-## 월드 그림은 이번 항목 범위가 아니라(#91에서 처리) 임시 단색 사각형(Body Polygon2D)을 쓴다.
+## 월드 그림(INBOX #91)은 파이썬 절차적 생성(Pillow)으로 만든
+## assets/sprites/cooking_table/cooking_table.png를 쓴다.
 
 const INTERACT_RADIUS := 90.0
 const TABLE_TITLE := "조리대"

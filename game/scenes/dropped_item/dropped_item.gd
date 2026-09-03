@@ -16,6 +16,15 @@ const ITEM_ICONS := {
 	"sulfur_ore": preload("res://assets/sprites/items/sulfur_ore.png"),
 	"meat": preload("res://assets/sprites/items/meat.png"),
 	"captured_deer": preload("res://assets/sprites/items/captured_deer.png"),
+	# 가공물/완성품/가공식품(INBOX #87~#90) 아이콘 (INBOX #91, 파이썬 절차적 생성).
+	"plank": preload("res://assets/sprites/items/plank.png"),
+	"stone_block": preload("res://assets/sprites/items/stone_block.png"),
+	"iron": preload("res://assets/sprites/items/iron.png"),
+	"charcoal": preload("res://assets/sprites/items/charcoal.png"),
+	"gunpowder": preload("res://assets/sprites/items/gunpowder.png"),
+	"ammo": preload("res://assets/sprites/items/ammo.png"),
+	"cooked_rice": preload("res://assets/sprites/items/cooked_rice.png"),
+	"cooked_meat": preload("res://assets/sprites/items/cooked_meat.png"),
 	# 도구도 인벤토리 버리기(INBOX #31)로 바닥에 떨어질 수 있어서 함께 추가했다 —
 	# world.gd의 TOOL_ICONS와 같은 텍스처를 재사용한다.
 	"gun": preload("res://assets/sprites/tools/gun.png"),

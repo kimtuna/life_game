@@ -5,7 +5,8 @@ extends Node2D
 ## 상호작용 결과가 즉시 일어나는 대신 world.gd의 범용 제작 창(open_crafting_window())을
 ## 열어서 여러 레시피 중 고르게 한다 — 이 창/레시피 목록 UI는 #88 이후의 다른 작업대도
 ## RECIPES만 바꿔서 그대로 재사용한다(DESIGN.md "코드 재사용/공통화" 지시).
-## 월드 그림은 이번 항목 범위가 아니라(#91에서 처리) 임시 단색 사각형(Body Polygon2D)을 쓴다.
+## 월드 그림(INBOX #91)은 파이썬 절차적 생성(Pillow)으로 만든
+## assets/sprites/processing_table/processing_table.png를 쓴다.
 
 const INTERACT_RADIUS := 90.0
 const TABLE_TITLE := "가공대"

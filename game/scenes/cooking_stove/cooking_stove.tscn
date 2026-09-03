@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scenes/cooking_stove/cooking_stove.gd" id="1_script"]
+[ext_resource type="Texture2D" path="res://assets/sprites/cooking_stove/cooking_stove.png" id="2_texture"]
 
 [sub_resource type="LabelSettings" id="LabelSettings_prompt"]
 font_size = 16
@@ -11,10 +12,10 @@ outline_color = Color(0, 0, 0, 1)
 [node name="CookingStove" type="Node2D"]
 script = ExtResource("1_script")
 
-[node name="Body" type="Polygon2D" parent="."]
+[node name="Sprite" type="Sprite2D" parent="."]
 z_index = -1
-color = Color(0.35, 0.22, 0.16, 1)
-polygon = PackedVector2Array(-40, -40, 40, -40, 40, 40, -40, 40)
+texture_filter = 1
+texture = ExtResource("2_texture")
 
 [node name="Prompt" type="Label" parent="."]
 offset_left = -80.0
