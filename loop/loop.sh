@@ -48,6 +48,20 @@ mkdir -p "$ROOT_DIR/logs"
 # 다시 만들어진다. 지우지 않으면 문제가 해결된 뒤에도 대시보드에 옛 경고가 남는다.
 rm -f "$CREDIT_MARKER"
 
+# 동시에 두 개가 돌면 같은 INBOX 항목을 서로 다른 하네스로 중복 처리하거나 커밋이
+# 꼬일 수 있다(실제로 겪음 — 태그 오매칭 버그와 겹쳐 수십 바퀴가 허비됐다). 이미 살아있는
+# loop.sh가 있으면 새로 시작하지 않는다.
+PID_FILE="$ROOT_DIR/logs/loop.pid"
+if [ -f "$PID_FILE" ]; then
+  OLD_PID="$(cat "$PID_FILE" 2>/dev/null)"
+  if [ -n "$OLD_PID" ] && kill -0 "$OLD_PID" 2>/dev/null; then
+    echo "$(date '+%F %T') 이미 실행 중인 loop.sh(pid ${OLD_PID})가 있어 새로 시작하지 않고 종료" >>"$EVENT_LOG"
+    exit 1
+  fi
+fi
+echo "$$" >"$PID_FILE"
+trap 'rm -f "$PID_FILE"' EXIT
+
 log_event() {
   echo "$(date '+%F %T') $*" >>"$EVENT_LOG"
 }
