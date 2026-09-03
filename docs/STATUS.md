@@ -5,6 +5,30 @@
 
 ## 마지막 갱신
 
+바퀴 77 / 2026-09-03 (**INBOX #50 착수 보류 — `EXTERNAL_TOOL_BLOCKED` 발행, 루프 중단.**
+세션 시작 시 `GET /v1/api/credits`(SpriteCook)와 `/v1/balance`(PixelLab)를 재확인한 결과
+`{"total":28,"subscription_credits":0,"topup_credits":28}` / `{"type":"usd","usd":0.0}` —
+바퀴 76이 종료 시점에 이미 기록해둔 수치(SpriteCook 28, PixelLab $0)와 정확히 동일했다
+(자연 회복 없음). 이 상태에서 진행 가능한 경로를 다시 따져보면: (a) PixelLab
+`/animate-with-text`(유일하게 성공 전례가 있는 방식)는 잔액 $0이라 불가, (b) 공식
+`character-workflows`(topdown)는 방향당 최소 32크레딧(20+12prep) 필요한데 28밖에 없어
+불가, (c) `animate-sync`(20크레딧, 잔액상 가능)는 바퀴 69·76이 서로 다른 프롬프트로 2회
+독립 재현한 구조적 결함(4프레임 중 3프레임이 near-duplicate) 때문에 STATUS.md
+"다음에 할 것"이 이미 "프롬프트만 바꿔서 재시도하지 말 것"이라고 명시해뒀다 — 즉 잔액은
+있지만 이 경로 자체가 재시도 대상에서 제외돼 있다. 세 경로 모두 막혀 있고, 이 사실은
+바로 이전 바퀴(76)가 이미 기록해둔 것과 같은(동일한) 잔액 상태이므로,
+PROMPT_DESIGN.md ③의 절차대로 세 번째 "확인만 하고 넘기기"를 반복하지 않고 표준출력에
+`EXTERNAL_TOOL_BLOCKED` 한 줄을 출력한 뒤 세션을 마친다. 게임 코드/에셋은 전혀
+건드리지 않았다(`git status` 변경 없음, 이 문서 갱신만 커밋). INBOX #50은 `- [ ]`로
+그대로 둔다.
+**다음 바퀴가 참고할 것**: 사람이 개입해 SpriteCook에 최소 4크레딧을 더 충전하거나(32
+이상) PixelLab 잔액을 회복시켜주기 전까지는 이 항목을 재시도해도 같은 결과가 나올
+가능성이 높다. 잔액이 바뀌었다면 위 (a)(b) 순서로 시도할 것 — PixelLab이 살아있으면
+그쪽을 최우선(바퀴 44/INBOX #41 성공 레시피 재사용), 아니면 SpriteCook
+`character-workflows`(front 방향부터 저렴하게 시험, 위 "SpriteCook API 실측 조사" 절
+참고)를 시도할 것. `animate-sync`는 크레딧이 얼마가 되든 이 캐릭터 스케일에서는 구조적
+한계로 보이므로 더 이상 추천하지 않는다.
+
 바퀴 76 / 2026-09-03 ([DESIGN] **INBOX #50(캐릭터 idle/walk, SpriteCook, green 기준)
 재착수 — 잔액이 8→48로 회복된 것을 확인해 south 방향 걷기를 다시 시도했으나, 바퀴 69와
 동일한 실패 패턴이 재현되어 커밋하지 않고 보류.**
