@@ -5,6 +5,68 @@
 
 ## 마지막 갱신
 
+바퀴 122 / 2026-09-03 ([DESIGN] **INBOX #70 완료 — 걷기 애니메이션 4방향(green)이 idle보다
+눈에 띄게 크게 그려지던 버그를, 새 AI 호출 없이 `/tmp`에 남아있던 이전 바퀴(#50/#51)의
+원본 고해상도 SpriteCook 출력 시트를 올바른 스케일 공식으로 재처리해서 고침.**
+1) **잔액 확인**: `GET /v1/api/credits` → SpriteCook 4크레딧(바퀴 121 종료 시점과 정확히
+   동일, 자연 회복 없음), PixelLab `/v1/balance` → 여전히 $0. green만 해도 walk 프레임이
+   south/north 4장 + east/west 8장 = 24장이라 `generate-sync`/`animate-sync`로 새로
+   찍으면 최소 수십 크레딧이 필요해 4크레딧으로는 어차피 불가능했다 — 하지만 조사
+   결과 **이 버그는 새 AI 생성 없이 순수 이미지 후처리만으로 고칠 수 있는 문제였다**
+   (아래 3번 참고), 그래서 "잔액 부족으로 막힘" 절차(③)를 밟지 않고 바로 진행했다.
+2) **원인 확정**: `assets/sprites/character/green_south.png`(idle, 알파 bbox 높이 47px)
+   vs `walk/green_south_walk_0.png`(같은 68×68 캔버스인데 알파 bbox 높이 56px, 상단이
+   캔버스 y=0에 딱 붙어 있음)로 스케일 불일치를 먼저 재확인했다. 원인을 추적하니
+   `/tmp/w51/align.py`(#51이 blue/red 확장 때 썼던 정렬 스크립트, 이번 세션에도 `/tmp`에
+   그대로 남아 있었다 — **이 환경은 `/tmp`가 세션 간에 유지된다**, 다음 바퀴도 참고할
+   것)의 `scale = CANVAS / 256.0`(68/256 고정값) 한 줄이 원흉이었다: SpriteCook
+   `animate-sync`가 실제로 반환하는 프레임 캔버스 크기는 방향마다 다르고(south 204px,
+   north 206~208px, east 212px — 256이 아님) 게다가 **캔버스 크기와 무관하게 AI가 캐릭터
+   자체를 idle 대비 훨씬 확대해서 그리는 경향**이 있어서, 캔버스 비율로 스케일을
+   맞추는 방식 자체가 틀렸다(직접 계산: south 원본 프레임의 "캐릭터 높이/캔버스 높이"
+   비율이 idle 기준 벡터보다 훨씬 큼).
+3) **수정한 스케일 공식**: 캔버스 크기가 아니라 **알파 bbox 높이 비율**로 스케일을
+   구한다 — `scale = idle_bbox_height / raw_frame_bbox_height`(방향별로 프레임 4~8장의
+   bbox 높이 평균을 써서 프레임마다 스케일이 들쭉날쭉 안 하게 함). 이렇게 다시 계산한
+   뒤 `idle_bottom`/`idle_center_x`에 맞춰 68×68 캔버스에 재배치했다(위치 정렬 로직
+   자체는 `/tmp/w51/align.py`의 기존 방식 그대로 재사용, 스케일 공식만 교체).
+4) **새 AI 호출 0회**: 원본 고해상도 시트(`/tmp/walk50b/walk_south_v2_sheet.png`(4프레임,
+   204×204), `walk_north_v3_sheet.png`(4프레임, 206×206), `walk_east_256_sheet.png`
+   (8프레임, 212×212) — 전부 과거 바퀴(#50/#51)가 이미 크레딧을 써서 만들어 둔 뒤 `/tmp`에
+   남아있던 것)를 재사용해서 위 공식으로 재처리했다. west는 새로 만들지 않고 **east
+   결과를 좌우반전(PIL `ImageOps.mirror`) 후 west idle bbox에 재정렬**(#51이 정립한
+   east↔west 반전 규칙 재사용). 스크립트는 `/tmp/fix70/rebuild.py`(south/north/east
+   재처리)와 `/tmp/fix70/mirror_west.py`(west 반전)로 남겨뒀다.
+5) **PNG 교체 전 크기 비교**: idle+기존(버그) walk+새 walk를 나란히 이어붙인 대조
+   이미지(`/tmp/fix70/compare_{south,north,east,west}.png`)로 직접 확인 — 새 walk
+   프레임은 머리가 잘리지 않고 idle과 사실상 같은 크기가 됐다(기존 walk는 명백히 더
+   컸음).
+6) **인게임 검증**: `project.godot` autoload를 건드리지 않는 더 가벼운 방식을 썼다 —
+   `godot --path . -s /tmp/verify70.gd`(`SceneTree` 스크립트를 `-s`로 직접 실행,
+   `/tmp/w51/verify_walk51.gd` 패턴 재사용)로 `world.tscn`을 인스턴스화하고 4방향×
+   idle/walk 전체 프레임을 실제 렌더러로 캡처(`/tmp/fix70/shots/`). **PNG 교체 후
+   반드시 `.godot/imported/*.{md5,ctex}` 캐시를 지우고 `godot --path . --headless
+   --import`로 강제 재임포트**(바퀴 121이 남긴 교훈 재사용, 이번엔 처음부터 적용해서
+   캐시로 인한 오판 없이 한 번에 정상 반영 확인). 화면 중앙(960,540) 기준 160×160
+   크롭 후 3배 확대한 대조 스트립(`/tmp/fix70/ingame_compare_{south,north,east,west}.png`)
+   으로 idle과 walk 전 프레임이 실제 게임 해상도에서도 자연스럽게 같은 크기로
+   보이는지 확인 — 4방향 전부 통과(다리가 번갈아 움직이는 걷기 모션도 그대로 유지됨).
+7) **BUILD/DESIGN 완료 카운터: 바퀴 120(#68)=1, 바퀴 121(#69)=2에서 이번(#70)으로 3이
+   됨.** 5 미만이라 새 QA 스윕은 추가하지 않았다.
+8) 커밋 대상은 `game/assets/sprites/character/walk/green_{south,north,east,west}_walk_*.png`
+   24장뿐이다(`world.gd`는 이미 #50에서 walk_<방향> 분기가 있어 코드 변경 불필요).
+**다음 바퀴가 참고할 것**: INBOX 미완료 `[DESIGN]` 항목은 `#71`(총 idle 동/서 크기
+불일치)과 `#72`(총 남쪽 조준 자세 부자연스러움) — 번호 작은 `#71`부터. **SpriteCook
+잔액은 이번 바퀴 종료 시점에도 4크레딧 그대로**(이번 항목은 AI 호출을 전혀 안 써서
+소모 없음), PixelLab은 여전히 $0. **`/tmp`가 세션 간 유지되는 환경이라는 걸 이번에
+확인했다** — 그림 크기/정렬 버그를 고칠 때는 새로 AI를 호출하기 전에 먼저
+`/tmp/w*`, `/tmp/*50*`, `/tmp/fix*` 등 과거 바퀴가 남긴 원본 고해상도 시트가 재사용
+가능한지부터 확인할 것(이번처럼 크레딧 0원으로 해결될 수도 있다). blue/red 걷기
+프레임도 같은 스케일 버그(`align.py`의 `CANVAS/256.0`)로 만들어졌을 가능성이 있지만
+이번 항목 범위(#70은 green만 명시)를 벗어나 확인하지 않았다 — 다음에 blue/red
+걷기를 손볼 일이 생기면 같은 재처리 스크립트(`/tmp/fix70/rebuild.py`의 스케일 공식)를
+재사용할 수 있는지 먼저 볼 것.
+
 바퀴 121 / 2026-09-03 ([DESIGN] **INBOX #69 완료 — 도끼 chop(패기) 모션
 `green_south_chop.png`에 있던, 캐릭터/도끼 어디에도 안 붙은 낙서 같은 곡선 아티팩트를
 SpriteCook `generate-sync`(`edit_asset_id` 인페인트)로 제거.**
