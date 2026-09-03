@@ -23,7 +23,17 @@ const BulletScene := preload("res://scenes/bullet/bullet.tscn")
 const DeerScene := preload("res://scenes/deer/deer.tscn")
 const GatheringPointScene := preload("res://scenes/resource_point/gathering_point.tscn")
 const MiningPointScene := preload("res://scenes/resource_point/mining_point.tscn")
+const MiningPointStoneScene := preload("res://scenes/resource_point/mining_point_stone.tscn")
+const MiningPointSulfurScene := preload("res://scenes/resource_point/mining_point_sulfur.tscn")
 const LoggingPointScene := preload("res://scenes/resource_point/logging_point.tscn")
+
+## 채광 포인트 종류별 스폰 가중치 (INBOX #84). DESIGN.md "예시 자원"이 "돌이 가장 흔하고
+## 철광석, 유황광석 순으로 희귀해짐"이라고만 정해서, 정확한 수치는 재량으로 정함.
+const MINING_POINT_WEIGHTS := [
+	{"scene": MiningPointStoneScene, "weight": 60.0},
+	{"scene": MiningPointScene, "weight": 30.0},
+	{"scene": MiningPointSulfurScene, "weight": 10.0},
+]
 const FarmPlotScene := preload("res://scenes/farm_plot/farm_plot.tscn")
 const RanchZoneScene := preload("res://scenes/ranch_zone/ranch_zone.tscn")
 const DroppedItemScene := preload("res://scenes/dropped_item/dropped_item.tscn")
@@ -51,6 +61,8 @@ const ITEM_LABELS := {
 	"rice_seed": "벼 씨앗",
 	"rice": "벼",
 	"iron_ore": "철광석",
+	"stone": "돌",
+	"sulfur_ore": "유황광석",
 	"wood": "나무",
 	"captured_deer": "포획된 사슴",
 	"gun": "총",
@@ -68,6 +80,8 @@ const ITEM_CATEGORIES := {
 	"rice_seed": "원재료",
 	"rice": "곡물",
 	"iron_ore": "원재료",
+	"stone": "원재료",
+	"sulfur_ore": "원재료",
 	"wood": "원재료",
 	"captured_deer": "가축",
 	"gun": "도구",
@@ -390,9 +404,23 @@ func _spawn_resource_points() -> void:
 	for i in range(RESOURCE_POINT_COUNT):
 		_spawn_one_resource_point(GatheringPointScene)
 	for i in range(RESOURCE_POINT_COUNT):
-		_spawn_one_resource_point(MiningPointScene)
+		_spawn_one_resource_point(_pick_mining_point_scene())
 	for i in range(RESOURCE_POINT_COUNT):
 		_spawn_one_resource_point(LoggingPointScene)
+
+
+## MINING_POINT_WEIGHTS 가중치로 돌/철광석/유황광석 중 하나를 골라 반환한다 (INBOX #84).
+func _pick_mining_point_scene() -> PackedScene:
+	var total := 0.0
+	for entry in MINING_POINT_WEIGHTS:
+		total += entry["weight"]
+	var roll := randf() * total
+	var cumulative := 0.0
+	for entry in MINING_POINT_WEIGHTS:
+		cumulative += entry["weight"]
+		if roll < cumulative:
+			return entry["scene"]
+	return MINING_POINT_WEIGHTS[-1]["scene"]
 
 
 func _spawn_one_resource_point(scene: PackedScene) -> void:

@@ -11,6 +11,10 @@ const ITEM_ICONS := {
 	"rice_seed": preload("res://assets/sprites/items/rice_seed.png"),
 	"rice": preload("res://assets/sprites/items/rice.png"),
 	"iron_ore": preload("res://assets/sprites/items/iron_ore.png"),
+	# 돌/유황광석(INBOX #84) 전용 아이콘은 아직 없다 — iron_ore.png를 재사용하고
+	# ITEM_ICON_MODULATE로 색만 다르게 임시 처리한다(실제 그림은 후속 [DESIGN] #86).
+	"stone": preload("res://assets/sprites/items/iron_ore.png"),
+	"sulfur_ore": preload("res://assets/sprites/items/iron_ore.png"),
 	"captured_deer": preload("res://assets/sprites/items/captured_deer.png"),
 	# 도구도 인벤토리 버리기(INBOX #31)로 바닥에 떨어질 수 있어서 함께 추가했다 —
 	# world.gd의 TOOL_ICONS와 같은 텍스처를 재사용한다.
@@ -30,6 +34,13 @@ const ITEM_ICON_SCALE_OVERRIDES := {
 	"wood": Vector2(0.34, 0.34),
 }
 
+## mining_point_stone.tscn/mining_point_sulfur.tscn의 Sprite modulate와 같은 색으로
+## 맞춰서, 바닥에 떨어진 드롭 아이템도 채광 포인트에서 캔 것과 같은 색으로 보이게 한다.
+const ITEM_ICON_MODULATE := {
+	"stone": Color(0.78, 0.78, 0.8, 1),
+	"sulfur_ore": Color(1.0, 0.85, 0.25, 1),
+}
+
 @export var item_name: String = ""
 @export var item_amount: int = 1
 
@@ -46,6 +57,8 @@ func _ready() -> void:
 		sprite.texture = ITEM_ICONS[item_name]
 	if ITEM_ICON_SCALE_OVERRIDES.has(item_name):
 		sprite.scale = ITEM_ICON_SCALE_OVERRIDES[item_name]
+	if ITEM_ICON_MODULATE.has(item_name):
+		sprite.modulate = ITEM_ICON_MODULATE[item_name]
 
 
 func _process(_delta: float) -> void:
