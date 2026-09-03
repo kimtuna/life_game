@@ -681,6 +681,28 @@ func _build_player_sprite_frames(variant: String) -> SpriteFrames:
 			frames.add_animation(gun_fire_anim)
 			frames.set_animation_speed(gun_fire_anim, 1.0)
 			frames.add_frame(gun_fire_anim, load(gun_fire_path))
+
+		## 곡괭이낫의 "들고 있는"/"채광하는"/"채집하는" 모션(INBOX #54). 총(#42)과 같은
+		## 패턴 — 아직 green 색상만 이 자산이 있을 수 있어 ResourceLoader.exists()로
+		## 확인해서, 없는 색상은 조용히 건너뛴다.
+		var pickaxe_idle_path := "res://assets/sprites/character/pickaxe/%s_%s_idle.png" % [variant, direction]
+		if ResourceLoader.exists(pickaxe_idle_path):
+			var pickaxe_idle_anim := "pickaxe_idle_%s" % direction
+			frames.add_animation(pickaxe_idle_anim)
+			frames.set_animation_speed(pickaxe_idle_anim, 1.0)
+			frames.add_frame(pickaxe_idle_anim, load(pickaxe_idle_path))
+		var pickaxe_mining_path := "res://assets/sprites/character/pickaxe/%s_%s_mining.png" % [variant, direction]
+		if ResourceLoader.exists(pickaxe_mining_path):
+			var pickaxe_mining_anim := "pickaxe_mining_%s" % direction
+			frames.add_animation(pickaxe_mining_anim)
+			frames.set_animation_speed(pickaxe_mining_anim, 1.0)
+			frames.add_frame(pickaxe_mining_anim, load(pickaxe_mining_path))
+		var pickaxe_gathering_path := "res://assets/sprites/character/pickaxe/%s_%s_gathering.png" % [variant, direction]
+		if ResourceLoader.exists(pickaxe_gathering_path):
+			var pickaxe_gathering_anim := "pickaxe_gathering_%s" % direction
+			frames.add_animation(pickaxe_gathering_anim)
+			frames.set_animation_speed(pickaxe_gathering_anim, 1.0)
+			frames.add_frame(pickaxe_gathering_anim, load(pickaxe_gathering_path))
 	return frames
 
 
@@ -694,6 +716,11 @@ func _current_animation_name() -> String:
 		var gun_anim := ("gun_fire_%s" if _tool_use_flash_timer > 0.0 else "gun_idle_%s") % _facing
 		if player_sprite.sprite_frames.has_animation(gun_anim):
 			return gun_anim
+	elif _held_tool == "pickaxe":
+		var pickaxe_suffix := ("pickaxe_%s_%s" % [_pickaxe_use_kind, _facing]) if _tool_use_flash_timer > 0.0 \
+			else ("pickaxe_idle_%s" % _facing)
+		if player_sprite.sprite_frames.has_animation(pickaxe_suffix):
+			return pickaxe_suffix
 	var prefix := "walk_" if _is_moving else "idle_"
 	return prefix + _facing
 
