@@ -5,6 +5,81 @@
 
 ## 마지막 갱신
 
+바퀴 86 / 2026-09-03 ([DESIGN] **INBOX #58 완료 — #57의 도끼 "들고 있는"/"패는" 모션을
+blue/red로 확장, world.gd 코드 변경 없이 에셋만 추가, 4방향×2색×2상태 인게임 스크린샷으로
+검증 후 커밋.**
+1) 세션 시작 시 잔액 재확인: `GET /v1/api/credits` → SpriteCook 880크레딧, 충분해서
+   PixelLab은 확인하지 않음(#57과 동일한 판단).
+2) **세션 시작 시 `game/assets/sprites/character/axe/blue_south_idle.png` 1장이 이미
+   untracked 상태로 존재하는 것을 발견했다** — 커밋 기록이 없어 정체가 불분명했지만
+   파일 수정 시각이 green 자산 커밋(#57) 직후 5분 30초 뒤였고, 8배 확대해서 직접 보니
+   green과 동일한 스타일/자세(도끼를 어깨에 걸친 자세, 파란 셔츠)로 품질이 합격
+   수준이었다 — 이전 바퀴가 #58을 시작했다가 예산/시간 초과로 죽으면서 커밋 전에
+   끊긴 산출물로 추정된다. **버리지 않고 재사용했다**(다시 `/v1/api/assets/import`로
+   업로드해 새 asset_id를 받아 chop 체인 편집의 시작점으로 활용, 재생성 비용 절감).
+3) **#57이 기록한 도끼 프롬프트 원문(STATUS.md "바퀴 85 추가 조사" 절, 색상 언급 없음)을
+   그대로 재사용** — 총(#52→#53)/곡괭이낫(#54→#55)과 동일한 "색상별 실루엣 동일" 전제.
+   `POST /v1/api/assets/import`로 `blue_north.png`/`blue_east.png`/`red_south.png`/
+   `red_north.png`/`red_east.png`(기존 맨몸 정지 이미지, 68px 그대로) 업로드 → 각각
+   `generate-sync`에 `edit_asset_id`+`smart_crop:false`+`width/height:68`+
+   `variations:3`로 idle 생성 → 채택된 idle의 asset_id를 다시 `edit_asset_id`로
+   연쇄 편집해 chop 생성. west는 생성하지 않고 east(idle/chop 둘 다)를
+   `ImageOps.mirror()`로 좌우반전(기존 패턴 재사용).
+4) idle 5회(blue_south는 재사용이라 제외) + chop 6회 = 총 11회 generate-sync 호출 ×
+   variations 3 × 12크레딧 = 396크레딧 소모(880 → 484). **variations 11세트 중
+   1건(red_south_idle v0)만 134x129로 크게 어긋났고 나머지는 전부 68x68 또는 근접
+   (67x67 1건)이었다** — #57의 "출력 크기가 항상 정확했다"는 관찰이 표본이 늘어나며
+   깨졌다(경고대로 계속 `variations:3`+크기 필터링을 유지한 것이 적중). 크기가 어긋난
+   후보는 버리고 정확히 68x68인 후보 중에서만 골랐다.
+5) **chop 포즈 하나(blue_south_chop v0)가 요청한 도끼가 아니라 삽/셔블 실루엣(넓은
+   사각 날)으로 잘못 나온 것을 발견** — 프롬프트에 도끼 모양을 명시했음에도 chain 편집
+   과정에서 가끔 다른 도구로 변질될 수 있음을 확인, variations로 받은 다른 후보(v1/v2,
+   둘 다 정상적인 크레센트 도끼날) 중에서 채택해 문제없이 넘어갔다. **다음 바퀴가 참고할
+   것**: chain 편집 결과는 variations를 최소 2개 이상 받아 도구 실루엣이 실제로
+   요청한 것과 일치하는지 반드시 눈으로 확인하고 고를 것 — 한 후보만 받으면 이런 변질을
+   못 거를 위험이 있다.
+6) 코드 변경 없음 — `world.gd`의 `_build_player_sprite_frames()`가 이미 #57에서
+   `ResourceLoader.exists()` 가드로 색상별 파일 유무를 확인하는 구조라, 24개(blue
+   8+red 8+기존 green은 유지) 파일만 올바른 경로에 추가하면 자동으로 동작했다.
+7) **인게임 검증 중 새로 발견한 함정**: `[autoload]`로 world 씬을 직접
+   `add_child.call_deferred()`한 뒤 `_variant`를 바꿔가며 여러 색을 캡처하려 했더니,
+   `_ready()`가 캐릭터 세이브에서 읽은 최초 `_variant`로 `player_sprite.sprite_frames`를
+   한 번만 빌드해서 이후 `_variant`만 바꿔도 스프라이트가 갱신되지 않고 항상 첫 색(green)
+   그대로 나왔다(첫 시도에서 blue/red 스크린샷이 전부 green으로 나와 발견) — **해결책**:
+   색을 바꿀 때마다 `_world.player_sprite.sprite_frames = _world._build_player_sprite_frames(color)`를
+   직접 다시 호출해서 프레임을 재빌드해야 한다(#79/81/83처럼 world.gd를 재시작하지
+   않고 한 프로세스에서 여러 색을 순회할 때만 해당하는 함정 — 다음에 색상별 순회
+   검증 스크립트를 짤 때 반드시 이 재빌드 호출을 넣을 것).
+8) **또 다른 함정**: `add_child.call_deferred()`로 world 씬을 root에 추가만 하고
+   메인 메뉴(project.godot의 `run/main_scene`)를 그대로 두면, 메인 메뉴의 버튼
+   UI("플레이"/"설정" 등)가 캐릭터 위에 그대로 겹쳐서 스크린샷에 찍힌다. `queue_free()`로
+   메인 메뉴를 지우려 하면 world의 `_process()`(TimeData 관련 노드 접근)가 타이밍
+   경합으로 크래시했다 — **해결책**: 메인 메뉴 루트 노드(`Control` 이름 "MainMenu")를
+   `queue_free()`하지 말고 `visible = false`로 숨기면 크래시 없이 깨끗한 스크린샷을
+   얻을 수 있다.
+9) **4방향×2색×2상태(idle/chop) 인게임 스크린샷 검증**: 위 함정들을 해결한 뒤 16장을
+   캡처, 색상별 콘택트시트 2장으로 묶어 직접 눈으로 봤다 — 두 색 모두 4방향 전부 손과
+   도끼가 자연스럽게 붙어 있고, idle(어깨에 걸침)과 chop(런지+도끼 지면 근접, 일부
+   방향은 흙먼지 효과)이 뚜렷이 구분되며, west는 east의 완전한 좌우반전으로 정상
+   렌더링됨을 확인했다. green(#57)과 동일한 품질, 스타듀밸리/코어키퍼 대비 손색없는
+   수준으로 판단해 합격.
+10) 검증에 쓴 `game/scripts/_verify_axe58.gd`와 `project.godot`의 임시 `[autoload]`
+    항목은 커밋 전 원상복구(삭제/되돌리기)했다 — `git status`에는 새
+    `game/assets/sprites/character/axe/{blue,red}_*.png`(및 `.import`) 32개 파일만
+    남았다(임시 스크린샷은 `/tmp/axe58/`에서 실행해 레포에 남기지 않음).
+11) **BUILD/DESIGN 완료 카운터: 바퀴 83(#55)에서 0으로 리셋된 뒤 바퀴 85(#57)로 1,
+    이번 바퀴(#58)로 2가 됨.**
+**다음 바퀴가 참고할 것**: 다음 미완료 항목은 INBOX #59(`[DESIGN]` 낚싯대 모션 재작업,
+green 기준 — #57/#58과 같은 이유로 자산 초기화 이후 누락됐던 낚싯대 재작업). 이번
+바퀴가 겪은 두 함정(색상 전환 시 `sprite_frames` 재빌드 필요, 메인 메뉴는 `queue_free`
+대신 `visible=false`)을 재사용할 것 — 특히 #59도 green 하나만 만들면 되니 색상 전환
+함정은 해당 없을 수 있지만, #60(색상 확장)에서는 반드시 필요하다. chop/동작 모션을
+`edit_asset_id`로 연쇄 편집할 때 가끔 요청한 도구가 아닌 다른 모양(삽 등)으로 변질될
+수 있으니 variations 후보를 반드시 눈으로 확인하고 고를 것(이번 바퀴 5번 참고).
+SpriteCook 잔액은 이번 바퀴 종료 시점 484크레딧 — #59(green만, idle+fishing 2상태×
+3방향×variations3×12=216크레딧 추정)는 충분하지만 넉넉하지 않으니 실패 재시도를
+아끼며 진행할 것.
+
 바퀴 85 / 2026-09-03 ([DESIGN] **INBOX #57 완료 — 도끼(자산 초기화로 삭제됐던 #43의
 재작업)의 "들고 있는"/"패는" 모션을 SpriteCook `generate-sync`+`edit_asset_id`로 green
 4방향 전부 새로 만들어 캐릭터 애니메이션 프레임에 통합, 4방향×2상태 인게임 스크린샷으로
