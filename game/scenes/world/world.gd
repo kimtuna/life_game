@@ -70,39 +70,13 @@ const TOOL_ICONS := {
 	"fishing_rod": preload("res://assets/sprites/tools/fishing_rod.png"),
 }
 
-## 도구별 "실제로 쓰는 모션" 그림 (INBOX #37/#38/#40, DESIGN.md "도구 동작 표현"). TOOL_ICONS는
-## "들고 있는" 정적 자세고, 이 딕셔너리에 있는 도구는 사용하는 순간 잠깐 이 텍스처로
-## 바뀐다(낚싯대는 줄이 팽팽해지며 바늘이 드리워진 모습). **총(#42)/도끼(#43)/곡괭이낫(#44)은
-## 여기 없다** — 옆 아이콘 오버레이 방식을 버리고 캐릭터 애니메이션 프레임 자체
-## (gun_idle_*/gun_fire_*, axe_idle_*/axe_chop_*, pickaxe_idle_*/pickaxe_mining_*/
-## pickaxe_gathering_*, DESIGN.md "캐릭터 애니메이션")에 통합됐다. 낚싯대만 #45에서 이
-## 방식을 넘겨받을 예정이라 아직 남아 있다.
-const TOOL_USE_ICONS := {
-	"fishing_rod": preload("res://assets/sprites/tools/fishing_rod_fishing.png"),
-}
 ## "사용하는" 모션 텍스처가 유지되는 시간. GUN_FIRE_INTERVAL(0.5초)보다 짧아야 연사 중에도
 ## "들고 있는" 자세로 돌아왔다가 다시 반짝이는 것이 보인다.
 const GUN_MUZZLE_FLASH_DURATION := 0.12
-## 도끼로 패거나 곡괭이낫으로 채광/채집하는 동작이 눈에 보이는 시간. 총 발사보다 한 동작이
-## 느려 보여야 자연스러워서 총의 발사열 지속 시간보다 길게 잡았다 — DESIGN.md에 구체적
-## 수치가 없어 임의로 정함.
+## 도끼로 패거나 곡괭이낫으로 채광/채집하거나 낚싯대로 낚시하는 동작이 눈에 보이는 시간.
+## 총 발사보다 한 동작이 느려 보여야 자연스러워서 총의 발사열 지속 시간보다 길게 잡았다 —
+## DESIGN.md에 구체적 수치가 없어 임의로 정함.
 const AXE_CHOP_FLASH_DURATION := 0.25
-
-## 손에 든 도구 아이콘을 캐릭터 옆 어디에 띄울지, 바라보는 방향별 오프셋(플레이어 로컬 좌표계).
-## south/north는 원래 몸통 중앙(x=3) 근처에 두고 있었는데, 도구 그림 자체가 옆에서 본
-## 대각선 자세 하나뿐이라(방향별 별도 그림 없음) 몸 정중앙에 겹치면 배에서 튀어나온 것처럼
-## 보였다(INBOX #35). east/west처럼 몸 옆(엉덩이 높이)으로 옮겨서 "옆구리에 걸친" 자세로
-## 보이게 했다.
-const HELD_ITEM_OFFSETS := {
-	"east": Vector2(15.0, 3.0),
-	"west": Vector2(-15.0, 3.0),
-	"north": Vector2(14.0, -2.0),
-	"south": Vector2(16.0, 11.0),
-}
-
-## 등을 보이는 north에서는 도구를 몸 앞이 아니라 몸 뒤(등/옆구리)에 걸친 것처럼 보이도록
-## 캐릭터 스프라이트보다 뒤에 그린다. 그 외 방향은 손에 쥔 것이 자연스럽게 앞에 보여야 한다.
-const HELD_ITEM_BEHIND_FACINGS := ["north"]
 
 ## 다른 플레이어에게 내 위치/방향을 보내는 주기 (INBOX #14). 매 물리 프레임(60Hz)마다
 ## 보내면 LAN 기준으로도 낭비라, 10Hz로 줄인다 — 위치는 unreliable 채널이라 중간에
@@ -139,7 +113,6 @@ var _hotbar_cells: Array = []
 var _selected_hotbar_index: int = 0
 ## 지금 손에 든 도구 키("gun"/"axe"/"pickaxe"/"fishing_rod") 또는 빈손("").
 var _held_tool: String = ""
-var _held_item_sprite: Sprite2D
 var _hotbar_normal_style: StyleBoxFlat
 var _hotbar_selected_style: StyleBoxFlat
 var _ammo_type: String = "normal"
@@ -151,8 +124,9 @@ var _is_reloading: bool = false
 var _reload_timer: float = 0.0
 ## 재장전이 시작된 탄종 — 재장전 도중 우클릭으로 탄종을 바꿔도 엉뚱한 탄창이 채워지지 않게 기억해둔다.
 var _reloading_ammo_type: String = "normal"
-## 지금 "사용하는" 모션 텍스처가 표시 중이면 0보다 크다 (INBOX #37/#38). 매 물리 프레임
-## 줄어들다가 0이 되면 지금 손에 든 도구의 "들고 있는" 텍스처로 되돌아간다.
+## 지금 "사용하는" 모션 애니메이션이 재생 중이면 0보다 크다 (INBOX #37/#38). 매 물리 프레임
+## 줄어들다가 0이 되면 _current_animation_name()이 다시 지금 손에 든 도구의 "들고 있는"
+## 애니메이션을 고른다.
 var _tool_use_flash_timer: float = 0.0
 ## 곡괭이낫이 "쓰는" 모션 중일 때 채광("mining")인지 채집("gathering")인지 (INBOX #44).
 ## play_pickaxe_use()가 호출될 때마다 갱신되고, _current_animation_name()이
@@ -180,7 +154,6 @@ func _ready() -> void:
 	_spawn_ranch_zone()
 	_ensure_starting_tools()
 	_build_inventory_slots()
-	_build_held_item_sprite()
 	_build_hotbar()
 	InventoryData.changed.connect(_update_inventory_label)
 	InventoryData.changed.connect(_refresh_inventory_window)
@@ -228,7 +201,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		_tool_use_flash_timer = AXE_CHOP_FLASH_DURATION
 	elif event is InputEventMouseButton and event.pressed and not _paused and not _inventory_open \
 			and event.button_index == MOUSE_BUTTON_LEFT and _held_tool == "fishing_rod":
-		_play_tool_swing()
+		## 낚싯대는 INBOX #45부터 옆 아이콘이 아니라 캐릭터 애니메이션 프레임 자체
+		## (fishing_rod_fishing_*)로 낚시하는 모션을 보여준다 (도끼(#43)와 같은 패턴).
+		_tool_use_flash_timer = AXE_CHOP_FLASH_DURATION
 
 
 func _physics_process(delta: float) -> void:
@@ -251,10 +226,7 @@ func _physics_process(delta: float) -> void:
 
 	var to_mouse := get_global_mouse_position() - player_sprite.global_position
 	if to_mouse.length() > 1.0:
-		var new_facing := _facing_from_direction(to_mouse)
-		if new_facing != _facing:
-			_facing = new_facing
-			_update_held_item_transform()
+		_facing = _facing_from_direction(to_mouse)
 
 	if _is_moving != _was_moving or player_sprite.animation != _current_animation_name():
 		_was_moving = _is_moving
@@ -267,9 +239,6 @@ func _physics_process(delta: float) -> void:
 		_fire_cooldown -= delta
 	if _tool_use_flash_timer > 0.0:
 		_tool_use_flash_timer -= delta
-		if _tool_use_flash_timer <= 0.0 and _held_item_sprite != null and _held_tool != "gun" \
-				and _held_tool != "axe" and _held_tool != "pickaxe" and TOOL_ICONS.has(_held_tool):
-			_held_item_sprite.texture = TOOL_ICONS[_held_tool]
 	if _is_reloading:
 		_reload_timer -= delta
 		if _reload_timer <= 0.0:
@@ -335,25 +304,6 @@ func get_held_item() -> String:
 	var general_slots := InventoryData.get_general_slots()
 	var slot = general_slots[_selected_hotbar_index] if _selected_hotbar_index < general_slots.size() else null
 	return slot["item"] if slot != null else ""
-
-
-## 도끼/낚싯대는 아직 벌목 대상(나무)·낚시 스팟이 없어 실제 결과물을 만들 수 없다
-## (DESIGN.md "범위 밖"). 대신 "패는/낚는" 동작 자체는 손에 든 아이콘을 짧게 확대했다
-## 줄이는 스윙 반응으로 표현한다(INBOX #23). 도끼는 여기에 더해 INBOX #38부터 실제
-## "패는 모션" 그림(TOOL_USE_ICONS["axe"])으로 잠깐 바뀐다(DESIGN.md "도구 동작 표현").
-## override_texture를 주면 TOOL_USE_ICONS 대신 그 텍스처를 쓴다 — 곡괭이낫처럼 하나의
-## 도구가 여러 "쓰는 모션"을 가질 때(play_pickaxe_use() 참고) 재사용한다.
-func _play_tool_swing(override_texture: Texture2D = null) -> void:
-	if _held_item_sprite == null or not _held_item_sprite.visible:
-		return
-	var base_scale := Vector2(0.85, 0.85)
-	var tween := create_tween()
-	tween.tween_property(_held_item_sprite, "scale", base_scale * 1.35, 0.08)
-	tween.tween_property(_held_item_sprite, "scale", base_scale, 0.12)
-	var use_texture: Texture2D = override_texture if override_texture != null else TOOL_USE_ICONS.get(_held_tool)
-	if use_texture != null:
-		_held_item_sprite.texture = use_texture
-		_tool_use_flash_timer = AXE_CHOP_FLASH_DURATION
 
 
 ## resource_point.gd가 실제로 채광/채집이 일어나는 순간(harvest 성공 시) 호출한다
@@ -493,25 +443,6 @@ func _ensure_starting_tools() -> void:
 		InventoryData.add_item(tool_key, 1)
 
 
-## 손에 든 도구 아이콘을 보여줄 Sprite2D를 Player의 자식으로 만든다. Player의 스케일을
-## 그대로 물려받으므로 캐릭터 크기와 비례가 맞는다.
-func _build_held_item_sprite() -> void:
-	_held_item_sprite = Sprite2D.new()
-	_held_item_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	_held_item_sprite.scale = Vector2(0.85, 0.85)
-	_held_item_sprite.visible = false
-	player_sprite.add_child(_held_item_sprite)
-
-
-## 바라보는 방향에 맞춰 손에 든 아이콘의 위치/좌우반전을 갱신한다.
-func _update_held_item_transform() -> void:
-	if _held_item_sprite == null:
-		return
-	_held_item_sprite.position = HELD_ITEM_OFFSETS.get(_facing, Vector2.ZERO)
-	_held_item_sprite.flip_h = _facing == "west"
-	_held_item_sprite.show_behind_parent = _facing in HELD_ITEM_BEHIND_FACINGS
-
-
 ## 화면 아래 중앙에 핫바 9칸을 만든다 (INBOX #22). 인벤토리 창의 맨 위 9칸(핫바)과
 ## 같은 슬롯을 그대로 보여주는 별도 뷰다 — 데이터는 항상 InventoryData.get_general_slots()
 ## 에서 다시 읽어오므로 두 UI가 따로 놀 일이 없다.
@@ -567,28 +498,19 @@ func _refresh_hotbar() -> void:
 		)
 
 
-## 숫자키 1~9로 핫바 슬롯을 고른다. 도구 아이템이면 손에 들고(아이콘 스프라이트 전환),
-## 빈 슬롯이거나 도구가 아닌 아이템이면 빈손으로 되돌린다 (INBOX #22 요구사항 그대로).
+## 숫자키 1~9로 핫바 슬롯을 고른다. 도구 아이템이면 손에 들고, 빈 슬롯이거나 도구가
+## 아닌 아이템이면 빈손으로 되돌린다 (INBOX #22 요구사항 그대로). #45부터 TOOL_KEYS의
+## 모든 도구(gun/axe/pickaxe/fishing_rod)가 옆 아이콘 오버레이 없이 캐릭터 애니메이션
+## 프레임 자체(gun_idle_*/gun_fire_*, axe_idle_*/axe_chop_*, pickaxe_idle_*/
+## pickaxe_mining_*/pickaxe_gathering_*, fishing_rod_idle_*/fishing_rod_fishing_*)로
+## 든 모습을 보여주므로, 여기서는 _held_tool만 갱신하면 된다.
 func _select_hotbar(index: int) -> void:
 	if index < 0 or index >= InventoryData.HOTBAR_SIZE:
 		return
 	_selected_hotbar_index = index
 	var general_slots := InventoryData.get_general_slots()
 	var slot = general_slots[index] if index < general_slots.size() else null
-	if slot != null and TOOL_ICONS.has(slot["item"]):
-		_held_tool = slot["item"]
-		if _held_tool == "gun" or _held_tool == "axe" or _held_tool == "pickaxe":
-			## 총(#42)/도끼(#43)/곡괭이낫(#44)은 옆 아이콘 오버레이를 쓰지 않는다 — 캐릭터
-			## 애니메이션 프레임(gun_idle_*/gun_fire_*, axe_idle_*/axe_chop_*,
-			## pickaxe_idle_*/pickaxe_mining_*/pickaxe_gathering_*) 자체가 든 모습을 보여준다.
-			_held_item_sprite.visible = false
-		else:
-			_held_item_sprite.texture = TOOL_ICONS[_held_tool]
-			_held_item_sprite.visible = true
-			_update_held_item_transform()
-	else:
-		_held_tool = ""
-		_held_item_sprite.visible = false
+	_held_tool = slot["item"] if slot != null and TOOL_ICONS.has(slot["item"]) else ""
 	_refresh_hotbar()
 	_update_player_animation()
 
@@ -779,6 +701,19 @@ func _build_player_sprite_frames(variant: String) -> SpriteFrames:
 		frames.add_animation(pickaxe_gathering_anim)
 		frames.set_animation_speed(pickaxe_gathering_anim, 1.0)
 		frames.add_frame(pickaxe_gathering_anim, load("res://assets/sprites/character/pickaxe/%s_%s_gathering.png" % [variant, direction]))
+
+		## 낚싯대(INBOX #45, 총(#42)/도끼(#43)/곡괭이낫(#44)과 같은 패턴): "들고 있는"/
+		## "낚시하는" 모션 프레임 자체에 손과 낚싯대가 붙어 있는 그림을 넣는다. 이 도구를
+		## 끝으로 TOOL_KEYS의 모든 도구가 캐릭터 애니메이션 프레임에 통합됐다.
+		var fishing_rod_idle_anim := "fishing_rod_idle_%s" % direction
+		frames.add_animation(fishing_rod_idle_anim)
+		frames.set_animation_speed(fishing_rod_idle_anim, 1.0)
+		frames.add_frame(fishing_rod_idle_anim, load("res://assets/sprites/character/fishing_rod/%s_%s_idle.png" % [variant, direction]))
+
+		var fishing_rod_fishing_anim := "fishing_rod_fishing_%s" % direction
+		frames.add_animation(fishing_rod_fishing_anim)
+		frames.set_animation_speed(fishing_rod_fishing_anim, 1.0)
+		frames.add_frame(fishing_rod_fishing_anim, load("res://assets/sprites/character/fishing_rod/%s_%s_fishing.png" % [variant, direction]))
 	return frames
 
 
@@ -791,6 +726,8 @@ func _current_animation_name() -> String:
 		if _tool_use_flash_timer > 0.0:
 			return ("pickaxe_mining_" if _pickaxe_use_kind == "mining" else "pickaxe_gathering_") + _facing
 		return "pickaxe_idle_" + _facing
+	if _held_tool == "fishing_rod":
+		return ("fishing_rod_fishing_" if _tool_use_flash_timer > 0.0 else "fishing_rod_idle_") + _facing
 	return ("walk_" if _is_moving else "idle_") + _facing
 
 
