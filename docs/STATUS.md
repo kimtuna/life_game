@@ -5,6 +5,68 @@
 
 ## 마지막 갱신
 
+바퀴 78 / 2026-09-03 (**INBOX #50 완료 — SpriteCook animate-sync로 green 4방향 walk 애니메이션 완성, world.gd에 통합, 4방향 인게임 스크린샷으로 검증 후 커밋.**
+1) 세션 시작 시 잔액을 재확인한 결과 **SpriteCook이 28 → 3028크레딧으로 회복(사람이
+   "adventurer" 티어로 업그레이드한 것으로 보임)**, PixelLab은 여전히 $0. 예산 문제가
+   해소되어 바퀴 69/76이 막혔던 지점부터 재개했다.
+2) **공식 `character-workflows`(`POST /characters/{id}/animations`)를 실제로 뚫어본
+   결과, 우리 기존 스프라이트로는 쓸 수 없다는 게 확정됐다** — 자세한 내용은 아래
+   "SpriteCook API 실측 조사 > 바퀴 78 추가 조사" 참고. 요약: 이 엔드포인트는 우리
+   asset_id를 character_id로 바로 써도 동작은 하지만(문서화 안 된 동작, 이번에 새로
+   발견), walk/idle_back 등 front가 아닌 모든 애니메이션이 필요로 하는 "prep" 단계가
+   `degraded_resolution` 에러로 항상 실패한다(원본 68px, 3배(204px), 256px 업스케일
+   모두 동일하게 실패 — 즉 진짜 원인은 표면적 해상도가 아니라 이 저디테일 chibi
+   캐릭터 자체가 prep 품질 기준을 못 넘는 것으로 보인다). 실패한 아이템은 크레딧이
+   자동 환불된다(122 예약 → 20만 실제 차감, 102 환불).
+3) 그래서 `animate-sync`로 돌아갔다 — 이번엔 **문서(https://spritecook.ai/api-docs)를
+   제대로 읽고** 바퀴 69/76이 몰랐던 것을 새로 알아냈다: `output_frames` 기본값은
+   8이고(바퀴 69/76은 4로 줄여서 썼었다), `negative_prompt` 파라미터가 있다. 이 조합으로
+   south를 재시도했지만 **바퀴 69/76과 완전히 동일한 실패(다리가 거의 안 움직임)가
+   또 재현**됐다(output_frames를 8로 올려도 해결 안 됨 — 4번째 독립 재현).
+4) **결정적 발견: 이 실패는 SpriteCook 자체의 한계가 아니라 정면/후면(south/north,
+   대칭적인 저해상도 chibi 실루엣) 시점에서만 나타난다.** 같은 방식으로 east(측면)를
+   시험하자 **첫 시도부터 자연스럽게 교차하는 걸음걸이가 나왔다** — 실제 게임 렌더링
+   기준으로도 스타듀밸리 수준. north도 처음엔 east와 같은 약한 프롬프트로 south와
+   똑같이 실패했다.
+5) south/north는 프롬프트를 "과장된 행진(exaggerated marching, 무릎을 높이 들고
+   다리를 넓게 벌림)"으로 바꾸고 `output_frames`를 8→4로 줄였더니(4프레임이 한
+   프레임당 차지하는 "차별화 여력"이 커지는 것으로 추정) 완전한 해결은 아니지만
+   확실히 프레임마다 다리 위치가 달라지는 수준까지 좋아졌다(자세한 프롬프트는 아래
+   "바퀴 78 추가 조사" 참고, 재사용 가능). 다리를 크롭+확대해서 직접 비교하고, 최종적으로
+   실제 게임(AnimatedSprite2D) 렌더링으로도 4프레임 전부 스크린샷을 찍어 다리 위치가
+   실제로 바뀌는 것을 확인한 뒤에만 통합했다.
+6) 생성된 스프라이트시트(south/north 204px대, east 212px대 — 소스를 68→256px로
+   업스케일해서 넣었기 때문에 출력도 그만큼 큼)를 68x68 캔버스로 되돌리는 과정에서
+   **`Image.LANCZOS`로 다운스케일하면 원본의 크리스피한 픽셀 경계가 뭉개져 기존
+   idle 이미지와 스타일이 어긋나 보인다는 걸 발견**했다 — `Image.NEAREST`로
+   다운스케일해야 원본과 같은 "덩어리진" 픽셀아트 느낌이 유지된다(둘을 나란히 놓고
+   비교해서 확인). 정렬은 알파 채널 bbox의 바닥/가로중심을 기존 idle 이미지의 bbox와
+   맞추는 방식(바퀴 76과 동일)을 그대로 재사용했다.
+7) west는 새로 생성하지 않고 **east 프레임을 `ImageOps.mirror()`로 좌우반전**해서
+   재사용했다 — 기존 `green_west.png`가 이미 `green_east.png`의 완전한 좌우반전이라는
+   것을 픽셀 비교로 재확인했고(바퀴 18 결정과 같은 패턴), east가 이미 고품질이라 서쪽만
+   따로 AI 생성에 크레딧/위험을 쓸 이유가 없었다.
+8) `world.gd`의 `_build_player_sprite_frames()`에 `WALK_FRAME_COUNTS`(south/north=4,
+   east/west=8) 기반으로 `walk_<방향>` 애니메이션을 추가했고, `_current_animation_name()`은
+   `_is_moving` 여부로 idle/walk를 분기하도록 바꿨다(도구별 분기는 아직 없음, #52~#54가
+   나중에 추가).
+9) **4방향 인게임 스크린샷 검증**: `--headless --path . --import`로 강제 재임포트 후,
+   `--path .`(헤드리스 아님, 실제 렌더러)로 `SceneTree` 서브클래스 스크립트를 실행해
+   `_facing`/`_is_moving`을 직접 설정하고 `AnimatedSprite2D.frame`을 강제 지정해가며
+   캡처했다. east/west는 스타듀밸리 수준으로 또렷한 교차보행, south/north는 프레임마다
+   다리 위치가 눈에 띄게 달라지는 것을 확인했다(east/west보다는 약하지만 "멈춰 있다"는
+   느낌은 사라짐 — 다섯 번의 독립 재시도 끝에 이게 이 캐릭터/해상도에서 SpriteCook로
+   낼 수 있는 현실적 상한으로 판단했다). ①(스타듀밸리/코어키퍼 대비) 기준을 통과한다고
+   판단해 커밋했다.
+10) `git status`에는 `world.gd` 수정과 새 `game/assets/sprites/character/walk/` 디렉터리만
+    남았다(임시 검증 스크립트는 `/tmp`에서 실행해 레포에 남기지 않음).
+**다음 바퀴가 참고할 것**: #51(blue/red로 확장)을 진행할 때 이번 바퀴가 남긴 프롬프트
+템플릿(아래 "바퀴 78 추가 조사")과 `output_frames`/방향별 규칙을 그대로 재사용할 것 —
+south/north는 4프레임+과장된 마칭 프롬프트, east/west는 8프레임 기본 프롬프트(west는
+east 좌우반전, 재생성 불필요). SpriteCook 잔액은 이번 바퀴 종료 시점 약 2868크레딧
+남음(3028에서 시작해 이번 세션에서 여러 실험 포함 약 160 사용, 실패분은 환불됨) —
+#51은 걱정 없이 진행 가능. PixelLab은 여전히 $0으로 미확인 상태.)
+
 바퀴 77 / 2026-09-03 (**INBOX #50 착수 보류 — `EXTERNAL_TOOL_BLOCKED` 발행, 루프 중단.**
 세션 시작 시 `GET /v1/api/credits`(SpriteCook)와 `/v1/balance`(PixelLab)를 재확인한 결과
 `{"total":28,"subscription_credits":0,"topup_credits":28}` / `{"type":"usd","usd":0.0}` —

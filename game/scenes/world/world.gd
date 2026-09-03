@@ -635,13 +635,18 @@ func _update_time_label() -> void:
 	time_label.text = "%s %d일차 · %s" % [TimeData.season_label(), TimeData.current_day_of_month(), phase_text]
 
 
-## 방향별 idle(1프레임) 애니메이션만 담은 SpriteFrames를 만든다.
-## (초기화됨 — 예전에는 여기서 걷기 4프레임과 도구별 들기/사용 모션까지 전부 만들었지만,
-## 그 그림들이 계속 부자연스럽다는 지적을 받아 DESIGN.md "하네스 구조"에 따라 전부
-## 지우고 다시 만들기로 했다. AnimatedSprite2D/SpriteFrames 구조 자체는 유지한다 —
-## 이건 그림 문제가 아니라 올바른 기반이었다. [DESIGN] 하네스가 PixelLab의
-## animate-character/animate-with-skeleton 같은 전용 기능으로 walk와 도구별 모션을
-## 다시 만들어서 이 함수에 애니메이션을 추가해나갈 것.)
+## 방향별 idle(1프레임) + walk(방향별 프레임 수가 다름, SpriteCook animate-sync로
+## 생성) 애니메이션을 담은 SpriteFrames를 만든다. 도구별 들기/사용 모션은 아직
+## 없다(#52~#54가 다시 만들 것).
+## walk 프레임 수가 방향마다 다른 이유(INBOX #50 결과): south/north(정면/후면)는
+## SpriteCook animate-sync가 8프레임을 요청하면 프레임 간 다리 위치가 거의
+## 구분되지 않는 실패가 반복돼(같은 문제가 4프레임 요청에서는 완화됨) 4프레임으로
+## 생성했고, east(측면, west는 east를 좌우반전한 것 — green_west.png가 기존에도
+## green_east.png의 반전이었던 것과 같은 패턴)는 8프레임에서도 자연스러운 좌우
+## 교차 보행이 나와 8프레임을 그대로 썼다.
+const WALK_FRAME_COUNTS := {"south": 4, "north": 4, "east": 8, "west": 8}
+const WALK_FPS := 6.0
+
 func _build_player_sprite_frames(variant: String) -> SpriteFrames:
 	var frames := SpriteFrames.new()
 	if frames.has_animation("default"):
@@ -651,13 +656,21 @@ func _build_player_sprite_frames(variant: String) -> SpriteFrames:
 		frames.add_animation(idle_anim)
 		frames.set_animation_speed(idle_anim, 1.0)
 		frames.add_frame(idle_anim, load("res://assets/sprites/character/%s_%s.png" % [variant, direction]))
+
+		var walk_anim := "walk_%s" % direction
+		frames.add_animation(walk_anim)
+		frames.set_animation_speed(walk_anim, WALK_FPS)
+		var frame_count: int = WALK_FRAME_COUNTS[direction]
+		for i in range(frame_count):
+			frames.add_frame(walk_anim, load("res://assets/sprites/character/walk/%s_%s_walk_%d.png" % [variant, direction, i]))
 	return frames
 
 
-## 초기화됨 — 걷기/도구별 모션이 다시 만들어지기 전까지는 방향별 idle 한 장으로만
-## 표시한다. [DESIGN] 하네스가 애니메이션을 다시 만들면 이 함수에 분기를 추가할 것.
+## 이동 중이면 방향별 walk 애니메이션, 멈춰 있으면 idle 애니메이션을 재생한다
+## (INBOX #50). 도구를 들었을 때 분기는 아직 없다(#52~#54가 다시 만들 것).
 func _current_animation_name() -> String:
-	return "idle_" + _facing
+	var prefix := "walk_" if _is_moving else "idle_"
+	return prefix + _facing
 
 
 func _update_player_animation() -> void:

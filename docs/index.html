@@ -20,15 +20,15 @@
 </head>
 <body>
   <h1>auto-loop 진행 상황</h1>
-  <p class="updated">마지막 갱신: 2026-09-03 12:02:03</p>
+  <p class="updated">마지막 갱신: 2026-09-03 12:27:28</p>
   
   <div class="row">
-    <div class="card"><div class="label">남은 항목</div><div class="num">5</div></div>
-    <div class="card"><div class="label">완료된 항목</div><div class="num">49</div></div>
+    <div class="card"><div class="label">남은 항목</div><div class="num">4</div></div>
+    <div class="card"><div class="label">완료된 항목</div><div class="num">50</div></div>
   </div>
   <div class="card">
     <div class="label">지금 처리 중 / 다음으로 처리할 항목</div>
-    <div>#50 [DESIGN] 캐릭터 기본 idle/walk 애니메이션을 SpriteCook으로 새로 만든다(자산 초기화 후 재작업, 기준 색상 green만 먼저). DESIGN.md "그래픽 파이프라인"대로 SpriteCook의 캐릭터 애니메이션 기능(idle/walk 등)을 먼저 조사해서 쓴다. 방향 4개(south/east/north/west) × idle(1프레임 이상)/walk(여러 프레임) 애니메이션을 만들어서 `world.gd`의 `_build_player_sprite_frames()`/`_current_animation_name()`에 walk_&lt;방향&gt; 분기를 추가한다(idle_&lt;방향&gt;은 이미 있음, 기존 정지 이미지 재사용 가능하면 재사용해도 됨). 걷는 동안 실제로 다리가 움직이는 것처럼 보여야 한다 — 이번 디자인 작업에서 자연스러움과 퀄리티가 최우선이다. 4방향 전부 스크린샷으로 직접 확인한다.</div>
+    <div>#51 [DESIGN] #50의 걷기 애니메이션을 나머지 색상(blue/red)까지 확장한다. green과 같은 방식/품질로 만들고 4방향 스크린샷으로 확인한다.</div>
   </div>
   <div class="card">
     <div class="label">마지막 작업 커밋</div>
