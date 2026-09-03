@@ -720,6 +720,23 @@ func _build_player_sprite_frames(variant: String) -> SpriteFrames:
 			frames.add_animation(axe_chop_anim)
 			frames.set_animation_speed(axe_chop_anim, 1.0)
 			frames.add_frame(axe_chop_anim, load(axe_chop_path))
+
+		## 낚싯대의 "들고 있는"/"낚시하는" 모션(INBOX #59, 자산 초기화로 삭제됐던 #45를
+		## SpriteCook `generate-sync`+`edit_asset_id`로 재작업). 총/도끼/곡괭이낫과 같은
+		## 패턴 — 아직 green 색상만 이 자산이 있을 수 있어 ResourceLoader.exists()로
+		## 확인해서, 없는 색상은 조용히 건너뛴다.
+		var fishing_rod_idle_path := "res://assets/sprites/character/fishing_rod/%s_%s_idle.png" % [variant, direction]
+		if ResourceLoader.exists(fishing_rod_idle_path):
+			var fishing_rod_idle_anim := "fishing_rod_idle_%s" % direction
+			frames.add_animation(fishing_rod_idle_anim)
+			frames.set_animation_speed(fishing_rod_idle_anim, 1.0)
+			frames.add_frame(fishing_rod_idle_anim, load(fishing_rod_idle_path))
+		var fishing_rod_fishing_path := "res://assets/sprites/character/fishing_rod/%s_%s_fishing.png" % [variant, direction]
+		if ResourceLoader.exists(fishing_rod_fishing_path):
+			var fishing_rod_fishing_anim := "fishing_rod_fishing_%s" % direction
+			frames.add_animation(fishing_rod_fishing_anim)
+			frames.set_animation_speed(fishing_rod_fishing_anim, 1.0)
+			frames.add_frame(fishing_rod_fishing_anim, load(fishing_rod_fishing_path))
 	return frames
 
 
@@ -742,6 +759,10 @@ func _current_animation_name() -> String:
 		var axe_anim := ("axe_chop_%s" if _tool_use_flash_timer > 0.0 else "axe_idle_%s") % _facing
 		if player_sprite.sprite_frames.has_animation(axe_anim):
 			return axe_anim
+	elif _held_tool == "fishing_rod":
+		var fishing_rod_anim := ("fishing_rod_fishing_%s" if _tool_use_flash_timer > 0.0 else "fishing_rod_idle_%s") % _facing
+		if player_sprite.sprite_frames.has_animation(fishing_rod_anim):
+			return fishing_rod_anim
 	var prefix := "walk_" if _is_moving else "idle_"
 	return prefix + _facing
 

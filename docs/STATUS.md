@@ -5,6 +5,82 @@
 
 ## 마지막 갱신
 
+바퀴 87 / 2026-09-03 ([DESIGN] **INBOX #59 완료 — 낚싯대(자산 초기화로 삭제됐던 #45의
+재작업)의 "들고 있는"/"낚시하는" 모션을 SpriteCook `generate-sync`+`edit_asset_id`로
+green 4방향 전부 새로 만들어 캐릭터 애니메이션 프레임에 통합, 4방향×2상태 인게임
+스크린샷으로 검증 후 커밋.**
+1) 세션 시작 시 잔액 재확인: `GET /v1/api/credits` → SpriteCook 484크레딧(바퀴 86이
+   남긴 수치와 정확히 일치, 충분해서 PixelLab은 확인하지 않음 — #57/#58과 동일한 판단).
+2) **총(#52)/도끼(#57)가 정립한 레시피를 그대로 재사용**: `green_south/north/east.png`
+   (68px 그대로)를 `/v1/api/assets/import`로 업로드 → `generate-sync`에
+   `edit_asset_id`+`smart_crop:false`+`width/height:68`+`variations:3`로 idle 생성 →
+   채택된 idle의 asset_id를 다시 `edit_asset_id`로 연쇄 편집해 fishing(낚시하는 모션)
+   생성. west는 생성하지 않고 east(idle/fishing 둘 다)를 `ImageOps.mirror()`로
+   좌우반전(기존 패턴 재사용).
+3) **낚싯대 프롬프트는 기존 아이콘(`assets/sprites/tools/fishing_rod.png`)을 8배
+   확대해서 먼저 직접 본 뒤** "long thin light brown wooden pole/rod + thin fishing
+   line hanging from the tip with a small hook/bobbin, NOT a spear, NOT a sword, NOT a
+   broom"으로 구체적으로 서술 — 총/도끼 때와 같은 "재질/구성요소 구체 서술 + NOT 문구"
+   패턴을 그대로 적용. south/north idle은 첫 시도(variations 3개)부터 전부 합격
+   수준(낚싯줄이 손잡이 끝에서 자연스럽게 늘어지고 빨간 찌/바늘까지 뚜렷)이 나왔다.
+4) **east(측면) idle만 첫 시도 3개 전부 낚싯줄이 허공에 붕 뜬 채 끊겨 보이는 결함이
+   있었다**(작은 빨간 점이 낚싯대 끝과 연결되지 않고 오른쪽 빈 공간에 따로 떠 있음) —
+   south/north는 이 결함이 없었는데 east만 재현됐다. **해결책**: east만 프롬프트에
+   "A single thin fishing line must hang DOWNWARD from the rod tip, staying connected
+   the whole way... NOT floating far away in empty space, NOT disconnected"를 명시적으로
+   추가하고 `edit_asset_id`를 원본(green_east.png 재업로드)으로 다시 호출해 재시도했다
+   (variations:3, 36크레딧 추가) — 재시도 결과 3개 중 2개가 낚싯줄이 손잡이 끝에서
+   찌까지 완전히 연결된 정상적인 모습으로 나와 그중 하나를 채택했다. **다음 바퀴가
+   참고할 것**: 측면(east/west) 시점에서만 유독 이런 "연결 안 된 소품" 결함이 나올 수
+   있으니, 측면 결과물은 특히 소품이 캐릭터/도구 몸체와 실제로 이어져 있는지 확대해서
+   확인할 것 — 이번처럼 재시도 시 "NOT floating/disconnected" 문구를 명시하면 잘 통했다.
+5) idle 3방향(south/north/east, east는 재시도 포함 2회) + fishing 3방향 = 총 21회
+   generate-sync 호출(idle 4 + fishing 3, 각 variations 3) × 12크레딧 = 252크레딧
+   소모(484 → 232). **variations 21세트 중 대부분이 정확히 68x68이었고, east idle
+   재시도 3개 중 1개만 68x70으로 살짝 어긋나 나머지 두 정확한 크기 중에서 골랐다** —
+   #57/#58의 "variations:3+크기 필터링" 권장이 이번에도 유효했다.
+6) **fishing(낚시하는) 포즈 품질**: 세 방향 모두 첫 시도에서 곧바로 "낚싯대가 팽팽하게
+   휘어진 채(물고기가 걸린 느낌) 양손으로 버티는" 자세가 나와 idle(곧게 편 낚싯대)과
+   뚜렷이 구분됐다 — 요청하지 않았는데도 자동으로 낚싯대 끝이 휘어지는 디테일이 더해진
+   것은 도끼(#57) chop 때 흙먼지가 자동으로 붙었던 것과 비슷한 패턴. south는 다리를
+   넓게 벌린 버티기 자세, north는 몸을 앞으로 기울인 자세, east는 가장 극적으로 휜
+   낚싯대(v2)를 채택해 세 방향 모두 idle과 명확히 다른 동작임을 확인했다.
+7) 코드: `world.gd`의 `_build_player_sprite_frames()`에 gun/pickaxe/axe와 동일한
+   `ResourceLoader.exists()` 가드 패턴으로 `fishing_rod_idle_<dir>`/
+   `fishing_rod_fishing_<dir>`을 추가했고, `_current_animation_name()`에
+   `_held_tool == "fishing_rod"` 분기(`_tool_use_flash_timer` >0이면 fishing, 아니면
+   idle)를 되살렸다. 좌클릭 시 `_tool_use_flash_timer = AXE_CHOP_FLASH_DURATION`을
+   설정하는 입력 처리 코드(`_unhandled_input`)는 자산 초기화 이전부터 이미 그대로
+   남아있어 수정이 필요 없었다(도끼(#57) 때와 동일한 상황 — 트리거 로직은 살아있었고
+   빌드/분기 로직만 빠져 있었음).
+8) **인게임 검증**: 바퀴 85/86이 확립한 방법(`Node` 스크립트를 `project.godot`
+   `[autoload]`에 임시 추가 → `godot --path .`(헤드리스 아님, 실제 렌더러)로 world 씬을
+   인스턴스화 → 메인 메뉴는 `queue_free()` 대신 `visible=false`로 숨김 → 시작 게이트용
+   대기 변수와 스텝별 `await get_tree().process_frame`을 분리(바퀴 83이 남긴 "대기
+   변수 재사용 금지" 함정 회피) → `_held_tool="fishing_rod"`/`_facing`/
+   `_tool_use_flash_timer`를 방향×상태별로 강제 설정 → `_update_player_animation()` →
+   3프레임 대기 → `img.get_size()` 기준 중심 크롭 → PNG 저장 → `get_tree().quit()`)를
+   그대로 재사용해 8장을 캡처, 콘택트시트 1장으로 묶어 직접 눈으로 봤다 — 4방향 전부
+   손과 낚싯대가 자연스럽게 붙어 있고, idle(곧게 편 낚싯대+늘어진 줄)과 fishing(팽팽히
+   휜 낚싯대+버티는 자세)이 뚜렷이 구분되며, west는 east의 완전한 좌우반전으로 정상
+   렌더링됨을 확인했다. green(총/도끼/곡괭이낫)과 동일한 품질, 스타듀밸리/코어키퍼
+   대비 손색없는 수준으로 판단해 합격.
+9) 검증에 쓴 `game/scripts/_verify_fishingrod59.gd`와 `project.godot`의 임시
+   `[autoload]` 항목은 커밋 전 원상복구(삭제/되돌리기)했다 — `git status`에는 새
+   `game/assets/sprites/character/fishing_rod/green_*.png`(및 `.import`) 16개 파일과
+   `world.gd` 수정만 남았다(임시 스크립트/스크린샷은 `/tmp/fishingrod59/`에서 실행해
+   레포에 남기지 않음).
+10) **BUILD/DESIGN 완료 카운터: 바퀴 83(#55)에서 0으로 리셋된 뒤 바퀴 85(#57)로 1,
+    바퀴 86(#58)로 2, 이번 바퀴(#59)로 3이 됨.**
+**다음 바퀴가 참고할 것**: 다음 미완료 항목은 INBOX #60(`[DESIGN]` 낚싯대 모션을
+blue/red로 확장). 이번 바퀴가 확립한 프롬프트(위 3번)와 east만 겪은 "연결 안 된 소품"
+함정(위 4번)을 참고할 것 — 색상 확장에서도 east는 특히 낚싯줄 연결 여부를 확대해서
+확인할 것을 권장(같은 프롬프트를 재사용해도 같은 함정이 재현될 수 있음). SpriteCook
+잔액은 이번 바퀴 종료 시점 232크레딧 — #60(blue/red 확장, idle+fishing 2상태×3방향×
+2색×variations 없이 재사용 시도 or 재생성 시 최대 12방향×variations3×12=432크레딧
+추정)은 빠듯할 수 있으니, #57→#58처럼 프롬프트를 색상 언급 없이 그대로 재사용해서
+재시도를 최소화하고, 진행 전에 잔액을 다시 확인할 것.
+
 바퀴 86 / 2026-09-03 ([DESIGN] **INBOX #58 완료 — #57의 도끼 "들고 있는"/"패는" 모션을
 blue/red로 확장, world.gd 코드 변경 없이 에셋만 추가, 4방향×2색×2상태 인게임 스크린샷으로
 검증 후 커밋.**
@@ -1187,6 +1263,68 @@ DESIGN.md가 "캐릭터/동물 애니메이션 전담 도구"로 지정한 Sprit
   고르기 쉬웠다(곡괭이낫 north gathering 때 겪었던 "구분 안 됨" 문제는 재현되지 않음).
 - 이 세션이 만든 SpriteCook 자산은 전부 게임에 통합·커밋 완료라 재사용 불필요.
   `/tmp/axe57/`에 원본 응답 JSON/이미지/인게임 스크린샷이 남아있으나 임시 디렉터리다.
+
+### 바퀴 87 추가 조사 (INBOX #59 — 낚싯대 idle/fishing 프롬프트 원문, #60이 재사용할 것)
+
+- 색상 언급이 전혀 없는 프롬프트라 blue/red에도 그대로 재사용 가능(총/도끼/곡괭이낫과
+  같은 "색상별 실루엣 동일" 전제).
+- **south(정면) idle**: `"Edit this pixel art character (front view, facing the
+  viewer) to hold a fishing rod: a tool with a long thin light brown wooden pole/rod
+  and a thin fishing line hanging from the tip with a small hook or bobbin at the end
+  (like a real fishing rod, NOT a spear, NOT a sword, NOT a broom). The character
+  grips the rod with both hands near the base, holding it diagonally up and forward
+  over one shoulder, at rest (not casting). The rod must be a clearly recognizable
+  long thin fishing rod silhouette, at least as tall as the character, with a visible
+  thin line dangling from the tip. Keep the character's exact identity, face, hair,
+  outfit colors, body proportions, position within the frame, and pixel art style
+  unchanged from the reference image -- do not move, resize, or recenter the
+  character. Transparent background, crisp pixel art, no anti-aliasing blur, no extra
+  text or UI."` — 첫 시도(variations 3개) 전부 합격 수준이었다.
+- **north(후면) idle**: 위에서 `"front view, facing the viewer"`→`"back view, facing
+  away from the viewer"`로 바꾸고 얼굴 관련 문구(`"face,"`)를 제거한 버전. 이것도 첫
+  시도 전부 합격.
+- **east(측면) idle, ⚠️ 첫 시도는 실패**: 처음엔 `"side view, facing right"` +
+  `"holding the rod diagonally across the body with the rod tip pointing up and to the
+  right, at rest (not casting)"`(나머지는 south와 동일한 틀)로 요청했는데, variations
+  3개 전부 낚싯줄/찌를 뜻하는 작은 빨간 점이 낚싯대 끝과 전혀 연결되지 않고 허공에 뚝
+  떨어져 떠 있는 결함이 나왔다(south/north는 이 문제가 없었음 — 측면 시점 고유의
+  실패로 보인다). **재시도 프롬프트(성공)**: 원본 `green_east.png`를 다시 업로드해
+  `edit_asset_id`로 새로 호출하며 위 east 프롬프트에 다음 문장을 추가했다: `"A single
+  thin fishing line must hang DOWNWARD from the rod tip, staying connected the whole
+  way, ending in a small hook or red bobber positioned close to the rod (near the
+  character's hand or chest area, NOT floating far away in empty space, NOT
+  disconnected). ... no stray floating pixels disconnected from the character or
+  rod."` — variations 3개 중 2개가 정상(줄이 끝까지 연결됨)으로 나와 채택했다.
+- **west**: 생성하지 않음. east(idle/fishing 둘 다)를 `PIL.ImageOps.mirror()`로
+  좌우반전.
+- **fishing(낚시하는, 방향 공통, `{view_desc}`/`{cast_dir}`만 방향별로 치환)**:
+  `"Edit this pixel art character (already holding a fishing rod, {view_desc}) to show
+  it ACTIVELY FISHING: the rod is held out and tilted {cast_dir}, with the rod tip
+  bent slightly downward from tension as if a fish is pulling the line. Both arms are
+  extended forward holding the rod steady, body leaning slightly forward in a focused
+  casting/reeling stance. Keep the fishing line connected the whole way from the rod
+  tip down to a small hook or red bobber near the tip -- do not let it float
+  disconnected. Keep the rod the same recognizable shape (long thin wooden pole), keep
+  the character's exact identity, hair, outfit colors, body proportions, and position
+  within the frame unchanged. Do not move or resize the character. Transparent
+  background, crisp pixel art, no anti-aliasing blur, no stray floating pixels."` —
+  idle의 채택된 asset_id를 `edit_asset_id`로 연쇄 편집해서 생성(새로 업로드하지 않음).
+  `{cast_dir}` 값: south="downward and forward, toward the ground just ahead of the
+  character", north="upward and forward, away from the character into the distance",
+  east="forward and downward to the right, toward the water to the character's right".
+- **`view_desc` 매핑**: south="front view, facing the viewer", north="back view,
+  facing away from the viewer", east="side view, facing right".
+- **fishing 포즈는 요청한 대로 낚싯대가 팽팽히 휜 자세가 세 방향 모두 첫 시도부터
+  뚜렷하게 나왔다**(도끼 chop 때 흙먼지가 자동으로 붙었던 것과 비슷하게, 프롬프트가
+  요청한 "tension bend"가 아주 잘 반영됨) — north/east는 variations 중 더 극적으로
+  휜 것을 우선 채택했다(east는 v2, 반원에 가깝게 크게 휜 형태로 가장 "손맛" 있어
+  보였다).
+- **`variations:3`+68x68 크기 필터링을 계속 유지할 것**: idle south/north/fishing
+  전부는 첫 시도 3개 모두 68x68이었지만, east idle 재시도 3개 중 1개만 68x70으로
+  어긋났다 — 표본이 늘어날수록 이 문제가 산발적으로 재현된다는 게 계속 확인되는 중.
+- 이 세션이 만든 SpriteCook 자산은 전부 게임에 통합·커밋 완료라 재사용 불필요.
+  `/tmp/fishingrod59/`에 원본 응답 JSON/이미지/인게임 스크린샷이 남아있으나 임시
+  디렉터리다.
 
 ### 바퀴 82 추가 조사 (INBOX #54 — 곡괭이낫 idle/mining/gathering 프롬프트 원문, #55가 재사용할 것)
 
