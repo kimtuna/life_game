@@ -37,6 +37,7 @@ const MINING_POINT_WEIGHTS := [
 const FarmPlotScene := preload("res://scenes/farm_plot/farm_plot.tscn")
 const RanchZoneScene := preload("res://scenes/ranch_zone/ranch_zone.tscn")
 const ProcessingTableScene := preload("res://scenes/processing_table/processing_table.tscn")
+const SmeltingFurnaceScene := preload("res://scenes/smelting_furnace/smelting_furnace.tscn")
 const DroppedItemScene := preload("res://scenes/dropped_item/dropped_item.tscn")
 
 const DEER_COUNT := 6
@@ -61,6 +62,11 @@ const RANCH_ZONE_ORIGIN := Vector2(-650.0, -300.0)
 ## 재량 — 밭/목장 구역과 겹치지 않는 남동쪽에 둔다.
 const PROCESSING_TABLE_ORIGIN := Vector2(300.0, 500.0)
 
+## 제련로(INBOX #88)는 가공대와 같은 가공 라인이지만 별개 오브젝트라서(DESIGN.md), 가공대
+## 근처(같은 남동쪽 구역)에 두되, 두 INTERACT_RADIUS(각 90)의 합보다 충분히 멀리 떨어뜨려
+## 프롬프트/상호작용이 겹치지 않게 한다.
+const SMELTING_FURNACE_ORIGIN := Vector2(650.0, 650.0)
+
 ## InventoryData가 저장하는 아이템 키(내부 이름) -> 화면 표시 이름.
 const ITEM_LABELS := {
 	"rice_seed": "벼 씨앗",
@@ -73,6 +79,8 @@ const ITEM_LABELS := {
 	"meat": "고기",
 	"plank": "판자",
 	"stone_block": "석재",
+	"iron": "철",
+	"charcoal": "숯",
 	"gun": "총",
 	"axe": "도끼",
 	"pickaxe": "곡괭이낫",
@@ -95,6 +103,8 @@ const ITEM_CATEGORIES := {
 	"meat": "육류",
 	"plank": "가공물",
 	"stone_block": "가공물",
+	"iron": "가공물",
+	"charcoal": "가공물",
 	"gun": "도구",
 	"axe": "도구",
 	"pickaxe": "도구",
@@ -206,6 +216,7 @@ func _ready() -> void:
 	_spawn_farm_plots()
 	_spawn_ranch_zone()
 	_spawn_processing_table()
+	_spawn_smelting_furnace()
 	_ensure_starting_tools()
 	_build_inventory_slots()
 	_build_hotbar()
@@ -491,6 +502,15 @@ func _spawn_processing_table() -> void:
 	table.player_ref = player_sprite
 	table.world_ref = self
 	add_child(table)
+
+
+## 스폰 지점에서 고정된 오프셋에 제련로를 배치한다 (INBOX #88).
+func _spawn_smelting_furnace() -> void:
+	var furnace := SmeltingFurnaceScene.instantiate()
+	furnace.global_position = player_sprite.position + SMELTING_FURNACE_ORIGIN
+	furnace.player_ref = player_sprite
+	furnace.world_ref = self
+	add_child(furnace)
 
 
 ## 사냥/채집/채광 결과물을 바닥에 드롭 오브젝트로 스폰한다 (INBOX #24, DESIGN.md
