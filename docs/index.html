@@ -16,73 +16,23 @@
   .label{color:#9a9aa2;font-size:.85rem;margin-bottom:6px}
   code{background:#222;padding:2px 6px;border-radius:4px;word-break:break-all}
   .alert{background:#3a1414;border:1px solid #7a2323;color:#ffd7d7;border-radius:10px;padding:16px;margin:12px 0}
-  .cand-list{list-style:none;padding:0;margin:0}
-  .cand-item{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid #2a2b2e}
-  .cand-item:last-child{border-bottom:none}
-  .cand-text{flex:1;line-height:1.4}
-  .cand-dismiss{background:#222;color:#e8e8ea;border:1px solid #3a3b3e;border-radius:6px;padding:4px 10px;font-size:.8rem;cursor:pointer;white-space:nowrap}
-  .cand-dismiss:hover{background:#2e2f32}
-  .cand-empty{color:#9a9aa2;font-size:.9rem}
 </style>
 </head>
 <body>
   <h1>auto-loop 진행 상황</h1>
-  <p class="updated">마지막 갱신: 2026-09-03 20:57:36</p>
+  <p class="updated">마지막 갱신: 2026-09-03 20:59:17</p>
   
   <div class="row">
-    <div class="card"><div class="label">남은 항목</div><div class="num">2</div></div>
-    <div class="card"><div class="label">완료된 항목</div><div class="num">65</div></div>
+    <div class="card"><div class="label">남은 항목</div><div class="num">1</div></div>
+    <div class="card"><div class="label">완료된 항목</div><div class="num">66</div></div>
   </div>
   <div class="card">
     <div class="label">지금 처리 중 / 다음으로 처리할 항목</div>
-    <div>#66 [DESIGN] (버그 리포트, 사용자 직접 확인) 총을 든 캐릭터의 방향별 자세가 일관되지 않는다. 확인됨: `green_south_idle.png`와 `green_south_fire.png`가 사실상 동일하게 총을 아래로 늘어뜨린 자세라 남/북을 보고 쏴도 자세 변화가 안 보인다. 반면 `green_east_idle.png`는 이미 총을 어깨에 대고 조준하는 자세라, idle인데도 마치 발사 중인 것처럼 보인다. DESIGN.md "완성의 기준"(2026-09-03 조정)의 "기본" 수준으로 다시 만든다: 모든 방향에서 idle=편하게 든 자세, fire=조준하고 쏘는 자세로 최소한 구별되게, 그리고 방향 4개의 idle 기본 자세가 서로 크게 어긋나지 않게. 정교한 디테일까지는 필요 없다. green 기준색으로 먼저 고치고 스크린샷(4방향 idle+fire, 총 8장)으로 직접 확인한 뒤, 통과하면 blue/red로 확장하는 건 별도 항목으로 쪼갠다.</div>
+    <div>#67 [QA] 전체 스윕이지만 **디자인(시각적 품질) 관점**으로 진행한다. `game/qa/full_sweep.gd`(이미 있는 재사용 캡처 스크립트)로 메인 메뉴부터 캐릭터 생성/커스터마이징/월드/도구 4종(총/도끼/곡괭이낫/낚싯대)의 idle·사용·이동 상태/인벤토리/농사·채집·채광·목장/낮밤·날씨까지 전부 스크린샷을 찍고, 이번엔 기능이 동작하는지가 아니라 **그림·애니메이션이 자연스러운가**를 DESIGN.md "완성의 기준"(2026-09-03 조정, 기본만 지키면 됨 — 상태 누락 없음/idle-사용 구별/방향 간 큰 어긋남 없음)에 비춰 하나하나 판정한다. 문제를 찾으면 원인까지 확인해서 정확한 태그([BUILD]는 코드만으로 고칠 수 있는 것, [DESIGN]은 그림을 다시 만들어야 하는 것)를 붙여 새 항목으로 등록한다. 그 외에 "고치면 좋을 것 같다"는 개선 아이디어(필수 결함은 아니지만)가 보이면, 새 항목으로 무작정 등록하지 말고 `docs/STATUS.md`의 "디자인 개선 후보(사용자 검토용)" 섹션에 한 줄씩 추가한다(이 섹션은 대시보드에 표시되고 사용자가 직접 검토함). 이 항목 자체는 그림/코드를 고치지 않는다 — 관찰과 티켓 발행까지만.</div>
   </div>
   <div class="card">
     <div class="label">마지막 작업 커밋</div>
-    <div><code>1ee9764 디자인 개선 후보를 상태 페이지에 체크리스트로 표시 (확인 후 지우기 가능)</code></div>
+    <div><code>72253c3 [INBOX #66] 총 든 캐릭터 idle/fire 방향별 자세 불일치 수정 (green 기준)</code></div>
   </div>
-  <div class="card">
-    <div class="label">디자인 개선 후보 (확인 후 지우기를 누르면 이 브라우저에서 안 보입니다)</div>
-    <ul class="cand-list" id="candList"></ul>
-    <div class="cand-empty" id="candEmpty" hidden>확인할 항목이 없습니다.</div>
-  </div>
-<script>
-(function(){
-  var CANDIDATES = [];
-  var KEY = "autoloop_dismissed_candidates";
-  var dismissed = [];
-  try { dismissed = JSON.parse(localStorage.getItem(KEY) || "[]"); } catch (e) { dismissed = []; }
-  var list = document.getElementById("candList");
-  var empty = document.getElementById("candEmpty");
-  var visible = CANDIDATES.filter(function(c){ return dismissed.indexOf(c.id) === -1; });
-  if (visible.length === 0) {
-    empty.hidden = false;
-  } else {
-    visible.forEach(function(c){
-      var li = document.createElement("li");
-      li.className = "cand-item";
-      var span = document.createElement("span");
-      span.className = "cand-text";
-      span.textContent = c.text;
-      var btn = document.createElement("button");
-      btn.className = "cand-dismiss";
-      btn.type = "button";
-      btn.textContent = "확인함 · 지우기";
-      btn.addEventListener("click", function(){
-        try {
-          var cur = JSON.parse(localStorage.getItem(KEY) || "[]");
-          if (cur.indexOf(c.id) === -1) cur.push(c.id);
-          localStorage.setItem(KEY, JSON.stringify(cur));
-        } catch (e) {}
-        li.remove();
-        if (list.children.length === 0) empty.hidden = false;
-      });
-      li.appendChild(span);
-      li.appendChild(btn);
-      list.appendChild(li);
-    });
-  }
-})();
-</script>
 </body>
 </html>
