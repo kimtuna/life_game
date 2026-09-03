@@ -27,19 +27,19 @@
 </head>
 <body>
   <h1>auto-loop 진행 상황</h1>
-  <p class="updated">마지막 갱신: 2026-09-04 05:07:36</p>
+  <p class="updated">마지막 갱신: 2026-09-04 05:13:52</p>
   
   <div class="row">
-    <div class="card"><div class="label">남은 항목</div><div class="num">8</div></div>
-    <div class="card"><div class="label">완료된 항목</div><div class="num">82</div></div>
+    <div class="card"><div class="label">남은 항목</div><div class="num">7</div></div>
+    <div class="card"><div class="label">완료된 항목</div><div class="num">83</div></div>
   </div>
   <div class="card">
     <div class="label">지금 처리 중 / 다음으로 처리할 항목</div>
-    <div>#84 [BUILD] (사용자 지시, 2026-09-04) 필드 채광 포인트에서 돌/철광석/유황광석이 확률적으로 섞여 나오게 만든다(돌이 가장 흔하고 철광석, 유황광석 순으로 희귀 — DESIGN.md "예시 자원" 절 참고, #83이 먼저 끝나서 `iron_ore` 이름 정정이 된 뒤 진행). 새 원재료 아이템 `stone`(돌), `sulfur_ore`(유황광석)를 `ITEM_LABELS`/`ITEM_CATEGORIES`(둘 다 "원재료")에 추가한다. 지금 `mining_point.tscn` 하나(`item_name="iron_ore"`)만 있는 것을, 같은 `resource_point.gd`를 재사용하는 `mining_point_stone.tscn`(`item_name="stone"`, `prompt_text`도 돌에 맞게 수정)과 `mining_point_sulfur.tscn`(`item_name="sulfur_ore"`)로 복제해서 만든다. `world.gd`의 `_spawn_resource_points()`(372번째 줄 부근)가 지금 `MiningPointScene` 하나만 고정 스폰하는 부분을, 세 씬 중 하나를 가중치 랜덤(돌 60%, 철광석 30%, 유황광석 10% 정도 — 정확한 수치는 재량)으로 골라 스폰하도록 바꾼다. 텍스처/그림은 이번 항목 범위가 아니다(기존 mining_point 그림을 그대로 재사용하거나 `modulate`로 색만 다르게 임시 처리 — 실제 그림은 후속 [DESIGN] 항목 #86에서 교체). 실행해서 돌/철광석/유황광석 포인트가 실제로 섞여서 스폰되는지, 각각 캐면 올바른 아이템이 드롭되는지 확인한다.</div>
+    <div>#85 [BUILD] (사용자 지시, 2026-09-04) 사슴을 기본탄으로 사살하면 고기(육류 카테고리)가 드롭되도록 만든다. `scenes/deer/deer.gd`의 `_die()`(현재 `_dead = true; queue_free()`뿐이고 아무것도 드롭하지 않음, 221번째 줄 부근)에 `_capture()`(226번째 줄, `world_ref.spawn_dropped_item(CAPTURED_ITEM, 1, global_position)`)와 같은 패턴으로 `world_ref.spawn_dropped_item("meat", 1, global_position)`를 추가한다(`world_ref`가 null이 아닐 때만, `_capture()`와 동일 가드). 새 아이템 `meat`를 `ITEM_LABELS`(표시 이름 "고기")/`ITEM_CATEGORIES`(#83에서 만든 체계, "육류")에 추가한다. 텍스처/그림은 이번 항목 범위가 아니다(후속 [DESIGN] 항목 #86에서 만듦, 그때까지는 기본 아이콘 없이도 인벤토리에 텍스트로만 표시돼도 됨). 실제로 사슴을 기본탄으로 쏴 죽여서 고기가 드롭되고 인벤토리에 들어가는지, 마취탄으로 생포하는 기존 흐름은 그대로 동작하는지(회귀 없는지) 둘 다 확인한다.</div>
   </div>
   <div class="card">
     <div class="label">마지막 작업 커밋</div>
-    <div><code>00e9412 [INBOX #83] STATUS.md/INBOX.md 갱신</code></div>
+    <div><code>88cc5d3 [INBOX #84] 채광 포인트에 돌/철광석/유황광석 확률 스폰 추가</code></div>
   </div>
   <div class="card">
     <div class="label">디자인 개선 후보 (확인 후 지우기를 누르면 이 브라우저에서 안 보입니다)</div>
