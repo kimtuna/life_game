@@ -20,19 +20,19 @@
 </head>
 <body>
   <h1>auto-loop 진행 상황</h1>
-  <p class="updated">마지막 갱신: 2026-09-03 20:45:13</p>
+  <p class="updated">마지막 갱신: 2026-09-03 20:48:44</p>
   
   <div class="row">
-    <div class="card"><div class="label">남은 항목</div><div class="num">2</div></div>
-    <div class="card"><div class="label">완료된 항목</div><div class="num">64</div></div>
+    <div class="card"><div class="label">남은 항목</div><div class="num">1</div></div>
+    <div class="card"><div class="label">완료된 항목</div><div class="num">65</div></div>
   </div>
   <div class="card">
     <div class="label">지금 처리 중 / 다음으로 처리할 항목</div>
-    <div>#65 [BUILD] (버그 리포트, 사용자 직접 확인) 도구(총/도끼/곡괭이낫/낚싯대)를 든 채로 이동하면 걷기 애니메이션이 재생되지 않고 idle/사용 포즈로 얼어붙은 채 미끄러지듯 움직인다. 원인 확인됨: `scenes/world/world.gd`의 `_current_animation_name()`이 `_held_tool`이 있으면 `gun_idle_&lt;방향&gt;`/`pickaxe_idle_&lt;방향&gt;` 등을 무조건 반환하고 `_is_moving`을 전혀 확인하지 않는다(맨손일 때만 `walk_&lt;방향&gt;`/`idle_&lt;방향&gt;`을 고름). 지금은 도구를 든 채 걷는 전용 그림(`gun_walk_*` 등)이 없으므로, DESIGN.md "완성의 기준"(2026-09-03 조정, 기본만 지키면 됨)에 따라 **새 그림을 만들지 않고**: 도구를 들고 있어도 `_is_moving`이 true면 맨손 `walk_&lt;방향&gt;` 애니메이션을 재생하도록 고친다(도구를 쥔 손 모양은 이동 중엔 잠깐 안 보여도 된다 — 정지하면 다시 도구 idle 포즈로 돌아옴). 4방향 모두 실제로 이동시켜서 다리가 움직이는지 스크린샷으로 확인한다.</div>
+    <div>#66 [DESIGN] (버그 리포트, 사용자 직접 확인) 총을 든 캐릭터의 방향별 자세가 일관되지 않는다. 확인됨: `green_south_idle.png`와 `green_south_fire.png`가 사실상 동일하게 총을 아래로 늘어뜨린 자세라 남/북을 보고 쏴도 자세 변화가 안 보인다. 반면 `green_east_idle.png`는 이미 총을 어깨에 대고 조준하는 자세라, idle인데도 마치 발사 중인 것처럼 보인다. DESIGN.md "완성의 기준"(2026-09-03 조정)의 "기본" 수준으로 다시 만든다: 모든 방향에서 idle=편하게 든 자세, fire=조준하고 쏘는 자세로 최소한 구별되게, 그리고 방향 4개의 idle 기본 자세가 서로 크게 어긋나지 않게. 정교한 디테일까지는 필요 없다. green 기준색으로 먼저 고치고 스크린샷(4방향 idle+fire, 총 8장)으로 직접 확인한 뒤, 통과하면 blue/red로 확장하는 건 별도 항목으로 쪼갠다.</div>
   </div>
   <div class="card">
     <div class="label">마지막 작업 커밋</div>
-    <div><code>c2c5a62 합격 기준을 "기본만 지키면 통과"로 조정, 도구 걷기/총 자세 버그 등록</code></div>
+    <div><code>6a7c8cf [INBOX #65] 도구 든 채 이동 시 걷기 애니메이션 멈추던 버그 수정</code></div>
   </div>
 </body>
 </html>
