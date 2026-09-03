@@ -5,6 +5,57 @@
 
 ## 마지막 갱신
 
+바퀴 136 / 2026-09-04 ([BUILD] **INBOX #83 완료 — 아이템 카테고리 체계(`ITEM_CATEGORIES`)
+도입 + `iron` 아이템 키를 `iron_ore`(표시 이름 "철광석")로 전면 정정. BUILD/DESIGN
+완료 카운터: 바퀴 134(#82, QA)에서 0으로 리셋된 뒤 바퀴 135(#81)로 1, 이번(#83)으로 2.**
+1) **`ITEM_CATEGORIES` 추가**: `scenes/world/world.gd`의 `ITEM_LABELS` 바로 아래에
+   아이템 키 → 카테고리 문자열 딕셔너리를 새로 추가하고 기존 9개 아이템 전부를 분류했다:
+   `rice_seed`/`iron_ore`/`wood` → "원재료", `rice` → "곡물", `captured_deer` → "가축"
+   (DESIGN.md가 나열한 목록에 없어 새로 추가 — "등"이 확장을 허용한다고 판단),
+   `gun`/`axe`/`pickaxe`/`fishing_rod` → "도구".
+2) **`iron` → `iron_ore` 전면 개명**: `grep -rn "iron"`으로 참조 지점 4곳을 모두 찾아
+   고쳤다 — `world.gd`(`ITEM_LABELS`), `scenes/resource_point/mining_point.tscn`
+   (`item_name`/`prompt_text`), `scenes/dropped_item/dropped_item.gd`(`ITEM_ICONS`),
+   `qa/full_sweep.gd`(테스트 데이터). 표시 이름도 "철" → "철광석"으로 바꿨다(가공된
+   "철"은 이번 항목 범위 밖 — #88이 나중에 별도 아이템으로 추가할 예정).
+3) **아이콘 자산 파일도 함께 리네임**: `assets/sprites/items/iron.png`/`.import`를
+   `iron_ore.png`/`.import`로 `git mv`했다(지시에는 코드 참조 지점만 명시돼 있었지만,
+   키와 파일명이 어긋나면 나중에 헷갈릴 것 같아 스스로 판단해 함께 정리). `.import`
+   파일의 `source_file`/`dest_files`/`path`도 새 파일명에 맞게 고쳐줬는데, 그것만으로는
+   `.godot/imported/` 캐시가 옛 해시 파일을 그대로 가리켜서 로드가 실패했다 —
+   `cd game && godot --headless --path . --import`로 강제 재가져오기를 한 번 실행해서
+   해결했다(이 캐시는 git에 안 잡히므로, 다음에 이 저장소를 새로 clone/pull하는 환경은
+   첫 실행 시 Godot이 알아서 다시 임포트한다).
+4) **실제 게임 렌더링으로 확인(②의 필수 절차)**: `game/qa/item_category_check.gd`를
+   새로 만들어(다른 qa 스크립트와 같은 패턴 — `project.godot` `[autoload]`에 임시로
+   넣고 `godot --path .` 실행, 끝나면 원상복구, `git diff game/project.godot` 결과
+   없음으로 확인) (a) `ITEM_LABELS`에 `iron`이 안 남아있고 `iron_ore`="철광석"인지,
+   (b) `ITEM_LABELS`의 모든 키가 `ITEM_CATEGORIES`에도 있는지, (c) 실제 광산
+   (`mining_point`, `item_name="iron_ore"`)에서 `_harvest()`를 호출해 바닥 드롭 →
+   플레이어 접촉 자동 습득까지 전체 경로가 정상 동작하는지(인벤토리 카운트 증가로
+   확인), (d) 화면 좌상단 HUD 인벤토리 라벨에 "철광석"으로 표시되는지를 코드로
+   단언(assert)하고 스크린샷(`/tmp/qa83/inventory_label.png`)으로도 직접 확인했다.
+   전부 통과. 이 스크립트는 `game/qa/`에 남겨서 나중에 다른 아이템 개명/카테고리
+   추가 검증에 재사용할 수 있게 했다.
+5) **디버깅 중 겪은 함정 2가지(둘 다 검증 스크립트만의 문제, 실제 게임 로직 결함
+   아님)**: (a) `InventoryData`가 `user://inventory.save`에 영속화되는 걸 놓쳐서,
+   검증 스크립트를 두 번 돌렸더니 카운트가 누적돼 거짓 실패가 났다 — 세이브 파일을
+   지우고 재실행해서 확인했다. (b) 광산(`iron_ore`)과 채집 포인트(`rice_seed`)가 둘 다
+   `required_tool="pickaxe"`를 공유하는데(DESIGN.md "곡괭이낫" 규칙 그대로), 검증
+   스크립트가 `required_tool`만으로 대상을 찾다가 엉뚱한(`rice_seed`) 포인트를 집어서
+   거짓 실패가 났다 — `item_name="iron_ore"`로 특정해서 해결.
+6) `docs/feedback/INBOX.md`의 `#83`을 `[x]`로 갱신.
+7) **커밋 대상**: `game/scenes/world/world.gd`, `game/scenes/resource_point/
+   mining_point.tscn`, `game/scenes/dropped_item/dropped_item.gd`, `game/qa/full_sweep.gd`,
+   `game/qa/item_category_check.gd`(+ `.uid`), `game/assets/sprites/items/iron_ore.png`
+   (+ `.import`, `git mv`로 리네임), `docs/`. `game/project.godot`은 검증 과정에서
+   임시로 autoload 한 줄을 추가했다가 그대로 되돌렸다(`git diff` 결과 없음으로 확인)
+   — 커밋 대상 아님.
+
+**다음 바퀴가 참고할 것**: 다음 `[BUILD]` 항목은 `#84`(필드 채광 포인트에 돌/철광석/
+유황광석을 확률적으로 섞어 스폰 — 이번 #83이 정정한 `iron_ore` 이름을 그대로 쓰면 됨).
+BUILD/DESIGN 완료 카운터는 2 — 5에 도달하려면 3개 더 필요.
+
 바퀴 135 / 2026-09-04 ([DESIGN] **INBOX #81 완료 — 남자 기준 캐릭터 맨손 idle 4방향을
 AI 생성 크레딧 없이 파이썬(Pillow) 절차적 생성으로 만듦, 실험 기준(완화된 합격 기준)
 통과.**
@@ -2023,6 +2074,10 @@ grep으로 이 심볼들이 world.gd 밖(resource_point.gd 등)에서 쓰이지 
 
 ## 끝난 것 (지금까지의 스냅샷 — 바퀴별 상세 이력은 git 커밋 메시지 `[INBOX #N] ...`에 있음)
 
+- INBOX #83 완료 (바퀴 136, BUILD): 위 "마지막 갱신" 참고. `world.gd`에 `ITEM_CATEGORIES`
+  딕셔너리를 추가해 기존 9개 아이템을 전부 분류하고, `iron` 아이템 키를 `iron_ore`
+  (표시 이름 "철광석")로 전면 정정했다(코드 4곳 + 아이콘 자산 파일명까지). 실제 광산
+  채광 → 바닥 드롭 → 자동 습득 전체 경로를 `game/qa/item_category_check.gd`로 검증.
 - INBOX #81 완료 (바퀴 135, DESIGN 실험): 위 "마지막 갱신" 참고. 남자 idle 4방향을
   Pillow 절차적 생성으로 만들어 완화된 기준으로 통과시켰다. west는 east를 좌우 반전해서
   만듦(동/서 크기 불일치 버그 구조적 예방). `.import` 없이는 새 PNG가 런타임 로드 안
@@ -2207,17 +2262,17 @@ grep으로 이 심볼들이 world.gd 밖(resource_point.gd 등)에서 쓰이지 
 
 ## 다음에 할 것
 
-- **(2026-09-04 갱신, 바퀴 135) INBOX #81([DESIGN] 캐릭터 절차적 생성 실험) 완료 —
-  통과.** `game/assets/sprites/character/male_{south,north,east,west}.png`를 Pillow로
-  생성하고 실제 게임(`game/qa/male_variant_check.gd`)에 장착해 4방향 idle을 스크린샷으로
-  확인, 완화된 기준(실루엣/방향 구분)을 통과했다. **`[DESIGN]`/`[BUILD]`/`[QA]` 큐 전부
-  INBOX에 미완료 항목이 없다** — 다음 지시가 올 때까지 각 하네스는 조용히 종료. BUILD/
-  DESIGN 완료 카운터는 1(바퀴 134 QA #82에서 0으로 리셋된 뒤 이번 #81로 1).
-  **다음 DESIGN 바퀴 필독**: 새 PNG를 Pillow로 저장한 뒤 게임에서 확인하기 전에 반드시
-  `cd game && godot --headless --import`를 먼저 실행할 것 — 안 하면 `.import` 메타파일이
-  없어서 `load()`가 조용히 실패하고 캐릭터가 화면에 아예 안 보이는데, 에러 로그가
-  "walk 프레임 없음" 같은 무관한 메시지와 섞여 있어 원인을 코드 버그로 오인하기 쉽다
-  (이번 바퀴가 직접 겪음, 아래 "헤드리스 CLI 검증" 절 참고).
+- **(2026-09-04 갱신, 바퀴 136) INBOX #83([BUILD] 아이템 카테고리 체계 + iron→iron_ore
+  정정) 완료.** 위 "마지막 갱신"/"끝난 것" 참고. **다음 `[BUILD]` 항목은 `#84`**(필드
+  채광 포인트에서 돌/철광석/유황광석이 확률적으로 섞여 나오게 만들기 — `iron_ore`
+  이름 정정이 끝나서 바로 진행 가능). `[DESIGN]` 큐는 `#86`(대기, `#84`/`#85` 완료 후
+  진행), `[QA]` 큐는 비어 있다(BUILD/DESIGN 완료 카운터 2, 5 도달까지 3개 더 필요).
+  **다음 BUILD/DESIGN 바퀴 필독**: 새 PNG(아이콘 등)를 저장한 뒤 게임에서 확인하기
+  전에 반드시 `cd game && godot --headless --import`를 먼저 실행할 것 — 안 하면
+  `.import` 메타파일이 없어서(또는 리네임 시 캐시가 옛 파일명을 가리켜서) `load()`가
+  조용히 실패하고 스프라이트가 화면에 아예 안 보이는데, 에러 로그가 무관한 메시지와
+  섞여 있어 원인을 코드 버그로 오인하기 쉽다(바퀴 135/136이 각각 겪음, 아래 "헤드리스
+  CLI 검증" 절 참고).
 - **(2026-09-04 갱신, 사용자 지시) 캐릭터 그림체 리메이크(옛 #76~#78)는 INBOX 큐에서
   제거됐다 — 더 이상 진행하지 않는다.** SpriteCook 유료 구독을 두 번 결제했는데도
   바퀴 130~131 내내 잔액 0으로 막혀 있었고, 그 전에도 비슷한 결과물만 여러 번
