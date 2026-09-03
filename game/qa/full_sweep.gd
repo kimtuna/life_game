@@ -1,10 +1,11 @@
 extends Node
-## [QA] 전체 스윕 캡처 스크립트 (INBOX #56).
+## [QA] 전체 스윕 캡처 스크립트 (INBOX #56, #67에서 디자인 관점 검증을 위해 확장).
 ##
 ## 메인 메뉴 -> 캐릭터 슬롯 -> 캐릭터 커스터마이징 -> 멀티플레이 로비 -> 월드 스폰까지
 ## 실제 화면 전환(change_scene_to_file)을 그대로 타고 가면서, 월드에 들어간 뒤에는
-## 이동/조준/도구 4종/인벤토리/농사/채집/채광/사냥/목장 상태를 강제로 만들어 스크린샷을
-## 찍는다. STATUS.md(바퀴 78/80/82/83)가 정립한 방법을 그대로 재사용한다:
+## 이동/조준/도구 4종(idle/사용/이동)/인벤토리/농사/채집/채광/사냥/목장/낮밤/날씨 상태를
+## 강제로 만들어 스크린샷을 찍는다. STATUS.md(바퀴 78/80/82/83)가 정립한 방법을 그대로
+## 재사용한다:
 ##   - `--headless`가 아닌 실제 렌더러(`godot --path .`)로 실행한다(캡처를 위해 필수).
 ##   - project.godot의 [autoload]에 이 스크립트를 마지막 줄로 임시 추가해서 실행한다.
 ##   - 크롭 중심은 `get_visible_rect()`가 아니라 `img.get_size()`(캡처 이미지 자신의
@@ -15,7 +16,7 @@ extends Node
 ## 실행 후 project.godot의 [autoload] 임시 추가분은 반드시 되돌리고, 이 스크립트 자체는
 ## `game/qa/`에 남겨서 다음 전체 스윕(5개마다 자동 등록)이 재사용할 수 있게 한다.
 
-const OUT_DIR := "/tmp/qa63"
+const OUT_DIR := "/tmp/qa67"
 
 var _step := 0
 var _plan: Array = []
@@ -30,10 +31,19 @@ func _ready() -> void:
 		"multiplayer_lobby",
 		"world_enter",
 		"world_setup",
-		"tool_gun",
-		"tool_axe",
-		"tool_pickaxe",
-		"tool_fishing_rod",
+		"tool_gun_idle",
+		"tool_gun_fire",
+		"tool_gun_walk",
+		"tool_axe_idle",
+		"tool_axe_use",
+		"tool_axe_walk",
+		"tool_pickaxe_idle",
+		"tool_pickaxe_mining_use",
+		"tool_pickaxe_gathering_use",
+		"tool_pickaxe_walk",
+		"tool_fishing_rod_idle",
+		"tool_fishing_rod_use",
+		"tool_fishing_rod_walk",
 		"inventory_open",
 		"farm_empty",
 		"farm_growing",
@@ -43,6 +53,8 @@ func _ready() -> void:
 		"ranch_zone",
 		"hunting_aim",
 		"hunting_hit",
+		"world_night",
+		"world_rain",
 	]
 	await get_tree().process_frame
 	await get_tree().process_frame
@@ -73,10 +85,19 @@ func _run_step(name: String) -> void:
 		"multiplayer_lobby": _step_multiplayer_lobby()
 		"world_enter": _step_world_enter()
 		"world_setup": _step_world_setup()
-		"tool_gun": _step_tool_gun()
-		"tool_axe": _step_tool_axe()
-		"tool_pickaxe": _step_tool_pickaxe()
-		"tool_fishing_rod": _step_tool_fishing_rod()
+		"tool_gun_idle": _step_tool_gun_idle()
+		"tool_gun_fire": _step_tool_gun_fire()
+		"tool_gun_walk": _step_tool_walk()
+		"tool_axe_idle": _step_tool_axe_idle()
+		"tool_axe_use": _step_tool_axe_use()
+		"tool_axe_walk": _step_tool_walk()
+		"tool_pickaxe_idle": _step_tool_pickaxe_idle()
+		"tool_pickaxe_mining_use": _step_tool_pickaxe_mining_use()
+		"tool_pickaxe_gathering_use": _step_tool_pickaxe_gathering_use()
+		"tool_pickaxe_walk": _step_tool_walk()
+		"tool_fishing_rod_idle": _step_tool_fishing_rod_idle()
+		"tool_fishing_rod_use": _step_tool_fishing_rod_use()
+		"tool_fishing_rod_walk": _step_tool_walk()
 		"inventory_open": _step_inventory_open()
 		"farm_empty": _step_farm_empty()
 		"farm_growing": _step_farm_growing()
@@ -86,6 +107,8 @@ func _run_step(name: String) -> void:
 		"ranch_zone": await _step_ranch_zone()
 		"hunting_aim": _step_hunting_aim()
 		"hunting_hit": _step_hunting_hit()
+		"world_night": _step_world_night()
+		"world_rain": _step_world_rain()
 
 
 func _capture(name: String) -> void:
@@ -145,20 +168,55 @@ func _force_tool(tool_key: String) -> void:
 	_world._update_player_animation()
 
 
-func _step_tool_gun() -> void:
+## idle(들고 있기)/사용(발사·패기·채광·채집·낚시)/이동 세 상태를 각각 별도 스텝으로
+## 찍는다 (INBOX #67 — DESIGN.md "완성의 기준"의 "상태 누락 없음"/"idle-사용 구별"을
+## 실제 화면으로 확인하기 위함). 이동은 #65가 정한 대로 어떤 도구를 들었든 맨손
+## walk_<방향>으로 대체되는 게 의도된 동작이라, 직전에 든 도구와 무관하게 같은
+## 함수를 재사용한다.
+func _step_tool_walk() -> void:
+	_world._is_moving = true
+	_world._update_player_animation()
+
+
+func _step_tool_gun_idle() -> void:
 	_force_tool("gun")
 
 
-func _step_tool_axe() -> void:
+func _step_tool_gun_fire() -> void:
+	_world._tool_use_flash_timer = _world.GUN_MUZZLE_FLASH_DURATION
+	_world._update_player_animation()
+
+
+func _step_tool_axe_idle() -> void:
 	_force_tool("axe")
 
 
-func _step_tool_pickaxe() -> void:
+func _step_tool_axe_use() -> void:
+	_world._tool_use_flash_timer = _world.AXE_CHOP_FLASH_DURATION
+	_world._update_player_animation()
+
+
+func _step_tool_pickaxe_idle() -> void:
 	_force_tool("pickaxe")
 
 
-func _step_tool_fishing_rod() -> void:
+func _step_tool_pickaxe_mining_use() -> void:
+	_world.play_pickaxe_use("mining")
+	_world._update_player_animation()
+
+
+func _step_tool_pickaxe_gathering_use() -> void:
+	_world.play_pickaxe_use("gathering")
+	_world._update_player_animation()
+
+
+func _step_tool_fishing_rod_idle() -> void:
 	_force_tool("fishing_rod")
+
+
+func _step_tool_fishing_rod_use() -> void:
+	_world._tool_use_flash_timer = _world.AXE_CHOP_FLASH_DURATION
+	_world._update_player_animation()
 
 
 func _step_inventory_open() -> void:
@@ -269,6 +327,29 @@ func _step_hunting_aim() -> void:
 func _step_hunting_hit() -> void:
 	_deer.take_hit(25, "normal")
 	_deer.player_ref = _player
+
+
+## ---- 낮/밤 · 날씨 ----
+## TimeData의 낮/밤 10분 주기를 실제로 기다릴 수 없으므로, 값을 직접 강제해서
+## world.gd의 _process()가 다음 프레임에 CanvasModulate/RainOverlay를 갱신하게 만든다
+## (world.gd._process는 set_physics_process(false)의 영향을 받지 않는 일반 _process라
+## 계속 돈다). 손에 든 도구와 무관한 관찰이므로 빈손(핫바 5번, 도구 없음)으로 든다.
+
+func _step_world_night() -> void:
+	_player.position = Vector2.ZERO
+	_world.camera.global_position = Vector2.ZERO
+	_world._select_hotbar(4)
+	TimeData.is_day = false
+	TimeData._phase_elapsed = 0.0  # 밤 시작 시점 = NIGHT_COLOR 그대로, 가장 어두움
+	TimeData.is_raining = false
+	_world.rain_overlay.visible = false
+
+
+func _step_world_rain() -> void:
+	TimeData.is_day = true
+	TimeData._phase_elapsed = 0.0  # 낮 시작 시점 = DAY_COLOR 그대로, 비 여부만 관찰
+	TimeData.is_raining = true
+	_world.rain_overlay.visible = true
 
 
 static func now() -> String:
