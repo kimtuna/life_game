@@ -1,7 +1,6 @@
 extends Node2D
 
 const MOVE_SPEED := 220.0
-const PLAYER_WALK_ANIM_FPS := 8.0
 
 ## 기본 소총 스탯 (DESIGN.md "총기 스탯" 절 그대로 적용)
 const GUN_RANGE := 800.0
@@ -636,9 +635,13 @@ func _update_time_label() -> void:
 	time_label.text = "%s %d일차 · %s" % [TimeData.season_label(), TimeData.current_day_of_month(), phase_text]
 
 
-## 방향별 idle(1프레임)/walk(4프레임) 애니메이션을 담은 SpriteFrames를 만든다 (INBOX #41).
-## 정지 이미지 한 장을 텍스처로 갈아끼우던 기존 방식(#4~#40) 대신, 걷는 동안 다리가
-## 실제로 움직이는 것처럼 보이도록 AnimatedSprite2D 기반으로 바꿨다.
+## 방향별 idle(1프레임) 애니메이션만 담은 SpriteFrames를 만든다.
+## (초기화됨 — 예전에는 여기서 걷기 4프레임과 도구별 들기/사용 모션까지 전부 만들었지만,
+## 그 그림들이 계속 부자연스럽다는 지적을 받아 DESIGN.md "하네스 구조"에 따라 전부
+## 지우고 다시 만들기로 했다. AnimatedSprite2D/SpriteFrames 구조 자체는 유지한다 —
+## 이건 그림 문제가 아니라 올바른 기반이었다. [DESIGN] 하네스가 PixelLab의
+## animate-character/animate-with-skeleton 같은 전용 기능으로 walk와 도구별 모션을
+## 다시 만들어서 이 함수에 애니메이션을 추가해나갈 것.)
 func _build_player_sprite_frames(variant: String) -> SpriteFrames:
 	var frames := SpriteFrames.new()
 	if frames.has_animation("default"):
@@ -648,87 +651,13 @@ func _build_player_sprite_frames(variant: String) -> SpriteFrames:
 		frames.add_animation(idle_anim)
 		frames.set_animation_speed(idle_anim, 1.0)
 		frames.add_frame(idle_anim, load("res://assets/sprites/character/%s_%s.png" % [variant, direction]))
-
-		var walk_anim := "walk_%s" % direction
-		frames.add_animation(walk_anim)
-		frames.set_animation_speed(walk_anim, PLAYER_WALK_ANIM_FPS)
-		for i in range(4):
-			frames.add_frame(walk_anim, load("res://assets/sprites/character/walk/%s_%s_walk_%d.png" % [variant, direction, i]))
-
-		## 총(INBOX #42, DESIGN.md "캐릭터 애니메이션"): 옆에 아이콘을 띄우는 대신 "들고
-		## 있는"/"발사하는" 모션 자체를 캐릭터가 총을 쥔 손 모양까지 포함해 다시 그린
-		## 프레임으로 갈아끼운다. 걷는 동안 총을 든 전용 walk 프레임은 아직 없어서(그림
-		## 24장 추가 필요, STATUS.md 옵션A) 이동 중에도 gun_idle 프레임을 그대로 쓴다 —
-		## 다리는 안 움직이지만 총이 사라지는 회귀보다는 낫다.
-		var gun_idle_anim := "gun_idle_%s" % direction
-		frames.add_animation(gun_idle_anim)
-		frames.set_animation_speed(gun_idle_anim, 1.0)
-		frames.add_frame(gun_idle_anim, load("res://assets/sprites/character/gun/%s_%s_idle.png" % [variant, direction]))
-
-		var gun_fire_anim := "gun_fire_%s" % direction
-		frames.add_animation(gun_fire_anim)
-		frames.set_animation_speed(gun_fire_anim, 1.0)
-		frames.add_frame(gun_fire_anim, load("res://assets/sprites/character/gun/%s_%s_fire.png" % [variant, direction]))
-
-		## 도끼(INBOX #43, 총(#42)과 같은 패턴): "들고 있는"/"패는" 모션 프레임 자체에
-		## 손과 도끼가 붙어 있는 그림을 넣는다. 걷기 전용 프레임은 총과 동일하게 옵션A
-		## (걷는 중에도 axe_idle 정지 프레임 유지)를 따른다.
-		var axe_idle_anim := "axe_idle_%s" % direction
-		frames.add_animation(axe_idle_anim)
-		frames.set_animation_speed(axe_idle_anim, 1.0)
-		frames.add_frame(axe_idle_anim, load("res://assets/sprites/character/axe/%s_%s_idle.png" % [variant, direction]))
-
-		var axe_chop_anim := "axe_chop_%s" % direction
-		frames.add_animation(axe_chop_anim)
-		frames.set_animation_speed(axe_chop_anim, 1.0)
-		frames.add_frame(axe_chop_anim, load("res://assets/sprites/character/axe/%s_%s_chop.png" % [variant, direction]))
-
-		## 곡괭이낫(INBOX #44, 총(#42)/도끼(#43)와 같은 패턴): "들고 있는" 모션에 더해
-		## "채광하는"/"채집하는" 모션 두 가지가 서로 다른 그림이어야 한다(DESIGN.md
-		## "도구 동작 표현"). 걷기 전용 프레임은 다른 도구와 동일하게 옵션A(정지 idle 프레임
-		## 유지)를 따른다.
-		var pickaxe_idle_anim := "pickaxe_idle_%s" % direction
-		frames.add_animation(pickaxe_idle_anim)
-		frames.set_animation_speed(pickaxe_idle_anim, 1.0)
-		frames.add_frame(pickaxe_idle_anim, load("res://assets/sprites/character/pickaxe/%s_%s_idle.png" % [variant, direction]))
-
-		var pickaxe_mining_anim := "pickaxe_mining_%s" % direction
-		frames.add_animation(pickaxe_mining_anim)
-		frames.set_animation_speed(pickaxe_mining_anim, 1.0)
-		frames.add_frame(pickaxe_mining_anim, load("res://assets/sprites/character/pickaxe/%s_%s_mining.png" % [variant, direction]))
-
-		var pickaxe_gathering_anim := "pickaxe_gathering_%s" % direction
-		frames.add_animation(pickaxe_gathering_anim)
-		frames.set_animation_speed(pickaxe_gathering_anim, 1.0)
-		frames.add_frame(pickaxe_gathering_anim, load("res://assets/sprites/character/pickaxe/%s_%s_gathering.png" % [variant, direction]))
-
-		## 낚싯대(INBOX #45, 총(#42)/도끼(#43)/곡괭이낫(#44)과 같은 패턴): "들고 있는"/
-		## "낚시하는" 모션 프레임 자체에 손과 낚싯대가 붙어 있는 그림을 넣는다. 이 도구를
-		## 끝으로 TOOL_KEYS의 모든 도구가 캐릭터 애니메이션 프레임에 통합됐다.
-		var fishing_rod_idle_anim := "fishing_rod_idle_%s" % direction
-		frames.add_animation(fishing_rod_idle_anim)
-		frames.set_animation_speed(fishing_rod_idle_anim, 1.0)
-		frames.add_frame(fishing_rod_idle_anim, load("res://assets/sprites/character/fishing_rod/%s_%s_idle.png" % [variant, direction]))
-
-		var fishing_rod_fishing_anim := "fishing_rod_fishing_%s" % direction
-		frames.add_animation(fishing_rod_fishing_anim)
-		frames.set_animation_speed(fishing_rod_fishing_anim, 1.0)
-		frames.add_frame(fishing_rod_fishing_anim, load("res://assets/sprites/character/fishing_rod/%s_%s_fishing.png" % [variant, direction]))
 	return frames
 
 
+## 초기화됨 — 걷기/도구별 모션이 다시 만들어지기 전까지는 방향별 idle 한 장으로만
+## 표시한다. [DESIGN] 하네스가 애니메이션을 다시 만들면 이 함수에 분기를 추가할 것.
 func _current_animation_name() -> String:
-	if _held_tool == "gun":
-		return ("gun_fire_" if _tool_use_flash_timer > 0.0 else "gun_idle_") + _facing
-	if _held_tool == "axe":
-		return ("axe_chop_" if _tool_use_flash_timer > 0.0 else "axe_idle_") + _facing
-	if _held_tool == "pickaxe":
-		if _tool_use_flash_timer > 0.0:
-			return ("pickaxe_mining_" if _pickaxe_use_kind == "mining" else "pickaxe_gathering_") + _facing
-		return "pickaxe_idle_" + _facing
-	if _held_tool == "fishing_rod":
-		return ("fishing_rod_fishing_" if _tool_use_flash_timer > 0.0 else "fishing_rod_idle_") + _facing
-	return ("walk_" if _is_moving else "idle_") + _facing
+	return "idle_" + _facing
 
 
 func _update_player_animation() -> void:
