@@ -764,10 +764,14 @@ func _build_player_sprite_frames(variant: String) -> SpriteFrames:
 ## 총 애니메이션 자산이 아직 없으면(예: #53 전의 blue/red) 조용히 맨손 idle/walk로
 ## 대체된다.
 func _current_animation_name() -> String:
-	## 이동 중에는 도구 idle/사용 포즈 대신 맨손 walk를 재생한다 (INBOX #65) —
-	## 도구별 walk 프레임 세트가 아직 없어서, 들고 있어도 얼어붙은 채 미끄러지는
-	## 문제를 막기 위함. 정지하면 아래 도구별 idle/사용 포즈로 돌아온다.
-	if not _is_moving:
+	## 이동 중에는 도구 "idle" 포즈 대신 맨손 walk를 재생한다 (INBOX #65) — 도구별 walk
+	## 프레임 세트가 아직 없어서, 들고 있어도 얼어붙은 채 미끄러지는 문제를 막기 위함.
+	## 다만 "사용 중"(발사/패기/채광/채집/낚시, _tool_use_flash_timer > 0)이면 이동
+	## 여부와 무관하게 항상 사용 모션을 보여준다 — #65가 이 조건 없이 "이동 중이면
+	## 무조건 walk"로 막아버려서, 움직이면서 쏘거나 캐도 모션이 전혀 안 나가는 버그가
+	## 있었다(사용자가 실제로 발견).
+	var using_tool := _tool_use_flash_timer > 0.0
+	if using_tool or not _is_moving:
 		if _held_tool == "gun":
 			var gun_anim := ("gun_fire_%s" if _tool_use_flash_timer > 0.0 else "gun_idle_%s") % _facing
 			if player_sprite.sprite_frames.has_animation(gun_anim):
