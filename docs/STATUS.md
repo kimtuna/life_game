@@ -5,6 +5,75 @@
 
 ## 마지막 갱신
 
+바퀴 94 / 2026-09-03 ([DESIGN] **INBOX #66 완료 — 총을 든 캐릭터의 idle/fire 자세가
+방향별로 사실상 동일해 보이던 문제를 SpriteCook `generate-sync`+`edit_asset_id`로 고침
+(green 기준색만, blue/red 확장은 별도 항목).**
+1) **핵심 발견 — 훨씬 저렴한 모델을 찾았다.** `GET /v1/api/models`로 가격표를 다시
+   조회해보니, 지금까지 계속 써온 기본 모델(`gemini-3.1-flash-image`, 1K 기준
+   12크레딧/장) 말고 `gpt-image-2` 모델이 `quality:"low"`일 때 **1K 기준 단 2크레딧/장**
+   이었다(`per_image_by_quality.1K.low = 2`). `generate-sync`/`generate-sync`계열
+   엔드포인트가 `model`/`quality` 필드를 그대로 받는지 확인되지 않았던 부분이라, `POST
+   /v1/api/generate-sync`에 `"model":"gpt-image-2","quality":"low"`를 얹어 실제
+   호출해봤다 — **정상 동작했고 실제로 2크레딧만 차감됐다**(응답 `credits_used:2`).
+   결과 이미지 품질도 pixel art 스타일/캐릭터 정체성 유지가 기존 12크레딧 기본 모델과
+   비교해 손색없었다(아래 3번 참고). **다음 DESIGN 바퀴부터는 예산이 빠듯할 때
+   `model:"gpt-image-2", quality:"low"`를 먼저 시도할 것** — 같은 예산으로 6배 더 많은
+   시도가 가능하다. 다만 표본이 이번 3콜뿐이라 큰 캔버스 확장(아래 4번 참고)이나
+   미세한 디테일이 중요한 경우엔 여전히 기본 모델/`variations`로 후보를 여러 개 뽑는
+   편이 안전할 수 있다.
+2) **문제 재확인**: `green_south_idle.png`/`green_south_fire.png`를 나란히 놓고 보니
+   총 각도가 거의 같고(그냥 작은 스파크만 추가된 상태) 자세 자체는 안 바뀌었다.
+   `green_east_idle.png`는 이미 총을 어깨에 대고 조준하는 자세라 idle인데도 발사
+   중처럼 보였다. `green_north_idle.png`/`green_north_fire.png`도 정도는 약하지만 같은
+   패턴(파이어가 살짝만 다름). 반면 `green_south_idle`/`green_north_idle`/처음 만든
+   `east`(수정 전) 세 방향의 "idle 기본 자세" 자체는 서로 다른 스타일이었다(south/north는
+   총을 늘어뜨린 편한 자세, east만 이미 조준 자세) — 이게 기준 ③(방향 간 어긋남)도
+   같이 위반하고 있었다.
+3) **수정 — 3콜만으로 해결**: (a) `green_south_fire.png`를 edit — "STRONGER firing
+   recoil, 어깨를 뒤로 당기고 총구를 더 수평/높게 들어올리고 큰 불꽃 추가" 프롬프트로
+   재생성 → 총이 아래로 늘어진 idle과 완전히 다른, 앞으로 겨눠 든 조준 자세로 바뀜.
+   (b) `green_north_fire.png`도 같은 방식(위쪽으로 더 수직으로 든 자세 + 큰 불꽃)으로
+   재생성. (c) `green_east_idle.png`를 edit — "RELAXED casual carrying pose, NOT
+   aiming, 총구를 아래/앞으로 내리고 개머리판을 허리 쪽에 두기" 프롬프트로 재생성 →
+   기존의 "이미 조준 중" 자세가 남/북과 같은 계열의 편안한 휴대 자세로 바뀜.
+   `green_west_idle.png`는 새 east_idle을 `PIL.ImageOps.mirror()`로 좌우반전해서
+   만들었다(기존 west=east 반전 패턴 재사용, AI 호출 없음). `west_fire`/`east_fire`는
+   이미 서로 비슷한 조준 자세라 손대지 않았다.
+4) **캔버스 크기가 커졌다**: 원본은 전부 68x68이었는데, 새로 생성된 3장은 68x68 요청에도
+   불구하고 각각 76x76/77x72/83x81로 나왔다(캐릭터 몸통 위치는 원본과 거의 동일한
+   좌표에 그대로 있고, 총/불꽃이 캔버스 밖으로 뻗어나가려다 보니 SpriteCook이 자동으로
+   캔버스를 넓힌 것으로 보인다 — `smart_crop:false`인데도 발생). 인게임에서
+   `AnimatedSprite2D`가 중앙 정렬로 그리기 때문에 idle↔fire 전환 시 캐릭터가 몇 픽셀
+   미세하게 움직이는 느낌이 있을 수 있는데, 실제 스크린샷으로 확인한 결과 눈에 띄는
+   튐/어색함은 없었다(발사 순간이 짧고, 오히려 반동처럼 자연스럽게 보임) — 별도로 68x68에
+   맞춰 강제로 리사이즈/크롭하지 않았다. **다음에 이 함정을 다시 만나면**: 캔버스가
+   커지는 게 이번엔 문제되지 않았지만, 만약 다음에 어색해 보이면 결과 이미지를 원본
+   캔버스 크기로 크롭하거나 patch해서 정렬을 맞출 것.
+5) **검증**: `game/qa/gun66_check.gd`(커밋 전 삭제)를 `project.godot` `[autoload]`에
+   임시 추가해 `godot --path .`(실제 렌더러)로 실행 — 메인 메뉴부터 실제 화면 전환을
+   타고 월드에 들어간 뒤, 총을 든 채 4방향(south/north/east/west) × idle/fire 8가지
+   조합을 강제로 만들며 전체 화면을 캡처했다. 8장을 Read로 직접 열어 확인: 4방향 모두
+   idle=총을 낮게/편하게 든 자세, fire=총을 들어올려 조준+불꽃이 튀는 자세로 뚜렷이
+   구별됐고, 4방향의 idle 기본 자세도 서로(늘어뜨림/어깨걸침/낮춘 휴대) 크게 어긋나
+   보이지 않았다 — ①의 세 기준을 모두 통과로 판정했다. 검증 스크립트와
+   `project.godot`의 임시 autoload 추가분은 커밋 전 원상복구/삭제했다.
+6) `git status`에는 의도한 PNG 4장(`green_south_fire.png`/`green_north_fire.png`/
+   `green_east_idle.png`/`green_west_idle.png`)만 남았다 — `.import` 파일이나 다른
+   색상은 건드리지 않았다(blue/red 확장은 후속 항목 몫).
+7) **BUILD/DESIGN 완료 카운터: 바퀴 91(#63)에서 0으로 리셋된 뒤 92(#64)→1, 93(#65)→2,
+   이번(#66)→3이 됨.** INBOX에는 사용자가 직접 추가한 `#67 [QA] 디자인 관점 전체 스윕`이
+   이미 큐에 있으므로(자동 등록 조건인 5와는 별개), 이번 바퀴에서 새 QA 항목을 추가로
+   등록하지 않았다 — #67이 다음 QA 체크포인트 역할을 한다.
+8) 세션 시작 시 잔액: SpriteCook 16크레딧(바퀴 89 이후 변화 없음 확인) — 이번 작업은
+   `gpt-image-2 quality:low`(2크레딧×3콜=6크레딧)로 처리해서 **종료 시점 10크레딧
+   남음**(16→10). PixelLab은 여전히 $0(재확인만, 사용 안 함).
+**다음 바퀴가 참고할 것**: INBOX에 남은 미완료 항목은 `#67 [QA]`(디자인 관점 전체
+스윕) 하나뿐이다. `[QA]` 하네스가 열리면 #67을 처리하면 된다 — 이번에 고친 총
+idle/fire 4방향과, 캔버스 크기 변화로 인한 미세한 위치 흔들림이 실제로 어색해
+보이는지도 #67에서 다시 한번 확인 대상이다. **SpriteCook `gpt-image-2
+quality:"low"`(2크레딧/장) 발견은 다음 DESIGN 바퀴(blue/red 확장 등)에서 반드시
+재사용할 것** — 잔액이 빠듯해도 기본 모델 대비 6배 더 많은 시도가 가능해진다.
+
 바퀴 93 / 2026-09-03 ([BUILD] **INBOX #65 완료 — 도구(총/도끼/곡괭이낫/낚싯대)를 든 채
 이동하면 걷기 애니메이션이 재생되지 않고 idle/사용 포즈로 얼어붙은 채 미끄러지던 버그를
 고침.** `game/scenes/world/world.gd`의 `_current_animation_name()`에서 도구별 idle/사용
