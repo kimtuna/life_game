@@ -20,19 +20,19 @@
 </head>
 <body>
   <h1>auto-loop 진행 상황</h1>
-  <p class="updated">마지막 갱신: 2026-09-03 12:47:17</p>
+  <p class="updated">마지막 갱신: 2026-09-03 13:05:16</p>
   
   <div class="row">
-    <div class="card"><div class="label">남은 항목</div><div class="num">3</div></div>
-    <div class="card"><div class="label">완료된 항목</div><div class="num">51</div></div>
+    <div class="card"><div class="label">남은 항목</div><div class="num">2</div></div>
+    <div class="card"><div class="label">완료된 항목</div><div class="num">52</div></div>
   </div>
   <div class="card">
     <div class="label">지금 처리 중 / 다음으로 처리할 항목</div>
-    <div>#52 [DESIGN] 총을 든 캐릭터의 "들고 있는" 모션과 "발사하는" 모션을 SpriteCook으로 새로 만든다(기준 색상 green만 먼저). DESIGN.md "도구 동작 표현"대로 캐릭터 애니메이션 프레임 자체에 총을 쥔 손 모양을 그려 넣는다(별도 아이콘 오버레이 아님). `_build_player_sprite_frames()`에 gun_idle_&lt;방향&gt;/gun_fire_&lt;방향&gt; 애니메이션을 추가하고 `_current_animation_name()`의 `_held_tool == "gun"` 분기를 되살린다. 이번엔 특히 신경써서: 남/북(정면/후면)에서도 총이 조준 방향(위/아래)으로 자연스럽게 기울어져 보이게 만들 것 — 예전에 이 부분이 부자연스럽다는 지적을 받았었다(무효화된 #48 참고). 4방향 스크린샷으로 직접 확인한다.</div>
+    <div>#53 [DESIGN] #52의 총 모션을 나머지 색상(blue/red)까지 확장한다.</div>
   </div>
   <div class="card">
     <div class="label">마지막 작업 커밋</div>
-    <div><code>fcf4d66 [INBOX #51] 캐릭터 걷기 애니메이션을 blue/red 색상으로 확장</code></div>
+    <div><code>697b26b [INBOX #52] 총 든 캐릭터의 들고 있기/발사 모션을 SpriteCook generate-sync로 통합 (green)</code></div>
   </div>
 </body>
 </html>
