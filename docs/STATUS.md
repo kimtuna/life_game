@@ -5,6 +5,39 @@
 
 ## 마지막 갱신
 
+바퀴 130 / 2026-09-04 ([DESIGN] **INBOX #76(캐릭터 그림체 리메이크 1단계, 남자 idle
+4방향) 착수 보류 — SpriteCook/PixelLab 둘 다 잔액 0으로 생성 호출 불가, 이번이 이
+항목에 대한 첫 확인이라 규칙대로 조용히 기록만 하고 종료.**
+1) `docs/design_reference/style_ref_dragon.png`/`style_ref_fisherman.png`를 Read로
+   직접 봤다 — 다부호(2.5~3등신) 비율, 톤 단계가 있는 부드러운 음영, 순검정이 아닌
+   어두운 색 계열 외곽선, 채도 낮춘 팔레트(드래곤: 청회색/자주색, 낚시꾼: 갈색/
+   베이지/짙은 남색)가 DESIGN.md "캐릭터 스타일 목표" 절 서술과 일치함을 확인했다.
+   `game/assets/sprites/character/green_south.png` 등 기존 자산과 비교하면 확실히
+   성인 비율/단색 블록이라 리메이크 방향이 명확하다.
+2) 세션 시작 시 잔액을 재확인했다: `GET https://api.spritecook.ai/v1/api/credits` →
+   `{"total":0,"subscription_credits":0,"topup_credits":0,"tier":"adventurer",
+   "concurrent_jobs":5}` (바퀴 128이 마지막으로 기록한 "SpriteCook 0크레딧"과 동일 —
+   다만 `tier`가 "free"에서 "adventurer"로 바뀐 걸 보면 그사이 유료 티어로 전환은
+   됐으나 크레딧 자체는 0으로 리셋/소진된 상태로 보인다). `GET https://api.pixellab.ai
+   /v1/balance` → `{"type":"usd","usd":0.0}` (바퀴 128과 동일, 여전히 $0).
+3) 두 도구 모두 최소 생성 비용(관측된 최저가 SpriteCook `animate-sync` 20크레딧,
+   PixelLab는 잔액 0이라 어떤 유료 생성도 불가)보다 낮아 이번 항목(정지 이미지
+   4장이라도 새로 생성해야 함)을 진행할 방법이 없다.
+4) **PROMPT_DESIGN.md ③의 절차를 따름**: 바퀴 128이 이 수치를 기록한 시점은 #76이
+   아직 INBOX에 없었을 때(범용 잔액 메모)였고, **#76 자체에 대해 이 막힘을 기록하는
+   건 이번이 처음**이라 "처음 발견" 절차(①: 정확한 수치 기록 + 조용히 종료 + 다음
+   바퀴에게 한 번의 기회)를 따랐다 — `EXTERNAL_TOOL_BLOCKED` 출력은 하지 않았다.
+   INBOX #76은 미완료로 남긴다. 새 이미지/코드 변경 없음, 커밋 없음.
+**다음 바퀴가 참고할 것**: `[DESIGN]` 세션이 열리면 가장 먼저 위 두 엔드포인트로
+잔액을 재확인할 것. **만약 이번 바퀴와 같거나 더 나쁜 상태(SpriteCook total=0,
+PixelLab usd=0.0)라면, 이번엔 진짜로 반복 확인이므로 세 번째 기회를 기다리지 말고
+표준출력에 정확히 `EXTERNAL_TOOL_BLOCKED: SpriteCook 0크레딧(tier=adventurer, 최소
+20 필요)/PixelLab $0, 둘 다 생성 불가` 한 줄을 출력한 뒤 세션을 끝낼 것** (사람에게
+충전을 알리기 위함). 잔액이 회복됐다면 그대로 #76 착수 — 기준 색상/성별 없이 남자
+1종만 먼저 맨손 idle 4방향, SpriteCook을 캐릭터 애니메이션 도구로 우선 시도(그래픽
+파이프라인 규칙), 완성되면 `docs/design_reference/`의 두 참고 이미지와 나란히 놓고
+비율/음영/외곽선/팔레트가 실제로 닮았는지 서술 판정할 것.)
+
 바퀴 129 / 2026-09-04 ([QA] **INBOX #75 완료 — "도구 관련 모션" 좁은 범위 재검증,
 결함 0건으로 재확인 루프 종료.**
 1) **검사 스크립트**: `game/qa/tool_motion_sweep.gd`를 새로 만들어 `game/qa/`에
@@ -1929,13 +1962,20 @@ grep으로 이 심볼들이 world.gd 밖(resource_point.gd 등)에서 쓰이지 
 
 ## 다음에 할 것
 
-- **(바퀴 129 갱신, 최우선) INBOX에 미완료 항목이 하나도 없다.** #75([QA] "도구 관련
-  모션" 좁은 범위 재검증)가 결함 0건으로 완료되면서 재확인 루프가 종료됐다 —
-  `loop.sh`는 다음 세션을 열지 않고 스스로 종료할 것이다. 사람이 새 INBOX 항목을
-  추가하기 전까지는 할 일이 없는 정상 상태다. 다음 지시가 오면: (a) 이 문서의
-  "디자인 개선 후보" 섹션(사용자 검토용 아이디어 목록)을 먼저 확인, (b) 그림 작업이
-  있는 지시라면 세션 시작 시 SpriteCook/PixelLab 잔액을 습관적으로 재확인할 것
-  (마지막 확인은 바퀴 128 — SpriteCook 0크레딧, PixelLab $0).
+- **(바퀴 130 갱신, 최우선) INBOX #76(캐릭터 그림체 리메이크 1단계, 남자 idle 4방향)이
+  SpriteCook/PixelLab 잔액 부족으로 보류 중.** 바퀴 130이 잔액을 확인한 결과
+  SpriteCook `GET /v1/api/credits` → `total:0`(tier는 "adventurer"로 바뀜), PixelLab
+  `GET /v1/balance` → `usd:0.0` — 둘 다 0이라 새 이미지를 생성할 방법이 없다. **다음
+  `[DESIGN]` 바퀴가 최우선으로 할 일**: 이 두 엔드포인트로 잔액을 다시 확인한다.
+  - 회복됐다면: #76 착수. `docs/design_reference/style_ref_dragon.png`/
+    `style_ref_fisherman.png`를 먼저 Read로 직접 보고(바퀴 130이 이미 확인한 서술은
+    위 결정 로그 참고), SpriteCook을 캐릭터 애니메이션 우선 도구로 시도, 남자
+    맨손 idle 4방향만(`male_{south,north,east,west}.png`) 완성해서 참고 이미지와
+    비교 판정.
+  - 여전히 0이라면(바퀴 130과 같거나 더 나쁨): **이미 한 번 기록된 반복이므로**
+    표준출력에 `EXTERNAL_TOOL_BLOCKED: SpriteCook 0크레딧(tier=adventurer, 최소 20
+    필요)/PixelLab $0, 둘 다 생성 불가` 한 줄을 출력하고 세션을 끝낸다(PROMPT_DESIGN.md
+    ③ 절차).
 - **`game/qa/full_sweep.gd`가 재사용 가능한 전체 스윕 캡처 스크립트로 커밋됐다 —
   단, 바퀴 126이 `_step_multiplayer_lobby()`의 진행 정지 버그(확정 버튼을 누른 적이
   없어 이후 모든 스텝이 캐릭터 커스터마이징 화면만 반복 캡처하던 문제)를 고쳤다.**
