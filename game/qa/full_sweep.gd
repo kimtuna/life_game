@@ -240,7 +240,7 @@ func _step_tool_fishing_rod_use() -> void:
 
 func _step_inventory_open() -> void:
 	InventoryData.add_item("rice_seed", 3)
-	InventoryData.add_item("iron", 2)
+	InventoryData.add_item("iron_ore", 2)
 	InventoryData.add_item("rice", 1)
 	_world._set_inventory_open(true)
 

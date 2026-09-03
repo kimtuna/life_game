@@ -10,7 +10,7 @@ const PICKUP_RADIUS := 40.0
 const ITEM_ICONS := {
 	"rice_seed": preload("res://assets/sprites/items/rice_seed.png"),
 	"rice": preload("res://assets/sprites/items/rice.png"),
-	"iron": preload("res://assets/sprites/items/iron.png"),
+	"iron_ore": preload("res://assets/sprites/items/iron_ore.png"),
 	"captured_deer": preload("res://assets/sprites/items/captured_deer.png"),
 	# 도구도 인벤토리 버리기(INBOX #31)로 바닥에 떨어질 수 있어서 함께 추가했다 —
 	# world.gd의 TOOL_ICONS와 같은 텍스처를 재사용한다.

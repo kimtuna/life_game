@@ -10,9 +10,9 @@ outline_color = Color(0, 0, 0, 1)
 
 [node name="MiningPoint" type="Node2D"]
 script = ExtResource("1_script")
-item_name = "iron"
+item_name = "iron_ore"
 item_amount = 1
-prompt_text = "곡괭이낫을 들고 좌클릭: 채광 (철)"
+prompt_text = "곡괭이낫을 들고 좌클릭: 채광 (철광석)"
 texture_path = "res://assets/sprites/mining_point/mining_point.png"
 required_tool = "pickaxe"
 use_kind = "mining"

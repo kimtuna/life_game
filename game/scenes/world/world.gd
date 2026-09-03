@@ -50,13 +50,30 @@ const RANCH_ZONE_ORIGIN := Vector2(-650.0, -300.0)
 const ITEM_LABELS := {
 	"rice_seed": "벼 씨앗",
 	"rice": "벼",
-	"iron": "철",
+	"iron_ore": "철광석",
 	"wood": "나무",
 	"captured_deer": "포획된 사슴",
 	"gun": "총",
 	"axe": "도끼",
 	"pickaxe": "곡괭이낫",
 	"fishing_rod": "낚싯대",
+}
+
+## 아이템 키 -> 카테고리 (INBOX #83, DESIGN.md "아이템 카테고리 / 제작 테크" 절 참고).
+## 식재료 하위분류(곡물/육류/채소)는 "식재료"로 묶지 않고 하위분류 이름을 그대로 카테고리
+## 값으로 쓴다. "가축"은 DESIGN.md가 나열한 카테고리 목록에는 없지만, 포획된 사슴처럼
+## 원재료/가공물/완성품/식재료 어디에도 맞지 않는 살아있는 사육 대상을 표현하려고
+## 새로 추가했다(DESIGN.md의 "등"이 허용하는 확장).
+const ITEM_CATEGORIES := {
+	"rice_seed": "원재료",
+	"rice": "곡물",
+	"iron_ore": "원재료",
+	"wood": "원재료",
+	"captured_deer": "가축",
+	"gun": "도구",
+	"axe": "도구",
+	"pickaxe": "도구",
+	"fishing_rod": "도구",
 }
 
 ## 도구 아이템(INBOX #22). 순서대로 핫바 시작 슬롯(1~4번 키)에 지급된다.
