@@ -27,19 +27,19 @@
 </head>
 <body>
   <h1>auto-loop 진행 상황</h1>
-  <p class="updated">마지막 갱신: 2026-09-04 03:47:58</p>
+  <p class="updated">마지막 갱신: 2026-09-04 03:56:57</p>
   
   <div class="row">
     <div class="card"><div class="label">남은 항목</div><div class="num">2</div></div>
-    <div class="card"><div class="label">완료된 항목</div><div class="num">78</div></div>
+    <div class="card"><div class="label">완료된 항목</div><div class="num">79</div></div>
   </div>
   <div class="card">
     <div class="label">지금 처리 중 / 다음으로 처리할 항목</div>
-    <div>#80 [BUILD] (사용자 지시, 2026-09-04) 도끼(axe)에게 실제 벌목 대상을 만들어준다 — 지금 `scenes/world/world.gd:62` 주석에 이미 "도끼는 아직 벌목 대상이 없고"라고 적혀 있는, 오래된 미완성 상태다. #79에서 만든 나무 그림을 쓰는 새 씬 `scenes/resource_point/logging_point.tscn`을 기존 `gathering_point.tscn`/`mining_point.tscn`과 같은 패턴(`resource_point.gd` 재사용, `required_tool="axe"`, `item_name="wood"`, `prompt_text="도끼를 들고 좌클릭: 벌목 (나무)"`)으로 만든다. `resource_point.gd`의 `_harvest()`가 지금 `world_ref.play_pickaxe_use(use_kind)`를 무조건 호출하는데, 도끼를 든 상태에서는 이미 `world.gd`의 전역 `_unhandled_input()`이 패기 모션을 별도로 재생하므로(197번째 줄 부근) `play_pickaxe_use`는 그냥 조용히 무시된다 — 실제로 게임을 실행해서 패기 모션이 정상적으로 나오는지 반드시 확인할 것(이론상 괜찮아 보여도 직접 확인 없이 통과시키지 말 것). `world.gd`의 `ITEM_LABELS`에 `"wood": "나무"`를 추가하고, `RESOURCE_POINT_COUNT`/스폰 로직(`GatheringPointScene`/`MiningPointScene`과 같은 자리) 옆에 `LoggingPointScene`을 추가해서 월드에 실제로 스폰되게 한다. 완성되면 실제로 도끼를 들고 나무에 다가가 좌클릭해서 나무 아이템이 드롭되고 인벤토리에 들어가는지, 패기 모션이 나오는지 스크린샷/직접 플레이로 확인한다.</div>
+    <div>#82 [QA] 전체 스윕: 메인 메뉴부터 모든 시스템을 실제로 플레이해보며 문제를 찾는다 (BUILD/DESIGN 완료 카운터가 5에 도달해 자동 등록됨 — #79/#80 등 최근 완료분, 상세는 STATUS.md 참고). `game/qa/full_sweep.gd`를 재사용할 수 있다 — 이번엔 새로 생긴 벌목(logging_point/나무/도끼) 흐름을 특히 확인할 것.</div>
   </div>
   <div class="card">
     <div class="label">마지막 작업 커밋</div>
-    <div><code>5aca7a1 [INBOX #79] 나무(logging) 정적 오브젝트를 파이썬 절차적 생성으로 제작</code></div>
+    <div><code>6e6f09d [INBOX #80] 도끼에 처음으로 실제 벌목 대상(나무) 부여</code></div>
   </div>
   <div class="card">
     <div class="label">디자인 개선 후보 (확인 후 지우기를 누르면 이 브라우저에서 안 보입니다)</div>
@@ -48,7 +48,7 @@
   </div>
 <script>
 (function(){
-  var CANDIDATES = [{"id":"210698518","text":"(바퀴 119, #67 QA) 비가 올 때 화면 전체에 옅은 청회색 틴트(`RainOverlay` ColorRect,"},{"id":"1115505820","text":"(바퀴 119, #67 QA) 낚싯대의 idle(들고 있기)과 사용(낚시하는 동작) 포즈가 손 각도/찌"}];
+  var CANDIDATES = [{"id":"210698518","text":"(바퀴 119, #67 QA) 비가 올 때 화면 전체에 옅은 청회색 틴트(`RainOverlay` ColorRect,"},{"id":"1115505820","text":"(바퀴 119, #67 QA) 낚싯대의 idle(들고 있기)과 사용(낚시하는 동작) 포즈가 손 각도/찌"},{"id":"2246401144","text":"(바퀴 133, #80 BUILD) 나무(wood) 드롭 아이템 아이콘이 전용 32px 아이콘 없이 #79의"}];
   var KEY = "autoloop_dismissed_candidates";
   var dismissed = [];
   try { dismissed = JSON.parse(localStorage.getItem(KEY) || "[]"); } catch (e) { dismissed = []; }
