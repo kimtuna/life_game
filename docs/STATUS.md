@@ -5,6 +5,66 @@
 
 ## 마지막 갱신
 
+바퀴 88 / 2026-09-03 ([DESIGN] **INBOX #60 완료 — #59의 낚싯대 "들고 있는"/"낚시하는"
+모션을 blue/red로 확장, world.gd 코드 변경 없이 에셋만 추가, 4방향×2색×2상태 인게임
+스크린샷으로 검증 후 커밋.**
+1) 세션 시작 시 잔액 재확인: `GET /v1/api/credits` → SpriteCook 232크레딧(바퀴 87이
+   남긴 수치와 정확히 일치, 충분히 빠듯해서 이번엔 아래처럼 방향별로 variations를
+   차등 적용해 예산을 아꼈다 — PixelLab은 확인하지 않음, 기존 판단과 동일).
+2) **예산이 빠듯해(2색×3방향×2상태=12회 호출 필요, variations:3 기준 432크레딧인데
+   잔액 232) 방향별로 variations를 차등 적용**: south/north는 `variations:1`(첫 시도
+   신뢰도가 높았던 방향), east만 `variations:2`(측면은 결함 이력이 있어 안전 마진).
+   총 8×12 + 4×24 = 192크레딧 소모 계획 → 실제로 정확히 192크레딧 소모(232→40).
+   **다음 바퀴도 잔액이 빠듯할 때 이 "안전한 방향은 variations 낮추고 위험한 방향만
+   여유 있게" 전략을 재사용할 것** — 이번엔 12회 전부 첫 시도에서 68x68 정확한 크기로
+   나와 크기 재시도가 필요 없었다(운이 좋았을 수 있음, 여전히 크기 필터링은 유지할 것).
+3) **바퀴 87이 남긴 east 프롬프트(측면 전용 "NOT floating/disconnected" 문구 포함)를
+   그대로 재사용**했고 이번엔 east idle/fishing 전부 첫 시도(variations 2개)부터
+   결함 없이 나왔다.
+4) **⚠️ 새로 발견한 함정 — 바퀴 87의 "이 결함은 east(측면)에서만 나온다"는 결론이 이번엔
+   깨졌다**: `blue_north_idle`/`red_north_idle` 둘 다 첫 시도(south/north는 원래 문구
+   그대로, east의 "NOT floating" 문구 없이 생성)에서 낚싯줄이 낚싯대 끝과 전혀 연결되지
+   않고 빈 공간에 작은 점만 뚝 떨어져 있는 결함이 나왔다(south와 blue_south/red_south는
+   문제 없었음 — north만 재현). 콘택트시트를 눈으로 보고 나서야 발견했다(처음 만든
+   전체 콘택트시트에서는 작아서 놓쳤고, 개별 이미지를 8배 확대해서야 확실히 보였다).
+   **해결책**: north 전용으로 east 재시도 문구("A single thin fishing line must hang
+   DOWNWARD from the rod tip, staying connected the whole way... NOT floating far away
+   in empty space, NOT disconnected")를 추가한 프롬프트로 `variations:1`, 원본
+   `{color}_north.png`를 다시 업로드해 재시도 — 2회(blue/red) 모두 한 번에 정상(줄이
+   끝까지 연결됨)으로 나왔다. 추가 비용 24크레딧 — 총 소모 192(본 계획)+24(재시도)=216,
+   232-216=16 잔액으로 종료(재시도가 애초에 남겨둔 40 버퍼 안에서 처리됨). **다음
+   바퀴가 반드시 참고할 것**: "이 결함은 측면에서만
+   난다"고 단정하지 말 것 — north(후면)에서도 재현될 수 있다. 색상 확장이든 새 도구든,
+   south/north/east idle 전부를 개별로 확대해서 낚싯줄/소품이 실제로 연결돼 있는지
+   확인하는 절차를 매번 반복할 것(전체 축소 콘택트시트만으로는 이런 작은 결함을
+   놓치기 쉽다).
+5) **인게임 검증 중 새로 발견한 함정**: 새로 추가한 PNG에 `.import` 파일이 없는 상태로
+   `godot --path .`(에디터 아닌 실제 실행)를 바로 돌리면 `ResourceLoader.exists()`가
+   실패해서(또는 import 캐시 누락으로) `_build_player_sprite_frames()`가 해당
+   애니메이션을 아예 추가하지 않고, 인게임 스크린샷에 도구가 전혀 안 보이는(맨몸
+   idle로 폴백) 상태로 나온다 — 처음 검증 스크린샷 16장 전부 이 증상이었다. **해결책은
+   이미 STATUS.md에 여러 번 기록돼 있었는데 이번에 빠뜨렸다가 재확인**: 새 스프라이트
+   PNG를 추가한 직후에는 반드시 `godot --headless --path . --import`로 강제
+   재임포트를 먼저 실행한 뒤에 인게임 검증 스크립트를 돌릴 것 — 순서를 지키면 바로
+   정상 렌더링된다.
+6) 검증에 쓴 `game/scripts/_verify_fishingrod60.gd`와 `project.godot`의 임시
+   `[autoload]` 항목은 커밋 전 원상복구(삭제/되돌리기)했다. `game/scripts/
+   _verify_fishingrod60.gd.uid`도 함께 삭제했다 — `git status`에는 새
+   `game/assets/sprites/character/fishing_rod/{blue,red}_*.png`(및 `.import`) 32개
+   파일만 남았다(코드 변경 없음, `world.gd`는 #59에서 이미 색상 무관 구조로 완성됨).
+7) **BUILD/DESIGN 완료 카운터: 바퀴 87(#59)에서 3이었던 것이 이번(#60)으로 4가 됨 —
+   다음 완료 항목(#61 등)이 5번째가 되면 QA 전체 스윕 항목을 큐에 추가해야 한다.**
+**다음 바퀴가 참고할 것**: 다음 미완료 항목은 INBOX #61(`[DESIGN]` 잔디 타일 텍스처
+품질 문제 — 격자 반복 패턴). 이번 바퀴 스크린샷 배경에서도 그 반복 패턴이 계속
+보였다(별도 항목이라 이번엔 손대지 않음). SpriteCook 잔액은 이번 바퀴 종료 시점
+16크레딧으로 매우 빠듯하다 — #61은 그래픽 파이프라인 규칙상 정적 오브젝트라 PixelLab
+(잔액 $0 확인 필요, 바퀴 87 이후 재확인 안 됨) 또는 파이썬 절차적 생성(Wang 타일셋,
+STATUS.md 바퀴 23 참고)을 먼저 시도해볼 것 — SpriteCook 크레딧이 다음 충전 전까지
+거의 남지 않았다는 점을 감안할 것. 다음 바퀴 시작 시 PixelLab/SpriteCook 잔액을 둘 다
+확인하고, 둘 다 부족하면 PROMPT_DESIGN.md ③의 "반복 확인" 절차를 따를 것(이번이 이
+문제로 막힌 첫 기록이라면 조용히 종료, 바로 이전 바퀴도 같은 상태였다면
+EXTERNAL_TOOL_BLOCKED 출력).
+
 바퀴 87 / 2026-09-03 ([DESIGN] **INBOX #59 완료 — 낚싯대(자산 초기화로 삭제됐던 #45의
 재작업)의 "들고 있는"/"낚시하는" 모션을 SpriteCook `generate-sync`+`edit_asset_id`로
 green 4방향 전부 새로 만들어 캐릭터 애니메이션 프레임에 통합, 4방향×2상태 인게임
