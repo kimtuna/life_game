@@ -20,19 +20,19 @@
 </head>
 <body>
   <h1>auto-loop 진행 상황</h1>
-  <p class="updated">마지막 갱신: 2026-09-03 14:04:44</p>
+  <p class="updated">마지막 갱신: 2026-09-03 14:13:05</p>
   
   <div class="row">
-    <div class="card"><div class="label">남은 항목</div><div class="num">6</div></div>
-    <div class="card"><div class="label">완료된 항목</div><div class="num">56</div></div>
+    <div class="card"><div class="label">남은 항목</div><div class="num">5</div></div>
+    <div class="card"><div class="label">완료된 항목</div><div class="num">57</div></div>
   </div>
   <div class="card">
     <div class="label">지금 처리 중 / 다음으로 처리할 항목</div>
-    <div>#57 [DESIGN] (버그 리포트, #56 QA에서 발견) 캐릭터가 도끼를 손에 들었을 때 도끼가 화면에 전혀 보이지 않는다(맨손 idle 그대로). 원인: 자산 초기화(바퀴 64 부근) 때 `#43`이 만들었던 `axe_idle_*`/`axe_chop_*` 애니메이션 자산과 `world.gd`의 관련 코드가 모두 삭제됐는데, 이후 걷기(#50/51)·총(#52/53)·곡괭이낫(#54/55)은 각각 재작업 항목이 다시 등록됐지만 도끼는 재작업 항목이 등록되지 않고 누락됐다(코드에는 "axe_idle_*/axe_chop_*"를 언급하는 주석만 남아있고 실제 애니메이션 빌드 로직은 없음 — `scenes/world/world.gd`의 `_build_player_sprite_frames()`/`_current_animation_name()`에 gun/pickaxe와 달리 axe 분기가 아예 없다). 총(#52)/곡괭이낫(#54)과 같은 방식(SpriteCook `generate-sync`+`edit_asset_id`)으로 도끼의 "들고 있는"/"패는" 모션을 green 기준으로 새로 만들고, `_build_player_sprite_frames()`/`_current_animation_name()`에 `_held_tool == "axe"` 분기(axe_idle_&lt;방향&gt;/axe_chop_&lt;방향&gt;, `ResourceLoader.exists()` 가드 패턴)를 되살린다. 4방향 스크린샷으로 직접 확인한다.</div>
+    <div>#58 [DESIGN] #57의 도끼 모션을 나머지 색상(blue/red)까지 확장한다. #57과 같은 방식/품질로 만들고 4방향 스크린샷으로 확인한다.</div>
   </div>
   <div class="card">
     <div class="label">마지막 작업 커밋</div>
-    <div><code>e59e9ce [INBOX #56] QA: 전체 스윕(메인 메뉴~농사/채집/채광/목장/사냥) — 결함 4건 발견</code></div>
+    <div><code>c52c96a [INBOX #57] 도끼를 든 캐릭터의 들고 있기/패기 모션을 SpriteCook으로 재작업 (green 기준)</code></div>
   </div>
 </body>
 </html>
