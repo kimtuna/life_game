@@ -218,8 +218,12 @@ func _start_flee() -> void:
 	_flee_zigzag_timer = 0.0
 
 
+## 기본탄으로 사살했을 때 호출된다. _capture()와 같은 패턴(INBOX #24 바닥 드롭)으로
+## 고기를 드롭한다 (INBOX #85, DESIGN.md "예시 자원": 기본탄으로 죽이면 고기 드롭).
 func _die() -> void:
 	_dead = true
+	if world_ref != null:
+		world_ref.spawn_dropped_item("meat", 1, global_position)
 	queue_free()
 
 
