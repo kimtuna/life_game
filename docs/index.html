@@ -27,19 +27,19 @@
 </head>
 <body>
   <h1>auto-loop 진행 상황</h1>
-  <p class="updated">마지막 갱신: 2026-09-04 06:43:40</p>
+  <p class="updated">마지막 갱신: 2026-09-04 07:09:35</p>
   
   <div class="row">
-    <div class="card"><div class="label">남은 항목</div><div class="num">0</div></div>
+    <div class="card"><div class="label">남은 항목</div><div class="num">2</div></div>
     <div class="card"><div class="label">완료된 항목</div><div class="num">94</div></div>
   </div>
   <div class="card">
     <div class="label">지금 처리 중 / 다음으로 처리할 항목</div>
-    <div>(없음 — 큐 비어있음)</div>
+    <div>#96 [BUILD] (사용자 지시, 2026-09-04) 저장 상자(Storage Chest) 시스템을 신설한다. 새 씬 `scenes/storage_chest/storage_chest.gd`(+`.tscn`)를 만든다 — `farm_plot`/`processing_table`과 같은 "근처에서 상호작용" 패턴으로 접근하면 상자 UI(새 `Control` 팝업, 인벤토리 창과 별개)가 열린다. 상자는 `InventoryData`와 별개의 자체 슬롯 배열(`{"item": String, "count": int}` 형태, 슬롯 수는 재량이나 최소 20칸 이상)을 가지며, **상자 슬롯의 수량은 플레이어 인벤토리의 `STACK_MAX`(99) 제한을 받지 않고 그보다 큰 수(예: 999)를 그대로 저장할 수 있다** — 상자에서 플레이어 인벤토리로 옮길 때만 `InventoryData.add_item()`을 거쳐 플레이어 쪽 99 스택 제한이 자연스럽게 적용된다(옮기는 수량은 재량 — 클릭 한 번에 최대 99개씩 옮기거나, 상자 슬롯 전체를 넘기되 인벤토리 쪽에서 자동으로 여러 스택으로 나뉘게 하거나). 상자 UI는 슬롯마다 아이템 이름+수량을 표시하고 클릭하면 플레이어 인벤토리로 이전을 시도한다(인벤토리에 공간이 없으면 실패 표시). 이 오브젝트는 테스트용으로만 쓰는 게 아니라 나중에 실제 게임에도 쓰일 저장 상자의 기반이 되므로, 임시방편처럼 만들지 말고 `processing_table`/`smelting_furnace` 수준으로 제대로 만든다. 오브젝트의 월드 그림은 이번 항목 범위가 아니다(임시로 단색 사각형이나 기존 아이콘 재사용, 실제 그림은 나중 [DESIGN] 항목). 상자를 하나 배치해서 아이템을 넣고 빼는 게 실제로 되는지 확인한다(넣기 기능은 #97에서 씀 — 최소한 이 항목에서는 코드로 미리 채워넣은 슬롯을 꺼내는 것까지 확인).</div>
   </div>
   <div class="card">
     <div class="label">마지막 작업 커밋</div>
-    <div><code>35d4b47 [INBOX #95] DESIGN: 유황광석 채광 포인트 그림을 불꽃 형태에서 결정질 크리스탈로 재작업</code></div>
+    <div><code>5d57d38 테스트용 저장 상자(999개 재료) INBOX #96/#97 등록</code></div>
   </div>
   <div class="card">
     <div class="label">디자인 개선 후보 (확인 후 지우기를 누르면 이 브라우저에서 안 보입니다)</div>
