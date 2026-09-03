@@ -52,9 +52,10 @@ func get_count(item_name: String) -> int:
 
 
 ## 같은 아이템이 이미 있는 슬롯부터 채우고, 남으면 빈 슬롯에 새 스택을 만든다.
-## 빈 슬롯이 모자라 다 못 넣으면 넣은 만큼만 넣는다(18칸이 넉넉해 실사용에서는 거의
-## 발생하지 않는다).
-func add_item(item_name: String, amount: int) -> void:
+## 빈 슬롯이 모자라 다 못 넣으면 **들어가는 만큼만 넣고 실제로 넣은 개수를 반환한다**
+## (INBOX #98 — 이전에는 반환값이 없어 호출부가 초과분이 조용히 버려지는 것을 알 방법이
+## 없었다). 호출부가 반환값을 확인하지 않아도(기존 호출부 전부가 그랬듯) 동작은 그대로다.
+func add_item(item_name: String, amount: int) -> int:
 	var remaining := amount
 	for i in range(_general_slots.size()):
 		if remaining <= 0:
@@ -74,10 +75,25 @@ func add_item(item_name: String, amount: int) -> void:
 			remaining -= add
 	_save()
 	changed.emit()
+	return amount - remaining
 
 
 func has_item(item_name: String, amount: int = 1) -> bool:
 	return get_count(item_name) >= amount
+
+
+## 지금 슬롯 상태로 item_name을 amount개 더 넣을 공간이 있는지 확인한다(넣지는 않음).
+## 바닥 드롭 줍기/제작 수령/상자 이전 등 InventoryData에 뭔가 넣기 "전에" 미리 확인하는
+## 모든 호출부가 이 함수를 공용으로 쓴다 — storage_chest.gd의 try_transfer_to_player()가
+## 원래 자체적으로 갖고 있던 것과 같은 계산이라 여기로 통합했다(INBOX #98).
+func has_room(item_name: String, amount: int) -> bool:
+	var capacity := 0
+	for slot in _general_slots:
+		if slot == null:
+			capacity += STACK_MAX
+		elif slot.get("item") == item_name:
+			capacity += STACK_MAX - int(slot["count"])
+	return capacity >= amount
 
 
 ## 성공하면 true를 반환하고 개수를 뺀다(다 빠진 슬롯은 다시 빈 슬롯이 된다). 보유량이

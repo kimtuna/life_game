@@ -86,7 +86,7 @@ func try_transfer_to_player(index: int) -> bool:
 		return false
 	var item: String = slot["item"]
 	var move_amount: int = min(int(slot["count"]), TRANSFER_AMOUNT)
-	if not _inventory_has_room(item, move_amount):
+	if not InventoryData.has_room(item, move_amount):
 		return false
 	InventoryData.add_item(item, move_amount)
 	slot["count"] = int(slot["count"]) - move_amount
@@ -94,13 +94,3 @@ func try_transfer_to_player(index: int) -> bool:
 		_slots[index] = null
 	changed.emit()
 	return true
-
-
-func _inventory_has_room(item_name: String, amount: int) -> bool:
-	var capacity := 0
-	for slot in InventoryData.get_general_slots():
-		if slot == null:
-			capacity += InventoryData.STACK_MAX
-		elif slot.get("item") == item_name:
-			capacity += InventoryData.STACK_MAX - int(slot["count"])
-	return capacity >= amount

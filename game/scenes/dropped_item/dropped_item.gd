@@ -65,6 +65,11 @@ func _process(_delta: float) -> void:
 	if _picked_up or player_ref == null:
 		return
 	if global_position.distance_to(player_ref.global_position) <= PICKUP_RADIUS:
-		_picked_up = true
-		InventoryData.add_item(item_name, item_amount)
-		queue_free()
+		# 인벤토리 공간이 부족하면 들어가는 만큼만 줍고 나머지는 바닥에 남긴다(INBOX #98) —
+		# 이전에는 공간과 무관하게 항상 queue_free()해서 다 못 들어간 만큼이 통째로
+		# 증발했다. 남은 수량이 있는 한 다음 프레임에 다시 시도한다.
+		var picked: int = InventoryData.add_item(item_name, item_amount)
+		item_amount -= picked
+		if item_amount <= 0:
+			_picked_up = true
+			queue_free()

@@ -195,6 +195,10 @@ var _hotbar_cells: Array = []
 var _crafting_window: Control
 var _crafting_title_label: Label
 var _crafting_list: VBoxContainer
+## 제작 실패(인벤토리 공간 부족) 시 잠깐 보여주는 메시지 (INBOX #98, _storage_message_label과
+## 같은 패턴).
+var _crafting_message_label: Label
+var _crafting_message_timer: float = 0.0
 ## 저장 상자(INBOX #96) UI가 열려 있는지, 지금 어느 상자 인스턴스를 보여주고 있는지.
 var _storage_open: bool = false
 var _storage_chest: Node = null
@@ -279,6 +283,10 @@ func _process(delta: float) -> void:
 		_storage_message_timer -= delta
 		if _storage_message_timer <= 0.0:
 			_storage_message_label.visible = false
+	if _crafting_message_timer > 0.0:
+		_crafting_message_timer -= delta
+		if _crafting_message_timer <= 0.0:
+			_crafting_message_label.visible = false
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -859,6 +867,11 @@ func _build_crafting_window() -> void:
 	_crafting_list.add_theme_constant_override("separation", 6)
 	vbox.add_child(_crafting_list)
 
+	_crafting_message_label = Label.new()
+	_crafting_message_label.visible = false
+	_crafting_message_label.modulate = Color(1, 0.55, 0.55, 1)
+	vbox.add_child(_crafting_message_label)
+
 	var close_hint := Label.new()
 	close_hint.text = "ESC: 닫기"
 	close_hint.modulate = Color(1, 1, 1, 0.6)
@@ -878,6 +891,7 @@ func open_crafting_window(title: String, recipes: Array) -> void:
 	_crafting_title_label.text = title
 	_crafting_recipes = recipes
 	_crafting_open = true
+	_crafting_message_label.visible = false
 	_crafting_window.visible = true
 	_refresh_crafting_window()
 
@@ -937,14 +951,25 @@ func _make_recipe_row(recipe: Dictionary) -> Control:
 ## 부족한 재료가 있으면 아무것도 소모하지 않고 조용히 무시한다 — 버튼이 이미
 ## disabled=true라 정상 플레이에서는 눌릴 수 없지만, 클릭과 인벤토리 변화(재료 소모) 사이의
 ## 경합을 대비해 실행 시점에도 다시 확인한다.
+## 재료를 소모하기 "전에" 결과물이 들어갈 공간이 있는지부터 확인한다(INBOX #98) — 이전에는
+## 재료부터 소모한 뒤 결과물을 add_item()하고 확인하지 않아서, 인벤토리가 꽉 차 있으면
+## 재료만 사라지고 결과물은 증발했다. 공간이 없으면 재료를 건드리지 않고 제작 자체를
+## 실패 처리하며, 잠깐 안내 메시지를 보여준다.
 func _on_craft_pressed(recipe: Dictionary) -> void:
 	var inputs: Dictionary = recipe.get("inputs", {})
 	for item_key in inputs.keys():
 		if InventoryData.get_count(item_key) < int(inputs[item_key]):
 			return
+	var output: String = recipe.get("output", "")
+	var amount: int = int(recipe.get("amount", 1))
+	if not InventoryData.has_room(output, amount):
+		_crafting_message_label.text = "인벤토리에 공간이 없습니다"
+		_crafting_message_label.visible = true
+		_crafting_message_timer = 1.5
+		return
 	for item_key in inputs.keys():
 		InventoryData.remove_item(item_key, int(inputs[item_key]))
-	InventoryData.add_item(recipe.get("output", ""), int(recipe.get("amount", 1)))
+	InventoryData.add_item(output, amount)
 
 
 ## 저장 상자(INBOX #96)가 공유하는 범용 상자 창을 코드로 한 번만 조립해둔다
