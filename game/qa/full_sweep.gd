@@ -15,6 +15,11 @@ extends Node
 ##
 ## 실행 후 project.godot의 [autoload] 임시 추가분은 반드시 되돌리고, 이 스크립트 자체는
 ## `game/qa/`에 남겨서 다음 전체 스윕(5개마다 자동 등록)이 재사용할 수 있게 한다.
+##
+## (바퀴 134, INBOX #82) logging_point_idle/logging_point_harvest 두 스텝을 추가해
+## #80이 새로 만든 벌목(나무) 흐름을 스윕에 포함시켰다 — gathering/mining과 같은
+## resource_point.gd를 쓰지만 use_kind로는 mining과 구분되지 않으므로(둘 다 "mining"),
+## required_tool == "axe"로 필터링한다.
 
 const OUT_DIR := "/tmp/qa67"
 
@@ -50,6 +55,8 @@ func _ready() -> void:
 		"farm_ready",
 		"gathering_point",
 		"mining_point",
+		"logging_point_idle",
+		"logging_point_harvest",
 		"ranch_zone",
 		"hunting_aim",
 		"hunting_hit",
@@ -104,6 +111,8 @@ func _run_step(name: String) -> void:
 		"farm_ready": _step_farm_ready()
 		"gathering_point": _step_gathering_point()
 		"mining_point": _step_mining_point()
+		"logging_point_idle": _step_logging_point_idle()
+		"logging_point_harvest": _step_logging_point_harvest()
 		"ranch_zone": await _step_ranch_zone()
 		"hunting_aim": _step_hunting_aim()
 		"hunting_hit": _step_hunting_hit()
@@ -178,6 +187,12 @@ func _force_tool(tool_key: String) -> void:
 ## walk_<방향>으로 대체되는 게 의도된 동작이라, 직전에 든 도구와 무관하게 같은
 ## 함수를 재사용한다.
 func _step_tool_walk() -> void:
+	# (바퀴 134, INBOX #82 발견) set_physics_process(false)로 멈춰둔 상태에서는
+	# _tool_use_flash_timer가 자연 감쇠하지 않아, 직전 스텝(발사/패기 등)의 사용
+	# 애니메이션이 그대로 남은 채 캡처되는 스크립트 버그가 있었다(실제 게임에서는
+	# _process가 계속 돌아 타이머가 줄어들므로 재현되지 않는 문제). "사용하지 않고
+	# 이동만" 상태를 제대로 캡처하려면 타이머를 직접 0으로 초기화해야 한다.
+	_world._tool_use_flash_timer = 0.0
 	_world._is_moving = true
 	_world._update_player_animation()
 
@@ -294,6 +309,31 @@ func _step_mining_point() -> void:
 	_player.position = point.global_position + Vector2(0, 60)
 	_world.camera.global_position = _player.position
 	_force_tool("pickaxe")
+
+
+# ---- 벌목 (INBOX #80이 새로 만든 흐름, 바퀴 134가 스윕에 추가) ----
+
+func _find_logging_point() -> Node2D:
+	for child in _world.get_children():
+		var s = child.get_script()
+		if s != null and s.resource_path == "res://scenes/resource_point/resource_point.gd" \
+				and child.required_tool == "axe":
+			return child
+	return null
+
+
+func _step_logging_point_idle() -> void:
+	var point := _find_logging_point()
+	_player.position = point.global_position + Vector2(0, 60)
+	_world.camera.global_position = _player.position
+	_force_tool("axe")
+
+
+func _step_logging_point_harvest() -> void:
+	var point := _find_logging_point()
+	_world._tool_use_flash_timer = _world.AXE_CHOP_FLASH_DURATION
+	_world._update_player_animation()
+	point._harvest()
 
 
 # ---- 목장 ----
