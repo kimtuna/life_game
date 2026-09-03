@@ -20,19 +20,19 @@
 </head>
 <body>
   <h1>auto-loop 진행 상황</h1>
-  <p class="updated">마지막 갱신: 2026-09-03 14:39:23</p>
+  <p class="updated">마지막 갱신: 2026-09-03 14:54:33</p>
   
   <div class="row">
-    <div class="card"><div class="label">남은 항목</div><div class="num">3</div></div>
-    <div class="card"><div class="label">완료된 항목</div><div class="num">59</div></div>
+    <div class="card"><div class="label">남은 항목</div><div class="num">2</div></div>
+    <div class="card"><div class="label">완료된 항목</div><div class="num">60</div></div>
   </div>
   <div class="card">
     <div class="label">지금 처리 중 / 다음으로 처리할 항목</div>
-    <div>#60 [DESIGN] #59의 낚싯대 모션을 나머지 색상(blue/red)까지 확장한다. #59와 같은 방식/품질로 만들고 4방향 스크린샷으로 확인한다.</div>
+    <div>#61 [DESIGN] (품질 피드백, #56 QA에서 발견) 바닥 잔디 텍스처(`assets/sprites/ground/grass_tile.png`, 32x32)를 실제 게임 화면에서 확대해 보면, 자연스러운 잔디 질감이 아니라 작은 숫자/기호처럼 보이는 형태가 격자 모양으로 반복되는 이상한 패턴이 뚜렷하게 보인다(타일을 이어붙였을 때 화면 전체에 이 패턴이 규칙적으로 반복돼 매우 눈에 띈다 — 스타듀밸리/코어키퍼의 자연스러운 잔디 텍스처와 확연히 다르다). 이 텍스처를 새로 생성해서 교체한다. STATUS.md(바퀴 23)의 "이음매 없는 반복 타일" 관련 결정 로그(`/create-tileset` Wang 타일셋 엔드포인트 사용법, `create-image-pixflux`는 이음매가 생겨서 부적합했다는 기록)를 먼저 확인하고, 이번엔 생성된 타일을 실제 게임 화면(여러 번 반복 타일링된 상태)에서 확대 스크린샷으로 직접 확인해서 이런 반복 아티팩트가 없는지 검증한 뒤 교체한다.</div>
   </div>
   <div class="card">
     <div class="label">마지막 작업 커밋</div>
-    <div><code>86a8d06 [INBOX #59] 낚싯대 든 캐릭터의 들고 있기/낚시하기 모션을 SpriteCook으로 재작업 (green 기준)</code></div>
+    <div><code>36959c9 [INBOX #60] 낚싯대 든 캐릭터의 들고 있기/낚시하기 모션을 blue/red로 확장</code></div>
   </div>
 </body>
 </html>
