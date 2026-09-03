@@ -5,6 +5,57 @@
 
 ## 마지막 갱신
 
+바퀴 126 / 2026-09-03 ([QA] **INBOX #74 완료 — 전체 스윕(메인 메뉴~낮/밤/날씨) 실행,
+결함 1건 발견해 #75로 티켓 발행. `game/qa/full_sweep.gd` 자체의 버그도 하나 고쳤다
+(재사용 스크립트라 커밋 대상).**
+1) **`game/qa/full_sweep.gd`의 진행 버그를 먼저 고쳤다**: `_step_multiplayer_lobby()`가
+   `pass`만 하고 있어서(주석: "_on_confirm_pressed는 존재한 적 없는 함수였다") 실제로는
+   `character_customization` 화면의 확정 버튼을 누른 적이 없었다 — 그 결과
+   `_step_world_enter()`가 `_current()._on_single_player_pressed()`를 호출할 때
+   `_current()`가 여전히 `character_customization`(그 스크립트엔 저 함수가 없음)이라
+   `SCRIPT ERROR`가 나고, `_world`가 끝까지 null로 남아 이후 모든 스텝(도구/농사/채집/
+   채광/목장/사냥/낮밤)이 전부 에러만 찍고 스크린샷은 "직전 화면"만 반복 캡처하고
+   있었다(최근 몇 바퀴의 QA가 사실상 캐릭터 커스터마이징 화면 스크린샷만 27장 찍고
+   있었을 가능성이 있다 — 이번에 처음 발견). `_step_multiplayer_lobby()`가
+   `_current()._on_confirm_pressed()`를 호출하도록 고쳐서 실제로 로비→월드까지 정상
+   진행되는 것을 확인했다(29개 스텝 전부 SCRIPT ERROR 없이 캡처 완료).
+2) **실행 절차**: 캐릭터/인벤토리 세이브 파일 삭제 → `project.godot` `[autoload]`에
+   `QASweep="*res://qa/full_sweep.gd"` 임시 추가 → `godot --path . --import`(이 과정에서
+   Godot가 `window/stretch/aspect="keep"` 줄을 자동으로 지워버리는 부작용을 발견해 바로
+   복원함 — **다음 바퀴도 `--import` 직후 `git diff game/project.godot`으로 이 줄이
+   사라지지 않았는지 확인할 것**, PvP 공정성 규칙과 직결된 설정이라 조용히 없어지면
+   위험하다) → `godot --path .`(실제 렌더러)로 29개 스텝 캡처 → `[autoload]` 원상복구.
+3) **Read 도구로 스크린샷을 직접 눈으로 확인**: #69(도끼 낙서 아티팩트)는 확대해서
+   봐도 깨끗함(고침 확인), #71(총 idle 동/서 크기)은 별도로 4방향 idle을 다시 캡처하는
+   임시 스크립트(`/tmp/qa74/dir_check.gd`, 1회성이라 커밋하지 않고 검증 후 삭제)로
+   확인한 결과 동/서가 시각적으로 대칭·동일 크기라 재현 안 됨(기존 결론 유지), #72(총
+   남쪽 자세)는 어깨에 견착한 자연스러운 자세 유지 확인, #70(걷기 4방향 크기)은 이번
+   스윕에서 남쪽만 확인 가능했는데(스텝이 전부 남쪽 고정) idle과 크기 차이 없음.
+4) **새로 발견한 결함(#75로 등록)**: #68이 "채집/채광 포인트가 UI보다 앞에 그려지는"
+   문제를 고쳤다고 완료 처리됐는데, **다른 월드 오브젝트에서 같은 증상이 재현된다** —
+   `farm_empty`/`farm_ready` 스텝에서 근처를 배회하던 사슴의 목/머리가 좌상단 인벤토리
+   HUD 텍스트 패널 위에 그려졌고(픽셀 확인: 사슴 갈색이 패널 배경 위에 나타남),
+   `mining_point` 스텝에서는 밭(farm_plot)의 울타리 테두리가 핫바 8번 슬롯 모서리 위에
+   그려졌다. 둘 다 서로 다른 노드/z_index인데 공통적으로 `UI` CanvasLayer(`layer=10`,
+   #68이 설정)보다 앞에 그려졌다 — `layer=10`이 이 렌더러(gl_compatibility)에서 화면
+   위치/겹침 조건에 따라 완전히 보장되지 않는 것으로 보인다. 추가로, 밤에는 좌상단
+   HUD 패널 배경색 자체도 어두워지는 것을 픽셀로 확인했다(낮 `(23,49,27)`→밤
+   `(16,27,22)`) — CanvasModulate가 UI CanvasLayer에도 영향을 주고 있다는 뜻이라, 두
+   증상이 같은 원인(이 렌더러에서 `layer=10` UI가 실제로는 완전히 분리된 컴포지팅
+   패스가 아닐 수 있음)일 가능성을 INBOX #75에 같이 적어뒀다. 원인 조사/수정은
+   `[BUILD]` 몫이라 QA는 관찰만 하고 코드를 고치지 않았다.
+5) 커밋 대상은 `game/qa/full_sweep.gd`(버그 수정 1건), `docs/feedback/INBOX.md`(#74
+   완료 체크 + #75 신규), 이 STATUS.md 갱신뿐이다. `project.godot`/`/tmp/qa74/
+   dir_check.gd`는 검증 후 원상복구/삭제(커밋 대상 아님). 그림/게임 코드는 손대지
+   않았다(QA 하네스 규칙 준수).
+6) **BUILD/DESIGN 완료 카운터는 이번 QA로 인해 변하지 않는다**(카운터는 BUILD/DESIGN
+   완료 항목에만 반응) — 바퀴 125(#73)에서 1이었던 값 그대로 유지.
+**다음 바퀴가 참고할 것**: INBOX 미완료 항목은 `#75`([BUILD], UI CanvasLayer 순서
+회귀) 하나뿐이다 — `[BUILD]` 하네스 몫. 원인 조사 시 `game/qa/full_sweep.gd`의
+`farm_empty`/`mining_point` 스텝을 그대로 재사용해 재현할 수 있다. SpriteCook/
+PixelLab 잔액은 이번 바퀴에 확인 안 함(그림을 만들지 않아서) — 다음 `[DESIGN]`
+바퀴가 필요시 다시 확인할 것.
+
 바퀴 125 / 2026-09-03 ([BUILD] **INBOX #73 완료 — 곡괭이낫을 든 채 채집/채광 대상 없이
 허공에 좌클릭해도 스윙 모션이 나오지 않던 버그를 고쳤다. `world.gd`의
 `_unhandled_input()`에 도끼(#43)와 같은 패턴으로 `_held_tool == "pickaxe"` 브랜치를
@@ -1717,18 +1768,25 @@ grep으로 이 심볼들이 world.gd 밖(resource_point.gd 등)에서 쓰이지 
 
 ## 다음에 할 것
 
-- **(바퀴 125 갱신, 최우선) 다음 미완료 항목은 INBOX #74(`[QA]` 전체 스윕, #68~#72
-  범위)뿐이다 — `[QA]` 하네스 몫.** `[BUILD]`/`[DESIGN]` 하네스가 다시 열릴 차례가
-  오면 새 태그 항목이 INBOX에 추가될 때까지 처리할 것이 없다. 세션 시작 시
-  SpriteCook/PixelLab 잔액 확인은 여전히 습관적으로 할 것(마지막 확인은 바퀴 124 —
-  SpriteCook 0크레딧, PixelLab은 바퀴 123에 $0으로 마지막 확인).
-- **`game/qa/full_sweep.gd`가 재사용 가능한 전체 스윕 캡처 스크립트로 커밋됐다** — 다음
-  `[QA]` 전체 스윕(BUILD/DESIGN 5개 더 완료되면 자동 등록)이 이 스크립트를 그대로
+- **(바퀴 126 갱신, 최우선) 다음 미완료 항목은 INBOX #75(`[BUILD]`, UI CanvasLayer
+  순서 회귀 — 사슴/밭이 좌상단 HUD 위에 그려짐)뿐이다 — `[BUILD]` 하네스 몫.** 세션
+  시작 시 SpriteCook/PixelLab 잔액 확인은 여전히 습관적으로 할 것(마지막 확인은 바퀴
+  124 — SpriteCook 0크레딧, PixelLab은 바퀴 123에 $0으로 마지막 확인, 이번 바퀴는
+  그림을 다루지 않아 재확인 안 함).
+- **`game/qa/full_sweep.gd`가 재사용 가능한 전체 스윕 캡처 스크립트로 커밋됐다 —
+  단, 바퀴 126이 `_step_multiplayer_lobby()`의 진행 정지 버그(확정 버튼을 누른 적이
+  없어 이후 모든 스텝이 캐릭터 커스터마이징 화면만 반복 캡처하던 문제)를 고쳤다.**
+  다음 `[QA]` 전체 스윕(BUILD/DESIGN 5개 더 완료되면 자동 등록)이 이 스크립트를 그대로
   재사용할 것. 재실행 전 `~/Library/Application Support/Godot/app_userdata/life_game/
   {characters,inventory}.save`를 지워야 캐릭터 슬롯이 비어 있는 상태(커스터마이징 화면
   포함)부터 스윕할 수 있다 — 안 지우면 이전 세션이 저장해둔 캐릭터 때문에 커스터마이징
   화면을 건너뛰고 곧장 로비로 가버린다(바퀴 84가 실제로 겪음, 비치명적 에러만 나고
   스크립트는 계속 진행됨).
+- **`godot --path . --import`를 실행하면 `project.godot`의 `window/stretch/
+  aspect="keep"` 줄이 조용히 사라지는 부작용이 있다(바퀴 126 발견)** — 기본값과 같아져서
+  Godot가 재저장 시 생략하는 것으로 보인다. `--import`를 실행한 다음에는 항상 `git diff
+  game/project.godot`으로 이 줄이 남아있는지 확인하고, 없어졌으면 되살릴 것 — PvP 공정성
+  규칙(해상도를 바꿔도 시야는 고정)과 직결된 설정이라 조용히 사라지면 위험하다.
 - **헤드리스가 아닌 실제 렌더러로 게임 상태를 강제 조작해 스크린샷을 찍어야 할 때는
   `--script` 단독 실행이 아니라 `project.godot`의 `[autoload]`에 검증용 스크립트를
   임시로 추가하고 일반 실행(`godot --path .`)하는 방법을 쓸 것(바퀴 82가 새로 확인 —
@@ -2274,6 +2332,18 @@ DESIGN.md가 "캐릭터/동물 애니메이션 전담 도구"로 지정한 Sprit
 
 (바퀴 중 내린 크고 작은 결정과 이유. 다음 바퀴가 되돌리지 않도록)
 
+- 바퀴 126: `game/qa/full_sweep.gd`의 `_step_multiplayer_lobby()`가 로비로 넘어가는
+  확정 버튼을 실제로는 누른 적이 없었다는 걸 발견해 고침(`_current()._on_confirm_pressed()`
+  호출 추가). 근거: 이전 버전은 캐릭터 커스터마이징 화면에 진입만 하고 확정을 누르지
+  않아 이후 로비/월드/도구/농사 등 모든 스텝이 `_world`가 null인 채로 SCRIPT ERROR만
+  찍으며 사실상 커스터마이징 화면 스크린샷만 반복 저장하고 있었다 — 이 스크립트를
+  써온 바퀴 84 이후의 여러 전체 스윕이 실제로는 월드 이후 상태를 하나도 못 보고
+  "문제 없음"으로 지나갔을 위험이 있다(재검증까지는 이번 바퀴 예산상 하지 않음).
+  **다음 바퀴가 주의할 점**: 이 스크립트를 다른 곳에 복사해 스텝을 늘릴 때, 화면 전환
+  함수(`_on_confirm_pressed` 등)를 호출하는 스텝과 단순히 "이미 넘어가 있겠지"라고
+  가정하고 `pass`만 두는 스텝을 섞어 쓰지 말 것 — 캡처된 이미지 파일명이 계획대로
+  나온다고 해서 실제로 그 화면이 캡처됐다는 보장이 없다(항상 스크린샷을 열어서
+  기대한 화면이 맞는지 확인할 것).
 - 바퀴 120: `world.tscn`의 `UI` CanvasLayer의 `layer` 값을 기본값(1) 대신 명시적으로
   10으로 정함(INBOX #68). 근거: 이 프로젝트의 렌더링 설정(Godot 4.7.2,
   `renderer/rendering_method="gl_compatibility"`)에서는 `layer` 기본값 1로 CanvasLayer가

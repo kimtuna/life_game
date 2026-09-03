@@ -136,7 +136,11 @@ func _step_character_customization() -> void:
 
 
 func _step_multiplayer_lobby() -> void:
-	pass  # 로비 화면 자체를 캡처만 한다 (_on_confirm_pressed는 존재한 적 없는 함수였다).
+	# character_customization의 확정 버튼을 눌러야 로비로 넘어간다(캐릭터 저장 +
+	# change_scene_to_file). 이전 버전은 이 호출이 빠져 있어 로비 이후 스텝이 전부
+	# character_customization 화면에 멈춘 채로 진행돼(current_scene이 안 바뀜)
+	# world/도구/농사 등 모든 후속 캡처가 무의미했다(INBOX #74에서 발견해 고침).
+	_current()._on_confirm_pressed()
 
 
 func _step_world_enter() -> void:
