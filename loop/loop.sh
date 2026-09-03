@@ -21,8 +21,14 @@ DASHBOARD_FILE="$ROOT_DIR/docs/index.html"
 EVENT_LOG="$ROOT_DIR/logs/loop-events.log"
 CREDIT_MARKER="$ROOT_DIR/logs/CREDIT_EXHAUSTED"
 
-# 크레딧/사용량 한도 관련 메시지로 보이는 패턴 (claude -p 출력에서 검사).
+# 크레딧/사용량 한도 관련 메시지로 보이는 패턴 (claude -p 출력에서 검사) — 클로드 자체의 한도.
 CREDIT_PATTERN='credit balance is too low|usage limit|rate limit exceeded|quota exceeded|insufficient_quota'
+
+# 세션이 "외부 도구(PixelLab/SpriteCook 등) 잔액 부족이 이미 여러 바퀴째 반복돼서 이번
+# 바퀴도 진전이 불가능하다"고 스스로 판단했을 때 출력하도록 지시받은 문구.
+# (PROMPT_DESIGN.md/PROMPT_BUILD.md 참고 — 첫 발견 때는 기록만 하고, 반복 확인되면
+# 이 문구를 출력해서 루프가 헛도는 걸 멈추게 한다.)
+EXTERNAL_TOOL_PATTERN='EXTERNAL_TOOL_BLOCKED:'
 
 if [ ! -f "$SCRIPT_DIR/env.sh" ]; then
   echo "$(date '+%F %T') env.sh 없음 - 종료" >>"$EVENT_LOG" 2>/dev/null
@@ -210,6 +216,9 @@ while true; do
   if grep -qiE "$CREDIT_PATTERN" "$lap_output"; then
     credit_hit=1
     credit_line="$(grep -iE "$CREDIT_PATTERN" "$lap_output" | head -1)"
+  elif grep -qF "$EXTERNAL_TOOL_PATTERN" "$lap_output"; then
+    credit_hit=1
+    credit_line="$(grep -F "$EXTERNAL_TOOL_PATTERN" "$lap_output" | head -1)"
   fi
   rm -f "$lap_output"
 
@@ -220,7 +229,7 @@ while true; do
 
   if [ "$credit_hit" -eq 1 ]; then
     echo "$(date '+%F %T') ${credit_line}" >"$CREDIT_MARKER"
-    log_event "크레딧/사용량 한도로 보이는 메시지 감지 - 재시도하지 않고 종료: ${credit_line}"
+    log_event "크레딧/사용량 한도(또는 외부 도구 잔액 부족 반복)로 보이는 메시지 감지 - 재시도하지 않고 종료: ${credit_line}"
   fi
 
   render_dashboard
