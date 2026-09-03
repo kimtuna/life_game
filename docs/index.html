@@ -16,14 +16,21 @@
   .label{color:#9a9aa2;font-size:.85rem;margin-bottom:6px}
   code{background:#222;padding:2px 6px;border-radius:4px;word-break:break-all}
   .alert{background:#3a1414;border:1px solid #7a2323;color:#ffd7d7;border-radius:10px;padding:16px;margin:12px 0}
+  .cand-list{list-style:none;padding:0;margin:0}
+  .cand-item{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid #2a2b2e}
+  .cand-item:last-child{border-bottom:none}
+  .cand-text{flex:1;line-height:1.4}
+  .cand-dismiss{background:#222;color:#e8e8ea;border:1px solid #3a3b3e;border-radius:6px;padding:4px 10px;font-size:.8rem;cursor:pointer;white-space:nowrap}
+  .cand-dismiss:hover{background:#2e2f32}
+  .cand-empty{color:#9a9aa2;font-size:.9rem}
 </style>
 </head>
 <body>
   <h1>auto-loop 진행 상황</h1>
-  <p class="updated">마지막 갱신: 2026-09-03 20:48:44</p>
+  <p class="updated">마지막 갱신: 2026-09-03 20:57:36</p>
   
   <div class="row">
-    <div class="card"><div class="label">남은 항목</div><div class="num">1</div></div>
+    <div class="card"><div class="label">남은 항목</div><div class="num">2</div></div>
     <div class="card"><div class="label">완료된 항목</div><div class="num">65</div></div>
   </div>
   <div class="card">
@@ -32,7 +39,50 @@
   </div>
   <div class="card">
     <div class="label">마지막 작업 커밋</div>
-    <div><code>6a7c8cf [INBOX #65] 도구 든 채 이동 시 걷기 애니메이션 멈추던 버그 수정</code></div>
+    <div><code>1ee9764 디자인 개선 후보를 상태 페이지에 체크리스트로 표시 (확인 후 지우기 가능)</code></div>
   </div>
+  <div class="card">
+    <div class="label">디자인 개선 후보 (확인 후 지우기를 누르면 이 브라우저에서 안 보입니다)</div>
+    <ul class="cand-list" id="candList"></ul>
+    <div class="cand-empty" id="candEmpty" hidden>확인할 항목이 없습니다.</div>
+  </div>
+<script>
+(function(){
+  var CANDIDATES = [];
+  var KEY = "autoloop_dismissed_candidates";
+  var dismissed = [];
+  try { dismissed = JSON.parse(localStorage.getItem(KEY) || "[]"); } catch (e) { dismissed = []; }
+  var list = document.getElementById("candList");
+  var empty = document.getElementById("candEmpty");
+  var visible = CANDIDATES.filter(function(c){ return dismissed.indexOf(c.id) === -1; });
+  if (visible.length === 0) {
+    empty.hidden = false;
+  } else {
+    visible.forEach(function(c){
+      var li = document.createElement("li");
+      li.className = "cand-item";
+      var span = document.createElement("span");
+      span.className = "cand-text";
+      span.textContent = c.text;
+      var btn = document.createElement("button");
+      btn.className = "cand-dismiss";
+      btn.type = "button";
+      btn.textContent = "확인함 · 지우기";
+      btn.addEventListener("click", function(){
+        try {
+          var cur = JSON.parse(localStorage.getItem(KEY) || "[]");
+          if (cur.indexOf(c.id) === -1) cur.push(c.id);
+          localStorage.setItem(KEY, JSON.stringify(cur));
+        } catch (e) {}
+        li.remove();
+        if (list.children.length === 0) empty.hidden = false;
+      });
+      li.appendChild(span);
+      li.appendChild(btn);
+      list.appendChild(li);
+    });
+  }
+})();
+</script>
 </body>
 </html>
