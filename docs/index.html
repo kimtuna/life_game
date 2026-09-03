@@ -20,19 +20,19 @@
 </head>
 <body>
   <h1>auto-loop 진행 상황</h1>
-  <p class="updated">마지막 갱신: 2026-09-03 15:03:54</p>
+  <p class="updated">마지막 갱신: 2026-09-03 15:15:32</p>
   
   <div class="row">
-    <div class="card"><div class="label">남은 항목</div><div class="num">2</div></div>
-    <div class="card"><div class="label">완료된 항목</div><div class="num">61</div></div>
+    <div class="card"><div class="label">남은 항목</div><div class="num">1</div></div>
+    <div class="card"><div class="label">완료된 항목</div><div class="num">62</div></div>
   </div>
   <div class="card">
     <div class="label">지금 처리 중 / 다음으로 처리할 항목</div>
-    <div>#62 [BUILD] (버그 리포트, #56 QA에서 발견) 인벤토리 창 하단 핫바 UI에서, 아이템 이름이 4글자 이상인 도구(예: "곡괭이낫")가 핫바 슬롯에 있으면 슬롯 좌상단의 번호 라벨("3")과 가운데 정렬된 아이템 이름 라벨이 서로 겹쳐서 "3곡괭이낫"처럼 붙어 보인다(다른 슬롯은 "1 총", "2 도끼", "4 낚싯대"처럼 번호와 이름 사이 간격이 있어 안 겹친다). `scenes/world/world.gd`의 `_make_hotbar_cell()`/`_refresh_hotbar()`에서 슬롯 크기(56x56)에 비해 긴 아이템 이름이 번호 라벨과 겹치지 않도록 폰트 크기를 줄이거나 줄바꿈/축약 처리, 또는 번호 라벨 위치를 조정한다.</div>
+    <div>#63 [QA] 전체 스윕: 메인 메뉴부터 모든 시스템을 실제로 플레이해보며 문제를 찾는다 (BUILD/DESIGN 완료 카운터가 5에 도달해 자동 등록됨 — #57~#61). `game/qa/full_sweep.gd`를 재사용할 수 있다(단, 도끼/낚싯대 도구 애니메이션과 잔디 텍스처가 이번에 바뀌었으니 그 부분은 새로 확인할 것 — 특히 잔디 텍스처가 64x64로 커졌으므로 기존 32x32 가정이 남아있는 코드/문서가 없는지도 확인).</div>
   </div>
   <div class="card">
     <div class="label">마지막 작업 커밋</div>
-    <div><code>755a0d6 [INBOX #61] 바닥 잔디 텍스처를 절차적 생성(정수 주파수 sin 노이즈)으로 교체 — 격자 반복되던 숫자/기호 아티팩트 제거</code></div>
+    <div><code>b3b4772 [INBOX #62] 핫바 슬롯에서 4글자 이상 도구 이름이 번호 라벨과 겹치던 버그 수정</code></div>
   </div>
 </body>
 </html>
