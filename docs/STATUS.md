@@ -5,6 +5,80 @@
 
 ## 마지막 갱신
 
+바퀴 80 / 2026-09-03 (**INBOX #52 완료 — 총을 든 캐릭터의 "들고 있는"/"발사하는" 모션을
+SpriteCook `generate-sync`의 `edit_asset_id`(이미지 편집/인페인트) 기능으로 green 4방향
+전부 새로 만들어 캐릭터 애니메이션 프레임에 직접 통합, 4방향×2상태 인게임 스크린샷으로
+검증 후 커밋.**
+1) 세션 시작 시 잔액 재확인: SpriteCook 2728크레딧(바퀴 79가 남긴 수치와 거의 동일,
+   충분), PixelLab 여전히 $0 — SpriteCook만으로 진행.
+2) **핵심 발견(다음 DESIGN 바퀴가 반드시 참고할 것): `animate-sync`가 아니라
+   `POST /v1/api/generate-sync`의 `edit_asset_id` 파라미터가 "기존 캐릭터 그림에 새
+   요소(도구)를 추가로 그려 넣는" 이번 문제에 정확히 맞는 기능이다.** `animate-sync`는
+   "기존 그림 1장을 여러 프레임으로 움직이는" 용도(걷기 등)라 이 문제엔 안 맞고, 무효화된
+   #48이 시도했던 "PIL 합성 + PixelLab `/inpaint`" 우회법(PixelLab 잔액 $0으로 이제 불가능)
+   대신 쓸 수 있는 SpriteCook 자체 대안이다. 이미지 1장당 기본 12크레딧(1K, 기본 모델
+   `gemini-3.1-flash-image`), `variations` 파라미터로 한 번에 여러 후보를 받을 수 있다
+   (variations=N이면 credits_used = 12×N).
+3) **`reference_asset_id`와 `edit_asset_id`는 동시에 쓸 수 없다**(`invalid_request`
+   에러: "Cannot use both..."). 총 모양을 참고시키려고 기존 `tools/gun.png` 아이콘을
+   `reference_asset_id`로 같이 넣으려 했으나 막혀서, 대신 프롬프트에 총의 생김새(갈색
+   나무 개머리판 + 회색 금속 총열의 라이플, 얇은 선/칼 아님, 캐릭터 키의 최소 절반
+   길이)를 아주 구체적으로 서술하는 것만으로 충분히 좋은 결과가 나왔다.
+4) **`smart_crop=false` + 업로드 때와 같은 `width`/`height`를 주면, 출력 캔버스가
+   입력과 동일한 크기·위치로 나온다 — 별도 정렬(bbox 매칭) 작업이 전혀 필요 없다.**
+   (기본값 `smart_crop=true`였던 첫 시도는 콘텐츠 bbox로 꽉 크롭된 48x48을 반환해서
+   기존 68x68 idle과 위치를 맞추려면 수작업 정렬이 필요했다 — 이번에 `smart_crop=false`로
+   바꾸자 68x68 그대로, 머리/발 y좌표가 원본과 정확히 일치하는 결과가 나왔다. 걷기
+   애니메이션 때 매번 하던 "NEAREST 다운스케일 + 알파 bbox 정렬" 후처리가 이 방식에는
+   불필요하다.) 소스 이미지를 미리 업스케일할 필요도 없었다(68px 그대로 업로드해도
+   동일하게 동작 — 두 번째 호출부터는 업스케일 없이 68px로 바로 진행).
+5) **품질 판정 핵심**: 첫 시도(프롬프트가 막연함, "a small handgun held with both
+   hands")는 총이 가랑이 사이의 얇고 애매한 막대/칼처럼 나와 불합격이었다. 총의 재질/
+   구성 요소(나무 개머리판, 금속 총열)와 "NOT a thin line, NOT a knife"를 명시하고
+   `variations=3`으로 여러 후보를 한 번에 받아 비교하니 즉시 합격 수준(라이플 실루엣이
+   뚜렷하고 두 손으로 쥔 모습)이 나왔다 — 다음에도 막연한 서술 대신 재질/구성요소를
+   구체적으로 쓰고 variations로 후보를 여러 개 뽑아 고를 것을 권장.
+6) south/north는 "발사 방향(아래/위)으로 대각선으로 기울어진 라이플"을 명시해 무효화된
+   #48의 핵심 결함(총이 조준 방향과 무관하게 수평으로 걸쳐 있음)을 해결했다 — south는
+   총구가 화면 아래쪽으로, north는 총구가 화면 위쪽으로 또렷이 기울어짐을 스크린샷으로
+   확인. east는 옆모습이라 자연스럽게 오른쪽으로 곧게 뻗은 조준 자세가 첫 시도부터 나왔다.
+   발사(fire) 프레임은 idle 프레임을 `edit_asset_id`로 다시 편집해 "총구에 노란/흰
+   머즐 플래시 추가 + 살짝 반동" 프롬프트로 만들었다 — idle에서 이어서 편집하니 총
+   모양/각도가 자연스럽게 유지됐다. west는 새로 생성하지 않고 east(idle/fire 둘 다)를
+   `ImageOps.mirror()`로 좌우반전(기존 west가 east의 반전이었던 패턴 재확인, 머즐
+   플래시도 반전으로 방향이 자동으로 맞음).
+7) 코드: `world.gd`의 `_build_player_sprite_frames(variant)`에 방향별
+   `gun_idle_<dir>`/`gun_fire_<dir>`(각 1프레임)을 추가했다. **파일이 없는 색상(현재
+   blue/red)은 `ResourceLoader.exists()`로 건너뛴다** — `_current_animation_name()`도
+   `_held_tool=="gun"`이고 해당 방향 애니메이션이 실제로 SpriteFrames에 있을 때만
+   gun_idle/gun_fire를 반환하고, 없으면 조용히 맨손 idle/walk로 대체한다(blue/red가
+   #53 전까지도 깨지지 않도록 하는 안전장치 — 이전 걷기(#50/#51) 때는 이런 가드가 없었지만
+   걷기는 항상 idle/walk가 존재해서 문제가 없었던 것뿐, 도구는 색상별로 자산이 부분적으로만
+   있을 수 있어 새로 추가한 패턴이다. **다음 바퀴(#53 이후 다른 도구 확장 때도) 이 가드
+   패턴을 재사용할 것.**).
+8) **4방향×2상태(idle/fire) 인게임 스크린샷 검증**: `--headless --path . --import`로
+   강제 재임포트 후, `world.gd`의 `_build_player_sprite_frames`가 실제로 만드는
+   SpriteFrames를 `godot --path .`(헤드리스 아님, 실제 렌더러)로 world 씬을 띄워
+   `set_physics_process(false)` → `_held_tool="gun"` → `_facing`/`_tool_use_flash_timer`를
+   방향×상태별로 강제 설정 → `_update_player_animation()` → 대기 → 캡처를 반복했다.
+   **새로 발견한 함정**: 이 프로젝트는 콘텐츠 배율(디스플레이 스케일) 때문에
+   `get_root().get_visible_rect().size`(1280x720, 논리 좌표)와 실제
+   `get_root().get_texture().get_image()`의 실제 픽셀 크기(1920x1080)가 다르다 —
+   논리 크기로 크롭 중심을 계산하면 캐릭터가 없는 잔디밭만 찍힌다. **해결책**: 크롭
+   중심은 항상 `img.get_size()`(캡처된 이미지 자신의 실제 크기)를 기준으로 계산할 것,
+   `get_visible_rect()`를 쓰지 말 것. 8장 전부 콘택트시트로 만들어 직접 눈으로
+   확인했다 — 4방향 모두 손과 총이 자연스럽게 붙어 있고, south/north는 조준 방향으로
+   뚜렷이 기울어져 있으며, 발사 시 머즐 플래시가 총구(바라보는 쪽 끝) 위치에 정확히
+   나타났다. 스타듀밸리/코어키퍼 대비 손색없는 수준으로 판단, 합격.
+9) `git status`에는 `world.gd` 수정과 새 `game/assets/sprites/character/gun/`
+   디렉터리(green 8장 + .import)만 남았다(임시 검증 스크립트/스크린샷은 `/tmp/gun52/`에서
+   실행해 레포에 남기지 않음).
+**다음 바퀴가 참고할 것**: #53(blue/red로 확장)을 진행할 때 이번 바퀴가 정립한
+`generate-sync`+`edit_asset_id`+`smart_crop=false` 레시피(위 "SpriteCook API 실측 조사"
+절에 상세 기록)를 그대로 재사용할 것 — 정렬 후처리가 필요 없어 걷기 때보다 훨씬 빠르다.
+색상별 재검증은 걷기 때처럼 1건만 먼저 확인 후 나머지 일괄 진행하는 방식을 시도해볼 만하다
+(다만 총은 새 포즈라 이번 green 프롬프트가 blue/red에도 그대로 통하는지는 아직 미검증).
+
 바퀴 79 / 2026-09-03 (**INBOX #51 완료 — #50의 green 걷기 애니메이션을 blue/red로 확장,
 world.gd 코드 변경 없이 에셋만 추가, 4방향×2색 인게임 스크린샷으로 검증 후 커밋.**
 1) 세션 시작 시 잔액 재확인: SpriteCook 2868크레딧(바퀴 78이 남긴 수치와 거의 동일,
@@ -498,20 +572,19 @@ grep으로 이 심볼들이 world.gd 밖(resource_point.gd 등)에서 쓰이지 
 
 ## 다음에 할 것
 
-- **(바퀴 79 갱신, 최우선) 다음 미완료 `[DESIGN]` 항목은 INBOX #52(총 들기/발사 모션,
-  green 기준)다.** 세션 시작 시 여느 때처럼 `GET /v1/api/credits`(SpriteCook)와
-  `/v1/balance`(PixelLab)를 먼저 확인할 것 — 바퀴 79 종료 시점 SpriteCook 약
-  2728크레딧(충분), PixelLab $0. #52는 걷기(#50/#51)와 달리 **새로운 포즈(총을 쥔
-  팔)를 그리는 작업**이라 지금까지 검증된 "색상별 재검증 불필요" 지름길이 곧바로
-  적용되지 않는다 — green으로 먼저 4방향 idle/발사 모션을 만들어 합격 기준을 통과시킨
-  뒤에야 #53에서 blue/red로 확장하는 흐름(이미 INBOX에 그렇게 나뉘어 있음)을 따를 것.
-  과거 무효화된 #48(PIL 합성+인페인트 우회법으로 총 각도를 억지로 틀었다가 계속
-  부자연스럽다는 지적을 받음)을 참고해, 이번엔 처음부터 SpriteCook의 캐릭터 애니메이션
-  기능으로 총을 쥔 손 모양 자체를 프레임에 그려 넣을 것 — 아이콘 오버레이나 사후 합성은
-  피할 것.
+- **(바퀴 80 갱신, 최우선) 다음 미완료 `[DESIGN]` 항목은 INBOX #53(총 모션을 blue/red로
+  확장)이다.** 세션 시작 시 여느 때처럼 `GET /v1/api/credits`(SpriteCook)와
+  `/v1/balance`(PixelLab)를 먼저 확인할 것 — 바퀴 80 종료 시점 SpriteCook 약
+  2600크레딧대(넉넉함, 정확한 수치는 위 "마지막 갱신" 절 호출 로그 참고), PixelLab
+  $0. **#52가 정립한 레시피를 그대로 재사용할 것**: `POST /v1/api/generate-sync`에
+  `edit_asset_id`(기존 blue_south.png 등을 `/v1/api/assets/import`로 업로드한 asset
+  id) + `smart_crop=false` + 업로드 때와 같은 `width`/`height` 조합이면 정렬 후처리
+  없이 바로 68x68 결과가 나온다(아래 "SpriteCook API 실측 조사 > 바퀴 80 추가 조사"
+  절에 프롬프트 원문 있음). green과 실루엣이 동일하므로 프롬프트도 그대로 재사용
+  가능할 것으로 보이나(걷기 때와 같은 가정), 총은 새 포즈라 blue 1건을 먼저 검증한
+  뒤 나머지를 일괄 진행할 것(색상 튜닝이 필요하면 그때 프롬프트를 조정).
 - **BUILD/DESIGN 완료 카운터(마지막 전체 QA 스윕 이후 완료한 BUILD/DESIGN 항목 수):
-  현재 1** (이번 바퀴 79의 INBOX #51 완료분 — 이전에는 이 카운터가 한 번도 기록된 적이
-  없어 0부터 새로 세기 시작했다. #50 등 과거 완료분은 소급 집계하지 않음). 5가 되면
+  현재 2** (바퀴 79의 #51 + 바퀴 80의 #52). 5가 되면
   `[QA] 전체 스윕: 메인 메뉴부터 모든 시스템을 실제로 플레이해보며 문제를 찾는다` 항목을
   INBOX 큐 끝에 추가하고 카운터를 0으로 리셋할 것 (PROMPT_BUILD.md ③ / PROMPT_DESIGN.md
   ③과 동일 규칙, BUILD·DESIGN 완료를 합산해서 센다).
@@ -621,6 +694,74 @@ DESIGN.md가 "캐릭터/동물 애니메이션 전담 도구"로 지정한 Sprit
 - 이 세션이 만든 SpriteCook 자산은 재사용 필요 없음(이미 게임에 통합·커밋 완료) —
   `/tmp/w51/`에 원본 시트/정렬 결과/인게임 스크린샷이 남아있으나 세션 종료 후 지워질
   수 있는 임시 디렉터리다.
+
+### 바퀴 80 추가 조사 (INBOX #52 — generate-sync `edit_asset_id`로 총 든 모션 만들기, #53이 재사용할 프롬프트 원문)
+
+- **엔드포인트**: `POST /v1/api/generate-sync`. 관련 파라미터: `prompt`(필수),
+  `edit_asset_id`(수정할 기존 asset id), `width`/`height`(업로드 때와 같은 값을 줄 것),
+  `pixel: true`, `bg_mode: "transparent"`, `smart_crop: false`(★ 아래 이유),
+  `variations`(1~4, 개수만큼 12크레딧씩 곱해서 과금).
+- **`smart_crop: false`가 핵심**: 기본값(`true`)은 결과를 콘텐츠 알파 bbox로 꽉
+  크롭해버려서(예: 68x68 입력 → 48x48 출력) 기존 idle 이미지와 위치를 맞추려면 수작업
+  정렬이 필요하다. `smart_crop: false`로 주면 입력과 같은 캔버스 크기·같은 캐릭터
+  위치로 결과가 나온다(직접 확인: 원본 bbox 상단 y=9, 결과도 y=9~10 — 오차 1px
+  이내). **입력 이미지를 업스케일할 필요도 없다** — 68px 원본을 그대로
+  `/v1/api/assets/import`로 올려도 동일하게 잘 작동했다(걷기 애니메이션 때 하던 4배
+  업스케일+NEAREST 다운스케일 후처리가 이 방식엔 불필요).
+- **`reference_asset_id`와 `edit_asset_id`는 동시 사용 불가**(400 에러). 총의 생김새를
+  참고 이미지로 주고 싶으면 못 쓴다 — 대신 프롬프트에 재질/구성요소를 구체적으로
+  서술할 것(아래 프롬프트 참고).
+- **south(정면) idle 프롬프트** (idle_south.png를 68px 그대로 업로드해 edit):
+  `"Edit this pixel art character (front view, facing the viewer) to hold a rifle: a
+  long gun with a brown wooden stock/handle and a dark gray metal barrel, similar to a
+  hunting rifle. The character grips it with both hands raised in front of the chest,
+  and the gun is held diagonally so the barrel end points clearly DOWNWARD and slightly
+  forward, at roughly a 45-degree angle toward the bottom of the frame -- like aiming
+  down at the ground just ahead of the character. The gun must be a clearly recognizable
+  rifle silhouette (long barrel, wider stock at one end), at least half the height of the
+  character, NOT a thin line, NOT a knife, and must NOT be held flat/horizontal across
+  the chest. Keep the character's exact identity, face, hair, outfit colors, body
+  proportions, position within the frame, and pixel art style unchanged from the
+  reference image -- do not move, resize, or recenter the character. Transparent
+  background, crisp pixel art, no anti-aliasing blur, no extra text or UI."`
+  (처음 이 프롬프트 없이 막연하게 "a small handgun held with both hands"로 시도했을 땐
+  총이 가랑이 사이 얇은 막대/칼처럼 나와 불합격이었다 — "재질 서술 + NOT a thin
+  line/knife" 문구가 품질을 갈랐다.)
+- **north(후면) idle**: 위 south 프롬프트에서 "front facing view"→"back facing view",
+  "DOWNWARD"→"UPWARD"(그리고 "toward the bottom"→"toward the top", "aiming down at
+  the ground just ahead"→"aiming up and away into the distance ahead")로 바꾼 버전.
+- **east(측면) idle**: `"Edit this pixel art character (side view, facing right) to hold
+  a rifle: a long gun with a brown wooden stock/handle and a dark gray metal barrel,
+  similar to a hunting rifle. The character grips it with both hands raised in front of
+  the chest, aiming toward the right edge of the frame (the direction the character
+  faces), barrel extended forward to the right, stock tucked near the shoulder/chest.
+  The gun must be a clearly recognizable rifle silhouette (long barrel, wider stock at
+  one end), at least half the height of the character, NOT a thin line, NOT a knife.
+  Keep the character's exact identity, face, hair, outfit colors, body proportions, and
+  position within the frame unchanged from the reference image -- do not move, resize,
+  or recenter the character. Transparent background, crisp pixel art, no anti-aliasing
+  blur."`
+- **west**: 생성하지 않는다. east idle/fire 결과를 `PIL.ImageOps.mirror()`로
+  좌우반전(기존 west가 east의 반전이었던 패턴, 걷기 때와 동일).
+- **fire(발사) 프레임**: 새로 처음부터 만들지 않고, 방금 만든 idle 결과의 asset id를
+  다시 `edit_asset_id`로 넣어 연쇄 편집한다(idle에서 이어서 편집하면 총 모양/각도가
+  자연스럽게 유지됨). 프롬프트 예(south): `"Edit this pixel art character (already
+  holding a rifle aimed downward toward the bottom of the frame) to show it FIRING the
+  gun: add a small bright yellow/white muzzle flash burst at the barrel tip (the far end
+  of the barrel, at the bottom of the frame), and give the character a slight recoil
+  pose -- shoulders pushed back a tiny bit, gun kicked back slightly upward from its
+  aiming angle. Keep the rifle the same recognizable shape and roughly the same angle
+  (pointed down and forward), keep the character's exact identity, face, hair, outfit
+  colors, body proportions, and position within the frame unchanged. Do not move or
+  resize the character. Transparent background, crisp pixel art, no anti-aliasing
+  blur."` — 다른 방향은 "pointed down and forward"/"bottom of the frame" 부분만 그
+  방향에 맞게(위/오른쪽 등) 바꾸면 된다.
+- **variations로 후보 여러 개를 한 번에 뽑아 고를 것을 권장**: `variations: 2~3`으로
+  받은 뒤 8배 확대 콘택트시트를 만들어 직접 보고 가장 자연스러운 것을 선택하는 방식이
+  1회 생성보다 훨씬 안정적으로 합격 수준이 나왔다(south는 variations:3 중 1개 선택,
+  east/north는 variations:2 중 1개 선택).
+- 이 세션이 만든 SpriteCook 자산은 전부 게임에 통합·커밋 완료라 재사용 불필요.
+  `/tmp/gun52/`에 원본 응답 JSON/이미지/인게임 스크린샷이 남아있으나 임시 디렉터리다.
 
 ### 바퀴 76 추가 조사 (animate-sync 2회차 시도, 결론: 이 경로는 walk에 부적합해 보임)
 
@@ -737,6 +878,14 @@ DESIGN.md가 "캐릭터/동물 애니메이션 전담 도구"로 지정한 Sprit
   않는다" 노트와 같은 원인). `add_item()`은 빈 배열(size 0)에 대해 두 for 루프를 그냥
   통과해버려서 에러 없이 조용히 실패한다. **해결책**: 오토로드에 값을 넣는 호출은 최소
   1프레임 이상 지난 뒤(`_process()`에서 프레임 카운터로 지연) 실행할 것.
+
+- **(바퀴 80 신규) `get_root().get_visible_rect().size`(논리 좌표, 이 프로젝트에선
+  1280x720)와 `get_root().get_texture().get_image().get_size()`(실제 캡처 픽셀 크기,
+  이 환경에선 1920x1080 — 디스플레이 콘텐츠 배율 때문)가 다르다.** 스크린샷 크롭
+  중심을 논리 크기 기준으로 계산하면 실제 캐릭터 위치와 어긋나서(이번엔 화면 중앙을
+  잘랐는데 잔디밭만 찍힘) 캐릭터가 하나도 안 보이는 빈 크롭이 나온다. **해결책**:
+  크롭 중심/범위는 항상 캡처한 `Image` 자신의 `get_size()`를 기준으로 계산할 것 —
+  `get_visible_rect()`를 좌표 기준으로 쓰지 말 것.
 
 ## 막힌 것 / 보류
 

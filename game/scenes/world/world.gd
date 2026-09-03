@@ -663,12 +663,37 @@ func _build_player_sprite_frames(variant: String) -> SpriteFrames:
 		var frame_count: int = WALK_FRAME_COUNTS[direction]
 		for i in range(frame_count):
 			frames.add_frame(walk_anim, load("res://assets/sprites/character/walk/%s_%s_walk_%d.png" % [variant, direction, i]))
+
+		## 총의 "들고 있는"/"발사하는" 모션(INBOX #52). 캐릭터 그림 자체에 총을 쥔 손이
+		## 그려져 있다(별도 아이콘 오버레이가 아님, DESIGN.md "캐릭터 애니메이션" 규칙).
+		## 아직 green 색상만 이 자산이 있을 수 있어(#53이 blue/red를 채울 예정)
+		## ResourceLoader.exists()로 확인해서, 없는 색상은 조용히 건너뛴다 — 그 색상은
+		## _current_animation_name()에서 자동으로 맨손 idle/walk로 대체된다.
+		var gun_idle_path := "res://assets/sprites/character/gun/%s_%s_idle.png" % [variant, direction]
+		if ResourceLoader.exists(gun_idle_path):
+			var gun_idle_anim := "gun_idle_%s" % direction
+			frames.add_animation(gun_idle_anim)
+			frames.set_animation_speed(gun_idle_anim, 1.0)
+			frames.add_frame(gun_idle_anim, load(gun_idle_path))
+		var gun_fire_path := "res://assets/sprites/character/gun/%s_%s_fire.png" % [variant, direction]
+		if ResourceLoader.exists(gun_fire_path):
+			var gun_fire_anim := "gun_fire_%s" % direction
+			frames.add_animation(gun_fire_anim)
+			frames.set_animation_speed(gun_fire_anim, 1.0)
+			frames.add_frame(gun_fire_anim, load(gun_fire_path))
 	return frames
 
 
 ## 이동 중이면 방향별 walk 애니메이션, 멈춰 있으면 idle 애니메이션을 재생한다
-## (INBOX #50). 도구를 들었을 때 분기는 아직 없다(#52~#54가 다시 만들 것).
+## (INBOX #50). 총을 들고 있으면(INBOX #52) gun_idle_*/gun_fire_* 중
+## _tool_use_flash_timer(발사 직후 잠깐 >0) 여부로 하나를 고른다 — 해당 색상의
+## 총 애니메이션 자산이 아직 없으면(예: #53 전의 blue/red) 조용히 맨손 idle/walk로
+## 대체된다.
 func _current_animation_name() -> String:
+	if _held_tool == "gun":
+		var gun_anim := ("gun_fire_%s" if _tool_use_flash_timer > 0.0 else "gun_idle_%s") % _facing
+		if player_sprite.sprite_frames.has_animation(gun_anim):
+			return gun_anim
 	var prefix := "walk_" if _is_moving else "idle_"
 	return prefix + _facing
 
