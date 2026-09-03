@@ -20,19 +20,19 @@
 </head>
 <body>
   <h1>auto-loop 진행 상황</h1>
-  <p class="updated">마지막 갱신: 2026-09-03 14:15:42</p>
+  <p class="updated">마지막 갱신: 2026-09-03 14:29:35</p>
   
   <div class="row">
-    <div class="card"><div class="label">남은 항목</div><div class="num">5</div></div>
-    <div class="card"><div class="label">완료된 항목</div><div class="num">57</div></div>
+    <div class="card"><div class="label">남은 항목</div><div class="num">4</div></div>
+    <div class="card"><div class="label">완료된 항목</div><div class="num">58</div></div>
   </div>
   <div class="card">
     <div class="label">지금 처리 중 / 다음으로 처리할 항목</div>
-    <div>#58 [DESIGN] #57의 도끼 모션을 나머지 색상(blue/red)까지 확장한다. #57과 같은 방식/품질로 만들고 4방향 스크린샷으로 확인한다.</div>
+    <div>#59 [DESIGN] (버그 리포트, #56 QA에서 발견) 캐릭터가 낚싯대를 손에 들었을 때 낚싯대가 화면에 전혀 보이지 않는다(맨손 idle 그대로) — #57(도끼)과 원인이 같다(자산 초기화 이후 `fishing_rod_idle_*`/`fishing_rod_fishing_*` 재작업 항목이 등록되지 않고 누락됨, `world.gd`에 fishing_rod 분기 없음). 총(#52)/곡괭이낫(#54)과 같은 방식으로 낚싯대의 "들고 있는"/"낚시하는" 모션을 green 기준으로 새로 만들고, `_build_player_sprite_frames()`/`_current_animation_name()`에 `_held_tool == "fishing_rod"` 분기를 되살린다. 4방향 스크린샷으로 직접 확인한다.</div>
   </div>
   <div class="card">
     <div class="label">마지막 작업 커밋</div>
-    <div><code>c52c96a [INBOX #57] 도끼를 든 캐릭터의 들고 있기/패기 모션을 SpriteCook으로 재작업 (green 기준)</code></div>
+    <div><code>c349ef3 [INBOX #58] 도끼 든 캐릭터의 들고 있기/패기 모션을 blue/red 색상으로 확장</code></div>
   </div>
 </body>
 </html>
