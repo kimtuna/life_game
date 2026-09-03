@@ -754,23 +754,27 @@ func _build_player_sprite_frames(variant: String) -> SpriteFrames:
 ## 총 애니메이션 자산이 아직 없으면(예: #53 전의 blue/red) 조용히 맨손 idle/walk로
 ## 대체된다.
 func _current_animation_name() -> String:
-	if _held_tool == "gun":
-		var gun_anim := ("gun_fire_%s" if _tool_use_flash_timer > 0.0 else "gun_idle_%s") % _facing
-		if player_sprite.sprite_frames.has_animation(gun_anim):
-			return gun_anim
-	elif _held_tool == "pickaxe":
-		var pickaxe_suffix := ("pickaxe_%s_%s" % [_pickaxe_use_kind, _facing]) if _tool_use_flash_timer > 0.0 \
-			else ("pickaxe_idle_%s" % _facing)
-		if player_sprite.sprite_frames.has_animation(pickaxe_suffix):
-			return pickaxe_suffix
-	elif _held_tool == "axe":
-		var axe_anim := ("axe_chop_%s" if _tool_use_flash_timer > 0.0 else "axe_idle_%s") % _facing
-		if player_sprite.sprite_frames.has_animation(axe_anim):
-			return axe_anim
-	elif _held_tool == "fishing_rod":
-		var fishing_rod_anim := ("fishing_rod_fishing_%s" if _tool_use_flash_timer > 0.0 else "fishing_rod_idle_%s") % _facing
-		if player_sprite.sprite_frames.has_animation(fishing_rod_anim):
-			return fishing_rod_anim
+	## 이동 중에는 도구 idle/사용 포즈 대신 맨손 walk를 재생한다 (INBOX #65) —
+	## 도구별 walk 프레임 세트가 아직 없어서, 들고 있어도 얼어붙은 채 미끄러지는
+	## 문제를 막기 위함. 정지하면 아래 도구별 idle/사용 포즈로 돌아온다.
+	if not _is_moving:
+		if _held_tool == "gun":
+			var gun_anim := ("gun_fire_%s" if _tool_use_flash_timer > 0.0 else "gun_idle_%s") % _facing
+			if player_sprite.sprite_frames.has_animation(gun_anim):
+				return gun_anim
+		elif _held_tool == "pickaxe":
+			var pickaxe_suffix := ("pickaxe_%s_%s" % [_pickaxe_use_kind, _facing]) if _tool_use_flash_timer > 0.0 \
+				else ("pickaxe_idle_%s" % _facing)
+			if player_sprite.sprite_frames.has_animation(pickaxe_suffix):
+				return pickaxe_suffix
+		elif _held_tool == "axe":
+			var axe_anim := ("axe_chop_%s" if _tool_use_flash_timer > 0.0 else "axe_idle_%s") % _facing
+			if player_sprite.sprite_frames.has_animation(axe_anim):
+				return axe_anim
+		elif _held_tool == "fishing_rod":
+			var fishing_rod_anim := ("fishing_rod_fishing_%s" if _tool_use_flash_timer > 0.0 else "fishing_rod_idle_%s") % _facing
+			if player_sprite.sprite_frames.has_animation(fishing_rod_anim):
+				return fishing_rod_anim
 	var prefix := "walk_" if _is_moving else "idle_"
 	return prefix + _facing
 
