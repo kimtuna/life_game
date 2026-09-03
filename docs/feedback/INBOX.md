@@ -67,7 +67,8 @@
 - [x] #51 (완료 2026-09-03) [DESIGN] #50의 걷기 애니메이션을 나머지 색상(blue/red)까지 확장한다. green과 같은 방식/품질로 만들고 4방향 스크린샷으로 확인한다.
 - [x] #52 (완료 2026-09-03) [DESIGN] 총을 든 캐릭터의 "들고 있는" 모션과 "발사하는" 모션을 SpriteCook으로 새로 만든다(기준 색상 green만 먼저). DESIGN.md "도구 동작 표현"대로 캐릭터 애니메이션 프레임 자체에 총을 쥔 손 모양을 그려 넣는다(별도 아이콘 오버레이 아님). `_build_player_sprite_frames()`에 gun_idle_<방향>/gun_fire_<방향> 애니메이션을 추가하고 `_current_animation_name()`의 `_held_tool == "gun"` 분기를 되살린다. 이번엔 특히 신경써서: 남/북(정면/후면)에서도 총이 조준 방향(위/아래)으로 자연스럽게 기울어져 보이게 만들 것 — 예전에 이 부분이 부자연스럽다는 지적을 받았었다(무효화된 #48 참고). 4방향 스크린샷으로 직접 확인한다.
 - [x] #53 (완료 2026-09-03) [DESIGN] #52의 총 모션을 나머지 색상(blue/red)까지 확장한다.
-- [ ] #54 [DESIGN] 곡괭이낫을 든 캐릭터의 "들고 있는"/"채광하는"/"채집하는" 세 모션을 SpriteCook으로 새로 만든다(기준 색상 green만 먼저). `_build_player_sprite_frames()`에 pickaxe_idle_<방향>/pickaxe_mining_<방향>/pickaxe_gathering_<방향>을 추가하고 `_current_animation_name()`의 `_held_tool == "pickaxe"` 분기를 되살린다. 곡괭이질하는 동작이 실제로 캐고 있는 것처럼 자연스럽게 보이도록 특히 신경 쓴다. 4방향 스크린샷으로 직접 확인한다.
+- [x] #54 (완료 2026-09-03) [DESIGN] 곡괭이낫을 든 캐릭터의 "들고 있는"/"채광하는"/"채집하는" 세 모션을 SpriteCook으로 새로 만든다(기준 색상 green만 먼저). `_build_player_sprite_frames()`에 pickaxe_idle_<방향>/pickaxe_mining_<방향>/pickaxe_gathering_<방향>을 추가하고 `_current_animation_name()`의 `_held_tool == "pickaxe"` 분기를 되살린다. 곡괭이질하는 동작이 실제로 캐고 있는 것처럼 자연스럽게 보이도록 특히 신경 쓴다. 4방향 스크린샷으로 직접 확인한다.
+- [ ] #55 [DESIGN] #54의 곡괭이낫 "들고 있는"/"채광하는"/"채집하는" 모션을 나머지 색상(blue/red)까지 확장한다. green과 같은 방식/품질로 만들고 4방향 스크린샷으로 확인한다.
 
 ## 완료
 

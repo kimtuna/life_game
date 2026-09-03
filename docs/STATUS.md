@@ -5,6 +5,71 @@
 
 ## 마지막 갱신
 
+바퀴 82 / 2026-09-03 (**INBOX #54 완료 — 곡괭이낫을 든 캐릭터의 "들고 있는"/"채광하는"/
+"채집하는" 세 모션을 SpriteCook `generate-sync`(`edit_asset_id` 연쇄 편집)로 green
+4방향 전부 새로 만들어 캐릭터 애니메이션 프레임에 통합, 4방향×3상태 인게임 스크린샷으로
+검증 후 커밋.**
+1) 세션 시작 시 잔액 재확인: SpriteCook 2152크레딧(넉넉함), PixelLab 여전히 $0 —
+   SpriteCook만으로 진행.
+2) **#52/#53이 정립한 레시피(`generate-sync`+`edit_asset_id`+`smart_crop=false`,
+   idle을 만든 뒤 그 asset_id를 다시 `edit_asset_id`로 연쇄 편집)를 그대로 재사용**,
+   `variations:3`으로 처음부터 넉넉히 받아 그중 입력과 정확히 같은 크기(68x68)로 나온
+   것만 채택했다(#53이 남긴 "출력 크기 불일치" 함정을 처음부터 회피 — 실제로 south
+   mining/gathering 세트에서 각각 1개씩 66x68로 어긋난 후보가 나왔지만 나머지 2개가
+   68x68이라 재시도 없이 바로 그중에서 골랐다).
+3) 곡괭이낫은 기존 `tools/pickaxe.png` 아이콘(마톡 형태 — 한쪽은 뾰족한 곡괭이촉, 반대쪽은
+   넓은 날)을 참고해 프롬프트에 "wooden handle + gray metal head with a pointed pick on
+   one end and a flat wide blade on the other end, NOT a simple straight axe"로
+   구체적으로 서술했다 — 총(#52)/도끼 때와 같은 패턴("재질/구성요소 구체 서술 +
+   NOT 문구"가 품질을 가른다는 기존 결론 재확인).
+4) idle 3방향(south/north/east) 생성 후, 각 idle의 채택된 asset_id를 `edit_asset_id`로
+   다시 넣어 mining(곡괭이촉으로 아래로 내리찍는 자세, 땅/바위에 흙먼지)과 gathering(날
+   부분으로 낮게 수평으로 휘두르는 자세)을 연쇄 편집으로 생성했다 — 총 9회 generate-sync
+   호출(idle 3 + mining 3 + gathering 3) × variations 3 × 12크레딧 = 324크레딧 소모.
+   west는 재생성 없이 east(idle/mining/gathering 전부)를 `ImageOps.mirror()`로 좌우반전.
+5) **mining과 gathering을 시각적으로 구분하는 것이 이번 항목의 핵심 품질 기준이었다**
+   (DESIGN.md "도구 동작 표현" — 같은 도구라도 두 동작이 서로 다른 그림이어야 함). south/
+   east는 mining=하향 내리찍기(흙먼지/바위 이펙트 동반), gathering=몸 앞쪽 수평 스윙(이펙트
+   없음)으로 자연스럽게 구분됐다. **north(후면)는 첫 두 variation이 mining과 거의
+   구분 안 되는 포즈로 나와서, 세 번째 variation(양손을 벌려 곡괭이낫 전체 길이 — 곡괭이촉과
+   날 양쪽 다 — 가 수평으로 다 보이는 넓은 스윙 자세)을 대신 채택했다** — 다소 독특한
+   포즈(양팔을 좌우로 크게 벌림)지만 mining과의 구분이 확실하고 손-도구 연결도 자연스러워
+   합격으로 판정했다.
+6) 코드: `world.gd`의 `_build_player_sprite_frames()`에 총(#52)과 동일한
+   `ResourceLoader.exists()` 가드 패턴으로 `pickaxe_idle_<dir>`/`pickaxe_mining_<dir>`/
+   `pickaxe_gathering_<dir>`을 추가했고, `_current_animation_name()`에
+   `_held_tool == "pickaxe"` 분기(`_pickaxe_use_kind`로 mining/gathering 중 선택)를
+   되살렸다. `play_pickaxe_use()`/`resource_point.gd`의 호출부는 자산 초기화 이전부터
+   이미 그대로 남아있어 수정이 필요 없었다.
+7) **새로 확인된 함정: `godot --path . --script <파일>.gd`(비-헤드리스, `--script`로
+   직접 실행) 방식은 `project.godot`의 `[autoload]` 싱글턴(`InventoryData` 등)을 전혀
+   초기화하지 않는다** — `world.gd`/`farm_plot.gd` 등이 `Identifier not found:
+   InventoryData` 컴파일 에러로 전부 실패했다(스크립트를 `res://` 안에 둬도 동일). 바퀴
+   80/81이 이 방식을 썼다고 기록했었는데, 이번엔 재현되지 않았다 — 아마 그 바퀴들이
+   실제로는 다른 방법을 썼거나 기록이 부정확했을 가능성이 있다. **해결책(다음 바퀴가
+   재사용할 것)**: 검증용 스크립트를 `Node`로 작성해 `project.godot`의 `[autoload]`
+   섹션에 마지막 줄로 임시 추가한 뒤, 일반 실행(`godot --path .`, `--script` 없이)으로
+   게임을 정상 부팅시켜 그 스크립트의 `_ready()`에서 world 씬을 인스턴스화(부모가 아직
+   자식 설정 중이라 `add_child.call_deferred()` 필요)하고 상태를 강제 설정 →
+   `get_tree().root.get_texture().get_image()`로 캡처 → `get_tree().quit()`. 검증이
+   끝나면 `project.godot`와 임시 스크립트 파일을 원래대로 되돌리고 커밋에 포함하지
+   않는다.
+8) **4방향×3상태(idle/mining/gathering) 인게임 스크린샷 검증**: 위 방법으로 캡처한 12장을
+   콘택트시트로 묶어 직접 눈으로 봤다 — 4방향 전부 손과 곡괭이낫이 자연스럽게 붙어 있고,
+   mining은 하향 내리찍기+흙먼지, gathering은 수평 스윙으로 뚜렷이 구분되며, idle과도
+   명확히 다른 자세임을 확인했다. west는 east의 완전한 좌우반전으로 정상 렌더링됨을
+   재확인. 스타듀밸리/코어키퍼 대비 손색없는 수준으로 판단해 합격.
+9) `git status`에는 새 `game/assets/sprites/character/pickaxe/green_*.png`(및 `.import`)
+   12개 파일과 `world.gd` 수정만 남았다(`project.godot`/임시 검증 스크립트는 커밋 전
+   원상복구, 임시 스크립트/스크린샷은 `/tmp/pickaxe54/`에서 실행해 레포에 남기지 않음).
+**다음 바퀴가 참고할 것**: 다음 미완료 `[DESIGN]` 항목은 INBOX #55(#54의 곡괭이낫 모션을
+blue/red로 확장)다. #51(걷기)/#53(총)이 확인한 "색상별 실루엣이 사실상 동일하니 프롬프트
+튜닝 없이 재사용 가능, 1건만 먼저 검증 후 나머지 일괄 진행" 패턴을 그대로 시도해볼 것 —
+다만 north의 gathering처럼 variation 선택에 특히 신경 써야 하는 방향이 있었으니, 색상별로도
+같은 variation 인덱스가 항상 최선이라고 가정하지 말고 최소 1색은 전체 세트를 직접 검수할
+것을 권장. BUILD/DESIGN 완료 카운터는 이번 바퀴로 4가 됨(5가 되면 QA 스윕 추가, 아래
+"다음에 할 것" 참고).
+
 바퀴 81 / 2026-09-03 (**INBOX #53 완료 — #52의 총 "들고 있는"/"발사하는" 모션을 blue/red로
 확장, world.gd 코드 변경 없이 에셋만 추가, 4방향×2색×2상태 인게임 스크린샷으로 검증 후
 커밋.**
@@ -618,25 +683,30 @@ grep으로 이 심볼들이 world.gd 밖(resource_point.gd 등)에서 쓰이지 
 
 ## 다음에 할 것
 
-- **(바퀴 81 갱신, 최우선) 다음 미완료 `[DESIGN]` 항목은 INBOX #54(곡괭이낫 "들고
-  있는"/"채광하는"/"채집하는" 모션을 SpriteCook으로, green 기준)다.** 세션 시작 시
-  여느 때처럼 `GET /v1/api/credits`(SpriteCook)와 `/v1/balance`(PixelLab)를 먼저
-  확인할 것 — 바퀴 81 종료 시점 SpriteCook 약 2150크레딧대(넉넉함, 정확한 수치는 위
-  "마지막 갱신" 절 호출 로그 참고), PixelLab $0. **#52/#53이 정립한 레시피를 그대로
-  재사용할 것**: `POST /v1/api/generate-sync`에 `edit_asset_id` + `smart_crop=false` +
-  업로드 때와 같은 `width`/`height` 조합, idle을 만든 뒤 그 asset_id를 `edit_asset_id`로
-  다시 넣어 mining/gathering을 연쇄 편집(아래 "SpriteCook API 실측 조사 > 바퀴 80 추가
-  조사" 절에 총 프롬프트 원문 있음 — 곡괭이낫용 프롬프트는 새로 작성해야 함, "곡괭이질/
-  채집하는 동작이 실제로 캐고 있는 것처럼" 보이도록 팔 동작을 구체적으로 서술할 것).
-  **바퀴 81이 새로 발견한 함정: `smart_crop=false`를 줘도 출력 크기가 요청 크기와
-  정확히 일치하지 않을 때가 있다(idle↔mining↔gathering 전환 시 캐릭터가 튀어 보일
-  위험).** 처음부터 `variations:3` 이상으로 받아서 그중 입력과 정확히 같은 크기로
-  나온 것만 채택할 것 — 정확한 크기가 하나도 없으면 그 asset_id로 재시도.
+- **(바퀴 82 갱신, 최우선) 다음 미완료 `[DESIGN]` 항목은 INBOX #55(#54의 곡괭이낫
+  "들고 있는"/"채광하는"/"채집하는" 모션을 blue/red로 확장)다.** 세션 시작 시 여느
+  때처럼 `GET /v1/api/credits`(SpriteCook)와 `/v1/balance`(PixelLab)를 먼저 확인할
+  것 — 바퀴 82 종료 시점 SpriteCook 약 1830크레딧대(2152에서 324 소모, 넉넉함),
+  PixelLab $0. **#51/#53이 확인한 "색상별 실루엣이 사실상 동일하니 프롬프트 튜닝 없이
+  재사용, 1건만 먼저 검증 후 나머지 일괄 진행" 패턴을 시도할 것** — 단, 바퀴 82(#54)의
+  north gathering처럼 variation 후보 중 일부가 mining과 거의 구분 안 되는 경우가 있었으니,
+  색상별로도 항상 같은 variation 인덱스가 최선이라고 가정하지 말고 각 세트마다 콘택트시트로
+  직접 비교할 것. **`variations:3` 이상으로 받아 입력과 정확히 같은 크기(68x68)로 나온
+  것만 채택하는 절차(바퀴 81/82가 확인한 출력 크기 불일치 함정 대응)를 처음부터 적용할
+  것.** 곡괭이낫 프롬프트 원문은 바로 아래 "SpriteCook API 실측 조사 > 바퀴 82 추가 조사"
+  절에 있다(재사용 가능, 색상 언급이 없어 그대로 재사용 가능).
+- **헤드리스가 아닌 실제 렌더러로 게임 상태를 강제 조작해 스크린샷을 찍어야 할 때는
+  `--script` 단독 실행이 아니라 `project.godot`의 `[autoload]`에 검증용 스크립트를
+  임시로 추가하고 일반 실행(`godot --path .`)하는 방법을 쓸 것(바퀴 82가 새로 확인 —
+  `--script` 단독 실행은 autoload 싱글턴이 초기화되지 않아 `InventoryData` 등을 쓰는
+  씬 스크립트가 컴파일 에러로 전부 실패한다). 검증 후 `project.godot`/임시 스크립트는
+  반드시 원상복구하고 커밋에 포함하지 말 것.**
 - **BUILD/DESIGN 완료 카운터(마지막 전체 QA 스윕 이후 완료한 BUILD/DESIGN 항목 수):
-  현재 3** (바퀴 79의 #51 + 바퀴 80의 #52 + 바퀴 81의 #53). 5가 되면
+  현재 4** (바퀴 79의 #51 + 바퀴 80의 #52 + 바퀴 81의 #53 + 바퀴 82의 #54). 5가 되면
   `[QA] 전체 스윕: 메인 메뉴부터 모든 시스템을 실제로 플레이해보며 문제를 찾는다` 항목을
   INBOX 큐 끝에 추가하고 카운터를 0으로 리셋할 것 (PROMPT_BUILD.md ③ / PROMPT_DESIGN.md
-  ③과 동일 규칙, BUILD·DESIGN 완료를 합산해서 센다).
+  ③과 동일 규칙, BUILD·DESIGN 완료를 합산해서 센다). **#55가 완료되면 카운터가 5가 되므로
+  #55를 끝낸 바퀴가 QA 스윕 항목을 큐에 추가할 것.**
 - 다음 지시가 들어오면 참고할 만한 백로그(강제 사항 아님, 아래 "막힌 것/보류"·"오래된
   메모" 참고):
   - 멀티플레이 실제 두 클라이언트 접속/동기화를 실기기로 아직 검증 못함.
@@ -812,6 +882,68 @@ DESIGN.md가 "캐릭터/동물 애니메이션 전담 도구"로 지정한 Sprit
 - 이 세션이 만든 SpriteCook 자산은 전부 게임에 통합·커밋 완료라 재사용 불필요.
   `/tmp/gun52/`에 원본 응답 JSON/이미지/인게임 스크린샷이 남아있으나 임시 디렉터리다.
 
+### 바퀴 82 추가 조사 (INBOX #54 — 곡괭이낫 idle/mining/gathering 프롬프트 원문, #55가 재사용할 것)
+
+- 색상 언급이 전혀 없는 프롬프트라 blue/red에도 그대로 재사용 가능(#51/#53의 "색상별
+  실루엣 동일" 전제와 같음).
+- **south(정면) idle**: `"Edit this pixel art character (front view, facing the
+  viewer) to hold a mattock-style pickaxe: a tool with a light brown wooden handle and
+  a gray metal head that has a pointed pick on one end and a flat wide blade on the
+  other end (like a real mining pickaxe/mattock, NOT a simple straight axe, NOT a thin
+  line). The character grips the wooden handle with both hands, holding the tool
+  diagonally in front of the body with the metal head near shoulder height, at rest
+  (not swinging). The tool must be a clearly recognizable pickaxe silhouette, at least
+  half the height of the character, with a visible wood-to-metal color transition.
+  Keep the character's exact identity, face, hair, outfit colors, body proportions,
+  position within the frame, and pixel art style unchanged from the reference image --
+  do not move, resize, or recenter the character. Transparent background, crisp pixel
+  art, no anti-aliasing blur, no extra text or UI."`
+- **north(후면) idle**: 위에서 `"front view, facing the viewer"`→`"back view, facing
+  away from the viewer"`, `"in front of the body"`→`"behind/beside the body"`로 바꾼
+  버전(얼굴 관련 문구는 제거).
+- **east(측면) idle**: `"Edit this pixel art character (side view, facing right) to
+  hold a mattock-style pickaxe: ... (재질 서술 동일) ... The character grips the
+  wooden handle with both hands, holding the tool diagonally across the body with the
+  metal head near the right shoulder, pick tip pointing up and to the right, at rest
+  (not swinging). ..."` (나머지는 south와 동일한 틀).
+- **west**: 생성하지 않음. east(idle/mining/gathering 전부)를 `PIL.ImageOps.mirror()`로
+  좌우반전.
+- **mining(방향 공통, `{view_desc}`만 방향별로 치환)**: `"Edit this pixel art character
+  (already holding a mattock-style pickaxe, {view_desc}) to show it MID-SWING mining
+  downward into rock: the pickaxe is raised up and swung down so the pointed pick end
+  strikes toward the ground in front of the character, arms extended downward and
+  forward, body leaning into the swing with knees slightly bent for impact. Keep the
+  pickaxe the same recognizable shape (wooden handle, pick point on one end, flat blade
+  on the other end), keep the character's exact identity, hair, outfit colors, body
+  proportions, and position within the frame unchanged. Do not move or resize the
+  character. Transparent background, crisp pixel art, no anti-aliasing blur."` —
+  idle의 채택된 asset_id를 `edit_asset_id`로 연쇄 편집해서 생성(새로 업로드하지 않음).
+- **gathering(방향 공통)**: `"Edit this pixel art character (already holding a
+  mattock-style pickaxe, {view_desc}) to show it MID-SWING gathering/harvesting crops:
+  the pickaxe is swung low and to the side so the flat blade edge sweeps across low in
+  front of the character at around knee height (like cutting/reaping low plants with a
+  hoe), arms extended forward and to one side, body leaning into the swing, torso
+  twisted slightly. This pose must look clearly different from a downward mining strike
+  -- it is a horizontal sweeping motion, not a vertical chop. Keep the pickaxe the same
+  recognizable shape (wooden handle, pick point on one end, flat blade on the other
+  end), keep the character's exact identity, hair, outfit colors, body proportions, and
+  position within the frame unchanged. Do not move or resize the character. Transparent
+  background, crisp pixel art, no anti-aliasing blur."` — 이것도 idle의 asset_id에서
+  연쇄 편집.
+- **`view_desc` 매핑**: south="front view, facing the viewer", north="back view,
+  facing away from the viewer", east="side view, facing right".
+- **variations:3으로 받았는데도 세트마다 1개꼴로 66x68 등 어긋난 크기가 섞여 나왔다**
+  (south mining/gathering 각 1개씩) — 68x68인 나머지 후보 중에서 고르는 것으로 충분히
+  해결됐다(재시도 불필요). 완전히 실패(3개 다 어긋남)하는 경우는 이번엔 없었다.
+- **mining과 gathering의 시각적 구분이 품질의 핵심이었다**: south/east는 variation들이
+  대체로 잘 구분됐지만, north는 처음 골랐던 gathering 후보 2개가 mining과 거의 같은
+  포즈였다 — 세 번째 후보(양팔을 벌려 곡괭이낫 전체 길이가 수평으로 다 보이는 넓은 스윙
+  자세)를 대신 채택해서 해결했다. **다음에도 각 세트마다 mining과 gathering을 나란히
+  놓고 비교해서, 너무 비슷하면 다른 variation을 시도할 것.**
+- 이 세션이 만든 SpriteCook 자산은 전부 게임에 통합·커밋 완료라 재사용 불필요.
+  `/tmp/pickaxe54/`에 원본 응답 JSON/이미지/인게임 스크린샷이 남아있으나 임시
+  디렉터리다.
+
 ### 바퀴 76 추가 조사 (animate-sync 2회차 시도, 결론: 이 경로는 walk에 부적합해 보임)
 
 - **`animate-sync`는 이름과 무관하게 비동기다.** 응답에 `output: null`, `job_id`,
@@ -859,6 +991,15 @@ DESIGN.md가 "캐릭터/동물 애니메이션 전담 도구"로 지정한 Sprit
   정적 식별자로 쓰지 말고 `get_root().get_node("TimeData")`처럼 문자열 경로로 동적
   조회할 것 — 이 방식은 `_initialize()`/`_ready()`류 어디서든 정상 동작한다(오토로드는
   씬 트리 루트의 자식 노드로 이미 추가돼 있으므로).
+  - **(바퀴 82 추가) 이 노트를 놓치고 다시 같은 함정을 밟았다** — 검증 스크립트가 아니라
+    `world.gd`/`farm_plot.gd` 등 **게임 자체의 스크립트**가 `InventoryData` 등을 정적
+    식별자로 참조하고 있어서, 검증 스크립트만 동적 조회로 우회해도 게임 스크립트 쪽
+    컴파일이 여전히 실패한다(위 해결책은 "검증 스크립트 자신이" 오토로드를 참조할 때만
+    통하고, 이번처럼 로드하려는 씬의 기존 스크립트가 참조하는 경우엔 안 통한다). 이번
+    바퀴는 대신 `project.godot`의 `[autoload]`에 검증용 스크립트를 임시로 추가해 일반
+    실행(`godot --path .`, `--script` 없이)으로 오토로드를 정상 초기화시키고, 검증
+    후 `project.godot`를 원상복구하는 방식으로 우회했다(위 "바퀴 82" 마지막 갱신 항목
+    참고) — 씬 자체가 오토로드를 참조하는 경우엔 이 방법을 쓸 것.
 - GDScript 람다(`func(x): ...`)는 바깥 함수의 지역변수를 **값으로 캡처**한다 — 람다 안에서
   그 변수에 대입해도 바깥 스코프에는 반영되지 않는다. 신호 콜백에서 "신호가 발생했는지"를
   기록하려면 `bool`/`int` 같은 값 타입 대신 `Array`/`Dictionary`(참조 타입)에 `append`하는
