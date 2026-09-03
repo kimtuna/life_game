@@ -27,19 +27,19 @@
 </head>
 <body>
   <h1>auto-loop 진행 상황</h1>
-  <p class="updated">마지막 갱신: 2026-09-04 00:37:07</p>
-  <div class="alert"><strong>⚠ 크레딧/사용량 부족으로 루프가 멈췄습니다.</strong><br>2026-09-04 00:37:07 EXTERNAL_TOOL_BLOCKED: SpriteCook 0크레딧(tier=adventurer, 최소 20 필요)/PixelLab $0, 둘 다 생성 불가<br>해결되면 <code>loop/ctl.sh start</code>로 다시 켜세요.</div>
+  <p class="updated">마지막 갱신: 2026-09-04 03:39:51</p>
+  
   <div class="row">
     <div class="card"><div class="label">남은 항목</div><div class="num">3</div></div>
     <div class="card"><div class="label">완료된 항목</div><div class="num">77</div></div>
   </div>
   <div class="card">
     <div class="label">지금 처리 중 / 다음으로 처리할 항목</div>
-    <div>#76 [DESIGN] (사용자 지시, 2026-09-04) 캐릭터 기본 그림체 리메이크 — 1단계: 남자 기준 캐릭터, 맨손 idle 4방향만. **기준 캐릭터가 옷 색깔 3종(green/blue/red)에서 성별 2종(남/여)으로 바뀌었다** — DESIGN.md "캐릭터 스타일 목표" 절의 2026-09-04 추가 내용을 먼저 읽을 것(나중에 장비 장착 코디 커스터마이징을 만들 계획이라 성별을 기준으로 둔다). 그 다음 `docs/design_reference/style_ref_dragon.png`/`style_ref_fisherman.png` 두 참고 이미지를 Read 도구로 직접 본다(설명 텍스트만 보고 넘어가지 말 것). 지금 `assets/sprites/character/green_{south,north,east,west}.png`(68×68, 성인 비율, 톤 단계 없는 단색 블록 위주)를 대체할, 남자 캐릭터 4방향 새 그림을 SpriteCook/PixelLab으로 만들어서 `assets/sprites/character/male_{south,north,east,west}.png`로 저장한다(기존 green_*.png는 이번 항목에서는 건드리지 않고 남겨둔다 — 전환은 #78에서 한 번에 처리). 목표는 참고 이미지의 다부호(chibi) 비율(머리 2.5~3등신), 톤 단계가 있는 부드러운 음영, 순검정이 아닌 어두운 색 계열 외곽선, 채도 낮춘 팔레트를 최대한 재현하는 것. 새 캔버스 크기는 자유롭게 정하되(참고 이미지처럼 좌우 여백이 있는 정사각形 캔버스 권장) 4방향 안에서는 크기가 서로 일관돼야 한다(DESIGN.md "아이템/오브젝트 크기 표준" 그대로 적용). 완성되면 `world.gd`의 `_build_player_sprite_frames()`를 임시로 `male` variant로 호출해보거나 QA 스크립트로 실제 게임에 장착해서 4방향 스크린샷을 찍고, 참고 이미지와 나란히 놓고 비교해서 위 스타일 특징(비율/음영/외곽선/팔레트)이 실제로 닮았는지 서술한 뒤 판정한다 — "그럴듯하다"로 끝내지 말 것. **이 항목은 남자 캐릭터 맨손 idle 4방향까지만 한다.** 여자 캐릭터/걷기(walk)/도구별 그림/동물(사슴 등)은 전부 별도 항목으로 쪼갠다. 통과 못 하면 커밋하지 않고 STATUS.md에 시도/실패 이유를 남긴다.</div>
+    <div>#79 [DESIGN] (사용자 지시, 2026-09-04) 나무(logging) 정적 오브젝트를 파이썬 절차적 생성(Pillow)으로 만든다 — **AI 생성 도구(SpriteCook/PixelLab) 크레딧을 쓰지 않는다.** 근거: 캐릭터 리메이크(#76~#78, 취소됨 — 아래 "취소된 항목" 참고)는 유료 크레딧이 두 번이나 소진됐고 결과물도 비효율적이었어서, 사용자가 당분간 캐릭터 쪽 AI 생성은 보류하고 크레딧이 필요 없는 절차적 생성으로 전환하기로 함. 나무는 관절 없는 단순 정적 오브젝트라 DESIGN.md "그래픽 파이프라인"의 절차적 생성 허용 범위에 해당한다(잔디 텍스처 성공 사례, `game/assets/sprites/ground/grass_tile.png` 참고 — 같은 방식으로 수학적 도형 조합/그라디언트를 써서 만들 것). 몸통(직사각형/사다리꼴)+잎(원/타원 뭉치, 톤 2~3단계 음영)으로 스타듀밸리/코어키퍼 느낌의 나무 한 종류를 만들어 `assets/sprites/logging_point/tree.png`로 저장한다. 배경 투명(PNG 알파), 화면 기준 최소 96px 이상(나무는 "커야 할 이유가 있는" 오브젝트이므로 DESIGN.md 32px 최소 기준보다 크게— 캐릭터보다 확실히 크게 보이도록). 실제 게임 화면에 배치해서 스크린샷으로 확인하고, 인공적인 반복 패턴이나 어색한 경계선이 없는지 확대해서 직접 볼 것. 통과 못 하면 코드를 더 다듬지 말고 AI 생성으로 전환(DESIGN.md 규칙대로) — 단, 이번엔 시간 여유를 두고 시도해본다(대충 작업이어도 됨, 사용자가 명시적으로 "대충 해도 된다"고 지시함).</div>
   </div>
   <div class="card">
     <div class="label">마지막 작업 커밋</div>
-    <div><code>a48f67b [INBOX #76] 착수 보류 재확인 — SpriteCook/PixelLab 잔액 동일, EXTERNAL_TOOL_BLOCKED 발행</code></div>
+    <div><code>7466416 유기체(캐릭터/동물)도 실험적으로 파이썬 절차적 생성 허용 — AI 생성 크레딧 비효율 때문</code></div>
   </div>
   <div class="card">
     <div class="label">디자인 개선 후보 (확인 후 지우기를 누르면 이 브라우저에서 안 보입니다)</div>
