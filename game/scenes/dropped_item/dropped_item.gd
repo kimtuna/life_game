@@ -18,6 +18,16 @@ const ITEM_ICONS := {
 	"axe": preload("res://assets/sprites/tools/axe.png"),
 	"pickaxe": preload("res://assets/sprites/tools/pickaxe.png"),
 	"fishing_rod": preload("res://assets/sprites/tools/fishing_rod.png"),
+	# 나무(INBOX #79/#80)는 32x32 아이템 아이콘이 따로 없어서, 벌목 포인트(logging_point)와
+	# 같은 96x128 tree.png를 재사용한다 — 다른 아이템과 화면 크기가 맞도록 아래
+	# ITEM_ICON_SCALE_OVERRIDES에서만 별도로 축소한다(새 그림을 만들지 않음).
+	"wood": preload("res://assets/sprites/logging_point/tree.png"),
+}
+
+## tree.png처럼 원본 아이콘 자체가 32px 규격이 아닌 경우에만 스프라이트 스케일을
+## 덮어쓴다(다른 아이템은 씬 기본 scale=0.9를 그대로 쓴다).
+const ITEM_ICON_SCALE_OVERRIDES := {
+	"wood": Vector2(0.34, 0.34),
 }
 
 @export var item_name: String = ""
@@ -34,6 +44,8 @@ var _picked_up: bool = false
 func _ready() -> void:
 	if ITEM_ICONS.has(item_name):
 		sprite.texture = ITEM_ICONS[item_name]
+	if ITEM_ICON_SCALE_OVERRIDES.has(item_name):
+		sprite.scale = ITEM_ICON_SCALE_OVERRIDES[item_name]
 
 
 func _process(_delta: float) -> void:

@@ -5,6 +5,77 @@
 
 ## 마지막 갱신
 
+바퀴 133 / 2026-09-04 ([BUILD] **INBOX #80 완료 — 도끼에게 처음으로 실제 벌목 대상(나무)을
+부여함. `scenes/resource_point/logging_point.tscn`을 gathering/mining과 같은 패턴으로
+새로 만들고, `world.gd`에 스폰/라벨을 연결함. BUILD/DESIGN 완료 카운터 5 도달 →
+`#82`([QA] 전체 스윕)을 큐에 새로 추가하고 카운터 0으로 리셋.**
+1) **씬 구성**: `logging_point.tscn` — `resource_point.gd` 재사용, `item_name="wood"`,
+   `required_tool="axe"`, `prompt_text="도끼를 들고 좌클릭: 벌목 (나무)"`,
+   `texture_path="res://assets/sprites/logging_point/tree.png"`(#79가 만든 96×128
+   나무), `Sprite.scale=Vector2(1.1,1.1)`(#79 STATUS가 검증해둔 것과 동일한 화면 크기),
+   `Sprite.z_index=-1`(#64/#68이 확립한 "채집/채광 포인트는 플레이어보다 항상 뒤" 규칙을
+   그대로 따름). `Prompt` 라벨 offset은 나무 캔버스가 gathering/mining(64×64)보다 커서
+   기존 -76/-52 그대로 쓰면 나무 몸통에 걸릴 것으로 판단해, 알파 bbox 기준으로 다시
+   계산한 -104/-80으로 올려 잡았다(같은 여유 간격이 나오도록 픽셀로 직접 계산).
+2) **world.gd**: `LoggingPointScene` preload 추가, `_spawn_resource_points()`에
+   `RESOURCE_POINT_COUNT`(5)개 스폰 루프 추가(gathering/mining과 동일한 자리),
+   `ITEM_LABELS`에 `"wood": "나무"` 추가. `TOOL_KEYS` 위 주석과 `_spawn_resource_points()`
+   위 주석이 "도끼는 아직 벌목 대상이 없다"/"삽" 같은 낡은 내용을 담고 있어서 이번에
+   같이 갱신했다(코드 동작 변경 아님, 주석만).
+3) **핵심 확인 사항 — #80이 명시적으로 의심했던 부분**: `resource_point.gd`의
+   `_harvest()`는 도구 종류와 무관하게 항상 `world_ref.play_pickaxe_use(use_kind)`를
+   호출하는데, `play_pickaxe_use()`는 `_held_tool != "pickaxe"`면 조용히 아무것도 안
+   하고 리턴한다(`world.gd` 324번째 줄 부근) — 그래서 도끼로 벌목해도 이 호출 자체는
+   항상 무시된다. 하지만 도끼 패기 모션은 이미 `world.gd`의 전역
+   `_unhandled_input()`(#43/#73)이 `_held_tool == "axe"`일 때 대상 유무와 무관하게
+   좌클릭마다 독립적으로 `_tool_use_flash_timer`를 켜주므로, `_harvest()`의 무시된
+   호출과 별개로 패기 모션은 정상적으로 재생된다 — **이론이 아니라 직접 실행해서
+   확인함** (아래 4번 참고). 코드는 고치지 않았다(이미 올바르게 동작해서 손댈 이유가
+   없었음) — 다만 이 사실을 다음 사람이 또 의심하지 않도록 `_harvest()` 근처는
+   그대로 두고 이 STATUS 기록으로 남겨둔다.
+4) **인게임 검증**: 임시 스크립트 `game/qa/_verify_logging80.gd`(커밋 전 삭제)를 만들어
+   `project.godot` `[autoload]`에 일시 추가하고 `godot --path .`(실제 렌더러)로 실행.
+   메인 메뉴 → 캐릭터 슬롯(기존 저장 캐릭터라 커스터마이징 스킵) → 싱글플레이 진입
+   후, 도끼를 핫바에서 선택(`_select_hotbar(1)`, `get_held_tool()=="axe"` 확인),
+   `LoggingPointScene`을 플레이어 옆(60,0)에 직접 배치, 실제 `InputEventMouseButton`
+   좌클릭 이벤트를 `Input.parse_input_event()`로 흘려보내 코드 직접 호출이 아니라
+   입력 경로 그대로 재현했다. 로그로 확인된 것: `animation right after click =
+   axe_chop_west`(패기 모션 실제 재생), `point sprite visible = false`(벌목 성공),
+   `dropped wood item found = true`이며 위치가 정확히 나무 좌표(60,0)와 일치, 플레이어를
+   그 위치로 옮기자 `wood count in inventory = 1`로 자동 픽업까지 확인됨(`all_counts`에
+   `"wood": 1` 반영). 스크린샷(`/tmp/inbox80/02_after_click_chop_anim.png`,
+   `03_dropped_wood.png`)을 Read 도구로 직접 봐서, 캐릭터가 도끼로 패는 자세가 나무
+   옆에서 자연스럽게 보이고 나무 크기가 캐릭터보다 뚜렷하게 큼(#79가 검증한 비율
+   그대로)을 확인함.
+5) **드롭 아이템 아이콘**: `wood`는 아직 전용 32px 아이콘이 없어서(DESIGN 항목으로
+   따로 만들지 않고), `dropped_item.gd`의 `ITEM_ICONS`에 `tree.png`(#79 자산)를 그대로
+   재사용하고 `ITEM_ICON_SCALE_OVERRIDES`로 그 항목만 0.34배 축소해서 다른 32px류
+   아이템과 비슷한 화면 크기(짧은 변 기준 32px 이상)로 맞췄다 — 새 그림을 만들지
+   않고 기존 자산을 재사용하는 하네스 규칙을 따름. 확대 스크린샷(`/tmp/inbox80/
+   03_crop2.png`)으로 직접 확인한 결과 "작은 나무" 모양으로 보여 "통나무" 느낌은
+   덜하지만, 형체가 뚜렷하고 다른 아이템과 크기가 어긋나지 않아 이 항목의 합격
+   기준(①)은 통과로 판단함 — 더 그럴듯한 "통나무/장작" 아이콘이 필요하면 별도
+   [DESIGN] 항목으로 다룰 것(이번엔 등록하지 않음, 결함이 아니라 개선 여지 수준으로
+   판단해 "디자인 개선 후보" 섹션에 아래 추가해둠).
+6) **검증용 임시 파일 정리**: `game/qa/_verify_logging80.gd` 삭제, `project.godot`의
+   `QAVerifyLogging80` autoload 줄도 되돌림(`git diff game/project.godot` 결과 없음
+   확인).
+7) **최종 커밋 대상**: `game/scenes/resource_point/logging_point.tscn`(신규),
+   `game/scenes/world/world.gd`, `game/scenes/dropped_item/dropped_item.gd`. 그림
+   자산은 이번에 추가 생성하지 않음(#79의 `tree.png` 재사용만).
+8) **BUILD/DESIGN 완료 카운터**: 바퀴 132(#79, DESIGN)에서 4였던 값이 이번 #80(BUILD)로
+   **5**가 되어 도달 — `docs/feedback/INBOX.md`에 `#82`([QA] 전체 스윕, 벌목 흐름
+   특히 확인하라고 명시)을 새로 추가하고 카운터를 0으로 리셋함.
+9) `docs/feedback/INBOX.md`의 `#80`을 `[x]`로 갱신, `#82`([QA] 전체 스윕) 신규 추가.
+**다음 바퀴가 참고할 것**: 다음 미완료 항목은 번호 순으로 `#81`([DESIGN], 캐릭터
+절차적 생성 실험)과 `#82`([QA] 전체 스윕, 이번 바퀴가 자동 추가함) 둘 다 대기 중이다
+— `#81`이 번호는 더 작지만 하네스가 다르므로(BUILD는 `[BUILD]`만, DESIGN 세션은
+`[DESIGN]`만, QA 세션은 `[QA]`만 처리) 다음 BUILD 세션은 이 둘 다 처리 대상이 아니고
+할 일이 없다(미완료 `[BUILD]` 항목 없음) — `loop.sh`가 BUILD 하네스를 열 차례라면
+조용히 스스로 종료해도 된다. DESIGN 세션 차례라면 `#81`, QA 세션 차례라면 `#82`를
+집어야 한다. (나무 드롭 아이템 아이콘에 대한 개선 아이디어는 아래 "디자인 개선 후보"
+섹션에 추가해둠 — 결함은 아니라 새 INBOX 항목으로 만들지 않았다.)
+
 바퀴 132 / 2026-09-04 ([DESIGN] **INBOX #79 완료 — 나무(logging 대상) 정적 오브젝트를
 파이썬(Pillow) 절차적 생성으로 새로 만듦, AI 생성 크레딧 불필요.**
 1) SpriteCook/PixelLab 잔액 확인 없이 바로 절차적 생성으로 진행했다(#79 지시 및
@@ -2564,6 +2635,10 @@ DESIGN.md가 "캐릭터/동물 애니메이션 전담 도구"로 지정한 Sprit
   위치만 미세하게 다르고 몸 자세가 거의 동일해서, 다른 도구(총/도끼/곡괭이낫)에 비해
   상태 구분이 상대적으로 약하다(지금 "완성의 기준"은 통과하지만 여유가 생기면 더 뚜렷하게
   다듬으면 좋을 것 같다).
+- (바퀴 133, #80 BUILD) 나무(wood) 드롭 아이템 아이콘이 전용 32px 아이콘 없이 #79의
+  `tree.png`를 0.34배로 축소 재사용한 것이라 "작은 나무"처럼 보인다(형체는 뚜렷하고
+  크기도 다른 아이템과 어긋나지 않아 결함으로 등록하지는 않음). "통나무/장작" 느낌의
+  전용 32px 아이콘을 새로 만들면 더 자연스러울 것 같다.
 
 ## 막힌 것 / 보류
 

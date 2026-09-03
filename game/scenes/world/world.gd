@@ -23,6 +23,7 @@ const BulletScene := preload("res://scenes/bullet/bullet.tscn")
 const DeerScene := preload("res://scenes/deer/deer.tscn")
 const GatheringPointScene := preload("res://scenes/resource_point/gathering_point.tscn")
 const MiningPointScene := preload("res://scenes/resource_point/mining_point.tscn")
+const LoggingPointScene := preload("res://scenes/resource_point/logging_point.tscn")
 const FarmPlotScene := preload("res://scenes/farm_plot/farm_plot.tscn")
 const RanchZoneScene := preload("res://scenes/ranch_zone/ranch_zone.tscn")
 const DroppedItemScene := preload("res://scenes/dropped_item/dropped_item.tscn")
@@ -50,6 +51,7 @@ const ITEM_LABELS := {
 	"rice_seed": "벼 씨앗",
 	"rice": "벼",
 	"iron": "철",
+	"wood": "나무",
 	"captured_deer": "포획된 사슴",
 	"gun": "총",
 	"axe": "도끼",
@@ -59,8 +61,9 @@ const ITEM_LABELS := {
 
 ## 도구 아이템(INBOX #22). 순서대로 핫바 시작 슬롯(1~4번 키)에 지급된다.
 ## 곡괭이낫(pickaxe) 하나로 채집+채광을 둘 다 한다(INBOX #25 — 한때 별도 "낫" 아이템으로
-## 나눴던 것을 다시 합침, DESIGN.md 참고). 도끼는 아직 벌목 대상이 없고 낚싯대도 낚시
-## 스팟이 없어 좌클릭 동작은 #23에서 최소 반응만 연결했다(DESIGN.md "범위 밖" 참고).
+## 나눴던 것을 다시 합침, DESIGN.md 참고). 도끼는 INBOX #80부터 나무(LoggingPointScene)를
+## 벌목 대상으로 갖는다. 낚싯대는 아직 낚시 스팟이 없어 좌클릭 동작은 #23에서 최소
+## 반응만 연결했다(DESIGN.md "범위 밖" 참고).
 const TOOL_KEYS := ["gun", "axe", "pickaxe", "fishing_rod"]
 const TOOL_ICONS := {
 	"gun": preload("res://assets/sprites/tools/gun.png"),
@@ -362,14 +365,17 @@ func _spawn_deer() -> void:
 		add_child(deer)
 
 
-## 필드에 채집 포인트(삽 → 벼 씨앗)와 채광 포인트(곡괭이 → 철)를 절반씩 흩어서 배치한다
-## (INBOX #10). DESIGN.md대로 삽/곡괭이를 한 세트로 다루므로, 포인트 종류에 따라
-## 알맞은 판정을 자동 적용한다(도구 선택 UI 없음) — resource_point.gd 참고.
+## 필드에 채집 포인트(곡괭이낫 → 벼 씨앗), 채광 포인트(곡괭이낫 → 철), 벌목 포인트
+## (도끼 → 나무, INBOX #80)를 종류별로 같은 개수씩 흩어서 배치한다 (INBOX #10).
+## 포인트 종류(required_tool)에 따라 알맞은 도구 판정을 자동 적용한다(도구 선택 UI
+## 없음) — resource_point.gd 참고.
 func _spawn_resource_points() -> void:
 	for i in range(RESOURCE_POINT_COUNT):
 		_spawn_one_resource_point(GatheringPointScene)
 	for i in range(RESOURCE_POINT_COUNT):
 		_spawn_one_resource_point(MiningPointScene)
+	for i in range(RESOURCE_POINT_COUNT):
+		_spawn_one_resource_point(LoggingPointScene)
 
 
 func _spawn_one_resource_point(scene: PackedScene) -> void:
