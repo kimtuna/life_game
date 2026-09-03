@@ -20,19 +20,19 @@
 </head>
 <body>
   <h1>auto-loop 진행 상황</h1>
-  <p class="updated">마지막 갱신: 2026-09-03 15:23:12</p>
+  <p class="updated">마지막 갱신: 2026-09-03 15:26:56</p>
   
   <div class="row">
-    <div class="card"><div class="label">남은 항목</div><div class="num">1</div></div>
-    <div class="card"><div class="label">완료된 항목</div><div class="num">63</div></div>
+    <div class="card"><div class="label">남은 항목</div><div class="num">0</div></div>
+    <div class="card"><div class="label">완료된 항목</div><div class="num">64</div></div>
   </div>
   <div class="card">
     <div class="label">지금 처리 중 / 다음으로 처리할 항목</div>
-    <div>#64 [BUILD] (버그 리포트, #63 QA 전체 스윕에서 발견) 채집/채광 포인트(`scenes/resource_point/resource_point.gd`)의 `Sprite` 노드에 `z_index`가 지정돼 있지 않다(기본값 0, 플레이어와 동일) — 그래서 실제 렌더링 순서가 씬 트리 순서에 따라 결정되고, 플레이어의 화면상 위치(더 아래=더 앞)와 무관하게 뒤집힐 수 있다. 실제로 재현됨: (1) 채집 포인트(벼) 앞에 선 플레이어가 그 포인트의 롱 스프라이트(벼 이삭)에 완전히 가려져 머리가 안 보인다 — `scenes/farm_plot/farm_plot.gd`가 이미 INBOX #17에서 겪은 것과 같은 종류의 결함인데, `farm_plot.tscn`/`ranch_zone.tscn`은 `z_index = -1`을 줘서 고쳤지만 `resource_point`(별도 .tscn 없이 코드로 구성)는 그 처리가 빠졌다. (2) 그 결과 한 채집 포인트의 안내 문구(`Prompt` 라벨, 예: "곡괭이낫을 들고 좌클릭: 채집 (벼 씨앗)")가 근처의 다른 채광 포인트(돌) 스프라이트에 가려 텍스트 중간이 잘려 보인다(스크린샷으로 확인, `/tmp/qa63/15_gathering_point.png`). `farm_plot`/`ranch_zone`과 같은 방식으로 `resource_point.gd`의 `Sprite`에 `z_index = -1`(또는 동일한 값)을 지정해 플레이어보다 항상 뒤에 그려지도록 고친다. 고친 뒤 채집/채광 포인트 두 종류 모두 실제 화면 스크린샷으로 재확인할 것.</div>
+    <div>(없음 — 큐 비어있음)</div>
   </div>
   <div class="card">
     <div class="label">마지막 작업 커밋</div>
-    <div><code>59ffd82 [INBOX #63] QA: 전체 스윕(메인 메뉴~사냥/농사/채집/채광/목장) — 결함 1건 발견</code></div>
+    <div><code>6f7411a 상태 페이지 갱신 (바퀴 92, 남은 0개)</code></div>
   </div>
 </body>
 </html>
