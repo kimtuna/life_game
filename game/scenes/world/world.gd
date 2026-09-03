@@ -466,12 +466,20 @@ func _make_hotbar_cell(number: int) -> Dictionary:
 	panel.add_theme_stylebox_override("panel", _hotbar_normal_style)
 	var item_label := Label.new()
 	item_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	item_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	## 번호 라벨(왼쪽 위 고정)과 절대 겹치지 않도록 아이템 이름/개수는 칸 아래쪽에
+	## 붙인다 (INBOX #62 — "곡괭이낫" 같은 4글자 이상 도구 이름이 번호 라벨과 같은
+	## 줄에 겹쳐 보이던 문제). Label의 세로 size flag 기본값이 SHRINK_CENTER라서
+	## vertical_alignment만 바꿔서는 칸 높이 전체를 못 쓰고 항상 셀 중앙의 좁은
+	## 한 줄 영역에만 딱 붙는다 — size_flags_vertical을 FILL로 바꿔 칸 전체 높이를
+	## 실제로 차지하게 해야 vertical_alignment(BOTTOM/TOP)가 눈에 보이는 차이를 만든다.
+	item_label.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	item_label.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
 	item_label.add_theme_font_size_override("font_size", 11)
 	panel.add_child(item_label)
 	var number_label := Label.new()
 	number_label.text = str(number)
 	number_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	number_label.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	number_label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 	number_label.add_theme_font_size_override("font_size", 11)
 	number_label.modulate = Color(1, 1, 1, 0.55)
