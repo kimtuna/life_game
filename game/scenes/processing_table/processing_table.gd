@@ -38,7 +38,8 @@ func _process(_delta: float) -> void:
 			and global_position.distance_to(player_ref.global_position) <= INTERACT_RADIUS
 	# 제작 창이 이미 열려 있을 때는 프롬프트를 감춰서, 다른 좌클릭(레시피 버튼 등)이
 	# 진행 중인데도 "좌클릭: 가공대 열기" 안내가 겹쳐 보이지 않게 한다.
-	prompt.visible = in_range and world_ref != null and not world_ref.is_crafting_open()
+	prompt.visible = in_range and world_ref != null \
+			and not world_ref.is_crafting_open() and not world_ref.is_storage_open()
 
 
 func _unhandled_input(event: InputEvent) -> void:

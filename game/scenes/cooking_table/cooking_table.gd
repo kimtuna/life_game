@@ -30,7 +30,8 @@ func _ready() -> void:
 func _process(_delta: float) -> void:
 	var in_range := player_ref != null \
 			and global_position.distance_to(player_ref.global_position) <= INTERACT_RADIUS
-	prompt.visible = in_range and world_ref != null and not world_ref.is_crafting_open()
+	prompt.visible = in_range and world_ref != null \
+			and not world_ref.is_crafting_open() and not world_ref.is_storage_open()
 
 
 func _unhandled_input(event: InputEvent) -> void:

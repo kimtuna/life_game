@@ -40,6 +40,7 @@ const ProcessingTableScene := preload("res://scenes/processing_table/processing_
 const SmeltingFurnaceScene := preload("res://scenes/smelting_furnace/smelting_furnace.tscn")
 const CookingTableScene := preload("res://scenes/cooking_table/cooking_table.tscn")
 const CookingStoveScene := preload("res://scenes/cooking_stove/cooking_stove.tscn")
+const StorageChestScene := preload("res://scenes/storage_chest/storage_chest.tscn")
 const DroppedItemScene := preload("res://scenes/dropped_item/dropped_item.tscn")
 
 const DEER_COUNT := 6
@@ -74,6 +75,11 @@ const SMELTING_FURNACE_ORIGIN := Vector2(650.0, 650.0)
 ## 합보다 충분히 떨어뜨렸다.
 const COOKING_TABLE_ORIGIN := Vector2(-300.0, 500.0)
 const COOKING_STOVE_ORIGIN := Vector2(-650.0, 650.0)
+
+## 저장 상자(INBOX #96)는 다른 작업대들(가공/조리 라인, y=500~650)과 INTERACT_RADIUS 합보다
+## 충분히 떨어지도록 그 사이 남쪽 더 먼 자리에 둔다. 처음엔 비어 있다 — 재료를 미리
+## 999개씩 채워 넣는 건 INBOX #97의 몫이다(DESIGN.md 결정 로그 참고).
+const STORAGE_CHEST_ORIGIN := Vector2(0.0, 850.0)
 
 ## InventoryData가 저장하는 아이템 키(내부 이름) -> 화면 표시 이름.
 const ITEM_LABELS := {
@@ -189,6 +195,16 @@ var _hotbar_cells: Array = []
 var _crafting_window: Control
 var _crafting_title_label: Label
 var _crafting_list: VBoxContainer
+## 저장 상자(INBOX #96) UI가 열려 있는지, 지금 어느 상자 인스턴스를 보여주고 있는지.
+var _storage_open: bool = false
+var _storage_chest: Node = null
+## 범용 저장 상자 창(코드로 조립, INBOX #96 — _build_storage_window() 참고, 가공대의
+## 범용 제작 창과 같은 이유로 상자마다 새 UI를 만들지 않고 이 하나를 재사용한다).
+var _storage_window: Control
+var _storage_title_label: Label
+var _storage_list: VBoxContainer
+var _storage_message_label: Label
+var _storage_message_timer: float = 0.0
 var _selected_hotbar_index: int = 0
 ## 지금 손에 든 도구 키("gun"/"axe"/"pickaxe"/"fishing_rod") 또는 빈손("").
 var _held_tool: String = ""
@@ -235,10 +251,12 @@ func _ready() -> void:
 	_spawn_smelting_furnace()
 	_spawn_cooking_table()
 	_spawn_cooking_stove()
+	_spawn_storage_chest()
 	_ensure_starting_tools()
 	_build_inventory_slots()
 	_build_hotbar()
 	_build_crafting_window()
+	_build_storage_window()
 	InventoryData.changed.connect(_update_inventory_label)
 	InventoryData.changed.connect(_refresh_inventory_window)
 	InventoryData.changed.connect(_refresh_hotbar)
@@ -253,40 +271,46 @@ func _ready() -> void:
 	_setup_networking()
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	var t := TimeData.phase_progress()
 	day_night_modulate.color = DAY_COLOR.lerp(NIGHT_COLOR, t) if TimeData.is_day \
 		else NIGHT_COLOR.lerp(DAY_COLOR, t)
+	if _storage_message_timer > 0.0:
+		_storage_message_timer -= delta
+		if _storage_message_timer <= 0.0:
+			_storage_message_label.visible = false
 
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE:
-		if _crafting_open:
+		if _storage_open:
+			close_storage_window()
+		elif _crafting_open:
 			close_crafting_window()
 		elif _inventory_open:
 			_set_inventory_open(false)
 		else:
 			_set_paused(not _paused)
 	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_E \
-			and not _paused and not _crafting_open:
+			and not _paused and not _crafting_open and not _storage_open:
 		_set_inventory_open(not _inventory_open)
 	elif event is InputEventKey and event.pressed and not event.echo and not _paused and not _inventory_open \
-			and not _crafting_open and event.keycode >= KEY_1 and event.keycode <= KEY_9:
+			and not _crafting_open and not _storage_open and event.keycode >= KEY_1 and event.keycode <= KEY_9:
 		_select_hotbar(event.keycode - KEY_1)
 	elif event is InputEventKey and event.pressed and not event.echo and not _paused and not _inventory_open \
-			and not _crafting_open and event.keycode == KEY_R and _held_tool == "gun":
+			and not _crafting_open and not _storage_open and event.keycode == KEY_R and _held_tool == "gun":
 		_start_reload()
 	elif event is InputEventMouseButton and event.pressed and not _paused and not _inventory_open \
-			and not _crafting_open and event.button_index == MOUSE_BUTTON_RIGHT and _held_tool == "gun":
+			and not _crafting_open and not _storage_open and event.button_index == MOUSE_BUTTON_RIGHT and _held_tool == "gun":
 		_ammo_type = "tranq" if _ammo_type == "normal" else "normal"
 		_update_ammo_label()
 	elif event is InputEventMouseButton and event.pressed and not _paused and not _inventory_open \
-			and not _crafting_open and event.button_index == MOUSE_BUTTON_LEFT and _held_tool == "axe":
+			and not _crafting_open and not _storage_open and event.button_index == MOUSE_BUTTON_LEFT and _held_tool == "axe":
 		## 도끼는 INBOX #43부터 옆 아이콘이 아니라 캐릭터 애니메이션 프레임 자체
 		## (axe_chop_*)로 패는 모션을 보여준다 (총(#42)과 같은 패턴).
 		_tool_use_flash_timer = AXE_CHOP_FLASH_DURATION
 	elif event is InputEventMouseButton and event.pressed and not _paused and not _inventory_open \
-			and not _crafting_open and event.button_index == MOUSE_BUTTON_LEFT and _held_tool == "pickaxe":
+			and not _crafting_open and not _storage_open and event.button_index == MOUSE_BUTTON_LEFT and _held_tool == "pickaxe":
 		## 곡괭이낫은 INBOX #73부터 도끼(#43)와 같은 방식으로, 채집/채광 대상이 없어도
 		## (허공에 대고) 좌클릭하면 항상 스윙 모션이 나가야 한다 (DESIGN.md "생활 스킬 —
 		## 채집 계열": 총/도끼/곡괭이낫은 대상 유무와 무관하게 항상 사용 모션 — 근접무기
@@ -296,14 +320,14 @@ func _unhandled_input(event: InputEvent) -> void:
 		## 입력 이벤트 처리 중에 play_pickaxe_use(kind)로 올바른 kind를 덮어써 준다.
 		_tool_use_flash_timer = AXE_CHOP_FLASH_DURATION
 	elif event is InputEventMouseButton and event.pressed and not _paused and not _inventory_open \
-			and not _crafting_open and event.button_index == MOUSE_BUTTON_LEFT and _held_tool == "fishing_rod":
+			and not _crafting_open and not _storage_open and event.button_index == MOUSE_BUTTON_LEFT and _held_tool == "fishing_rod":
 		## 낚싯대는 INBOX #45부터 옆 아이콘이 아니라 캐릭터 애니메이션 프레임 자체
 		## (fishing_rod_fishing_*)로 낚시하는 모션을 보여준다 (도끼(#43)와 같은 패턴).
 		_tool_use_flash_timer = AXE_CHOP_FLASH_DURATION
 
 
 func _physics_process(delta: float) -> void:
-	if _paused or _inventory_open or _crafting_open:
+	if _paused or _inventory_open or _crafting_open or _storage_open:
 		return
 
 	var input_dir := Vector2.ZERO
@@ -547,6 +571,15 @@ func _spawn_cooking_stove() -> void:
 	stove.player_ref = player_sprite
 	stove.world_ref = self
 	add_child(stove)
+
+
+## 스폰 지점에서 고정된 오프셋에 저장 상자를 배치한다 (INBOX #96). 처음엔 비어 있다.
+func _spawn_storage_chest() -> void:
+	var chest := StorageChestScene.instantiate()
+	chest.global_position = player_sprite.position + STORAGE_CHEST_ORIGIN
+	chest.player_ref = player_sprite
+	chest.world_ref = self
+	add_child(chest)
 
 
 ## 사냥/채집/채광 결과물을 바닥에 드롭 오브젝트로 스폰한다 (INBOX #24, DESIGN.md
@@ -814,7 +847,7 @@ func _build_crafting_window() -> void:
 ## (DESIGN.md "생산 라인" 절 그대로). 상호작용 오브젝트(가공대 등)가 근처에서 좌클릭됐을
 ## 때 호출한다.
 func open_crafting_window(title: String, recipes: Array) -> void:
-	if _paused or _inventory_open:
+	if _paused or _inventory_open or _storage_open:
 		return
 	_crafting_title_label.text = title
 	_crafting_recipes = recipes
@@ -886,6 +919,140 @@ func _on_craft_pressed(recipe: Dictionary) -> void:
 	for item_key in inputs.keys():
 		InventoryData.remove_item(item_key, int(inputs[item_key]))
 	InventoryData.add_item(recipe.get("output", ""), int(recipe.get("amount", 1)))
+
+
+## 저장 상자(INBOX #96)가 공유하는 범용 상자 창을 코드로 한 번만 조립해둔다
+## (_build_crafting_window()와 같은 이유 — 상자마다 새 UI를 만들지 않고
+## open_storage_window()만 호출하면 되게 하기 위함).
+func _build_storage_window() -> void:
+	var window := Control.new()
+	window.name = "StorageWindow"
+	window.visible = false
+	window.set_anchors_preset(Control.PRESET_FULL_RECT)
+	window.mouse_filter = Control.MOUSE_FILTER_STOP
+
+	var dim := ColorRect.new()
+	dim.color = Color(0, 0, 0, 0.55)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	window.add_child(dim)
+
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	window.add_child(center)
+
+	var panel := PanelContainer.new()
+	panel.custom_minimum_size = Vector2(420, 0)
+	center.add_child(panel)
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 10)
+	panel.add_child(vbox)
+
+	_storage_title_label = Label.new()
+	_storage_title_label.add_theme_font_size_override("font_size", 22)
+	vbox.add_child(_storage_title_label)
+
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(0, 320)
+	vbox.add_child(scroll)
+
+	_storage_list = VBoxContainer.new()
+	_storage_list.add_theme_constant_override("separation", 6)
+	_storage_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(_storage_list)
+
+	_storage_message_label = Label.new()
+	_storage_message_label.visible = false
+	_storage_message_label.modulate = Color(1, 0.55, 0.55, 1)
+	vbox.add_child(_storage_message_label)
+
+	var close_hint := Label.new()
+	# "99개씩"은 storage_chest.gd의 TRANSFER_AMOUNT 상수와 같은 값이어야 한다(노드를
+	# 만들지 않고 상수만 읽을 방법이 마땅치 않아 문구로 하드코딩 — 값을 바꾸면 이 문구도
+	# 같이 바꿀 것).
+	close_hint.text = "ESC: 닫기 / 슬롯 클릭: 인벤토리로 옮기기(최대 99개씩)"
+	close_hint.modulate = Color(1, 1, 1, 0.6)
+	vbox.add_child(close_hint)
+
+	ui_layer.add_child(window)
+	_storage_window = window
+	InventoryData.changed.connect(_refresh_storage_window)
+
+
+## 상자 UI를 연다. chest는 storage_chest.gd 인스턴스 — 가공대의 RECIPES(값 전달)와 달리
+## 상자는 슬롯 상태를 자기 자신이 들고 있으므로 노드 참조로 받아 그때그때 조회한다.
+func open_storage_window(title: String, chest: Node) -> void:
+	if _paused or _inventory_open or _crafting_open:
+		return
+	if _storage_chest != null and _storage_chest.changed.is_connected(_refresh_storage_window):
+		_storage_chest.changed.disconnect(_refresh_storage_window)
+	_storage_chest = chest
+	_storage_chest.changed.connect(_refresh_storage_window)
+	_storage_title_label.text = title
+	_storage_open = true
+	_storage_message_label.visible = false
+	_storage_window.visible = true
+	_refresh_storage_window()
+
+
+func close_storage_window() -> void:
+	_storage_open = false
+	_storage_window.visible = false
+
+
+## storage_chest.gd가 "지금 다른 상자/제작 창이 이미 열려 있는지" 확인할 때 쓴다
+## (is_crafting_open()과 같은 공개 접근자 패턴).
+func is_storage_open() -> bool:
+	return _storage_open
+
+
+func _refresh_storage_window() -> void:
+	if not _storage_open or _storage_chest == null:
+		return
+	for child in _storage_list.get_children():
+		child.queue_free()
+	var slots: Array = _storage_chest.get_slots()
+	var has_item := false
+	for i in range(slots.size()):
+		var slot = slots[i]
+		if slot == null:
+			continue
+		has_item = true
+		_storage_list.add_child(_make_storage_slot_row(i, slot))
+	if not has_item:
+		var empty_label := Label.new()
+		empty_label.text = "(비어 있음)"
+		empty_label.modulate = Color(1, 1, 1, 0.6)
+		_storage_list.add_child(empty_label)
+
+
+func _make_storage_slot_row(index: int, slot: Dictionary) -> Control:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+
+	var display: String = ITEM_LABELS.get(slot["item"], slot["item"])
+	var desc := Label.new()
+	desc.text = "%s x%d" % [display, int(slot["count"])]
+	desc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(desc)
+
+	var button := Button.new()
+	button.text = "인벤토리로"
+	button.pressed.connect(_on_storage_slot_pressed.bind(index))
+	row.add_child(button)
+	return row
+
+
+## 상자 슬롯 버튼을 누르면 호출된다. 인벤토리에 공간이 없으면 조용히 무시하는 대신 잠깐
+## 실패 메시지를 보여준다(INBOX #96 원문 "인벤토리에 공간이 없으면 실패 표시" 요구사항).
+func _on_storage_slot_pressed(index: int) -> void:
+	if _storage_chest == null:
+		return
+	if not _storage_chest.try_transfer_to_player(index):
+		_storage_message_label.text = "인벤토리에 공간이 없습니다"
+		_storage_message_label.visible = true
+		_storage_message_timer = 1.5
 
 
 func _update_inventory_label() -> void:
