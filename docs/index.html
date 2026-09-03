@@ -27,19 +27,19 @@
 </head>
 <body>
   <h1>auto-loop 진행 상황</h1>
-  <p class="updated">마지막 갱신: 2026-09-04 05:13:52</p>
+  <p class="updated">마지막 갱신: 2026-09-04 05:19:14</p>
   
   <div class="row">
-    <div class="card"><div class="label">남은 항목</div><div class="num">7</div></div>
-    <div class="card"><div class="label">완료된 항목</div><div class="num">83</div></div>
+    <div class="card"><div class="label">남은 항목</div><div class="num">6</div></div>
+    <div class="card"><div class="label">완료된 항목</div><div class="num">84</div></div>
   </div>
   <div class="card">
     <div class="label">지금 처리 중 / 다음으로 처리할 항목</div>
-    <div>#85 [BUILD] (사용자 지시, 2026-09-04) 사슴을 기본탄으로 사살하면 고기(육류 카테고리)가 드롭되도록 만든다. `scenes/deer/deer.gd`의 `_die()`(현재 `_dead = true; queue_free()`뿐이고 아무것도 드롭하지 않음, 221번째 줄 부근)에 `_capture()`(226번째 줄, `world_ref.spawn_dropped_item(CAPTURED_ITEM, 1, global_position)`)와 같은 패턴으로 `world_ref.spawn_dropped_item("meat", 1, global_position)`를 추가한다(`world_ref`가 null이 아닐 때만, `_capture()`와 동일 가드). 새 아이템 `meat`를 `ITEM_LABELS`(표시 이름 "고기")/`ITEM_CATEGORIES`(#83에서 만든 체계, "육류")에 추가한다. 텍스처/그림은 이번 항목 범위가 아니다(후속 [DESIGN] 항목 #86에서 만듦, 그때까지는 기본 아이콘 없이도 인벤토리에 텍스트로만 표시돼도 됨). 실제로 사슴을 기본탄으로 쏴 죽여서 고기가 드롭되고 인벤토리에 들어가는지, 마취탄으로 생포하는 기존 흐름은 그대로 동작하는지(회귀 없는지) 둘 다 확인한다.</div>
+    <div>#86 [DESIGN] (사용자 지시, 2026-09-04) #84/#85에서 새로 생긴 원재료/식재료 아이템 3종(돌/유황광석/고기)의 아이템 아이콘과, 돌/유황광석 채광 포인트의 월드 그림을 파이썬 절차적 생성(Pillow)으로 만든다. **AI 생성 도구(SpriteCook/PixelLab) 크레딧을 쓰지 않는다** — #79 나무/#81 캐릭터와 같은 기법(도형 레이어링 + 그라디언트 + 안티에일리어싱, `/tmp/gen_*.py` 관례 참고)을 재사용한다. 돌은 회색 계열 각진 덩어리, 유황광석은 노란빛이 도는 결정형, 고기는 붉은 살코기 덩어리 느낌으로 — 참고 게임(스타듀밸리/코어키퍼)의 단순하고 알아보기 쉬운 아이템 아이콘 스타일을 참고한다. 각각 인벤토리 아이콘(작은 크기)과 돌/유황광석은 추가로 월드 배치용 그림(DESIGN.md "아이템/오브젝트 크기 표준"대로 화면에서 충분히 크게, 최소 32px 이상)을 만든다. 배경 투명(PNG 알파) 필수. `scenes/dropped_item/dropped_item.gd`의 `ITEM_ICONS`/`mining_point_stone.tscn`·`mining_point_sulfur.tscn`의 `texture_path`에 실제로 연결하고, 게임을 실행해서 스크린샷으로 확인한다.</div>
   </div>
   <div class="card">
     <div class="label">마지막 작업 커밋</div>
-    <div><code>88cc5d3 [INBOX #84] 채광 포인트에 돌/철광석/유황광석 확률 스폰 추가</code></div>
+    <div><code>c214a60 [INBOX #85] 사슴을 기본탄으로 사살하면 고기 드롭</code></div>
   </div>
   <div class="card">
     <div class="label">디자인 개선 후보 (확인 후 지우기를 누르면 이 브라우저에서 안 보입니다)</div>
