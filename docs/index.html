@@ -27,19 +27,19 @@
 </head>
 <body>
   <h1>auto-loop 진행 상황</h1>
-  <p class="updated">마지막 갱신: 2026-09-04 06:27:18</p>
+  <p class="updated">마지막 갱신: 2026-09-04 06:35:45</p>
   
   <div class="row">
-    <div class="card"><div class="label">남은 항목</div><div class="num">2</div></div>
-    <div class="card"><div class="label">완료된 항목</div><div class="num">92</div></div>
+    <div class="card"><div class="label">남은 항목</div><div class="num">1</div></div>
+    <div class="card"><div class="label">완료된 항목</div><div class="num">93</div></div>
   </div>
   <div class="card">
     <div class="label">지금 처리 중 / 다음으로 처리할 항목</div>
-    <div>#94 [DESIGN] (2026-09-04, QA #92가 발견) `assets/sprites/items/meat.png`(고기 드롭 아이콘)가 DESIGN.md "아이템/오브젝트 크기 표준"의 최소 32px 기준에 미달한다. 실측(화면 스크린샷 `/tmp/qa86/wide.png` 기준 배경 잔디 제외 픽셀 bbox): 돌 31×34px, 유황광석 38×32px인데 **고기만 44×27px로 짧은 변(세로)이 27px밖에 안 됨**. 32×32 캔버스 자체는 맞지만 그 안에 그려진 타원형 고기 도형이 세로로 캔버스를 충분히 채우지 못하고 납작하게 그려져 있는 게 원인으로 보인다. 다른 원재료 아이콘(`stone.png`/`sulfur_ore.png`)처럼 짧은 변 기준 32px 이상이 되도록 다시 그리거나(더 둥글게, 세로 여백 축소) 캔버스 안에서 확대해서 재배치한다. 절차적 생성(Pillow) 방식을 그대로 재사용해도 되고(#86/#91과 같은 스타일), 완성 후 실제 게임에서 드롭시켜 스크린샷으로 다른 아이템과 크기를 나란히 비교해 32px 이상임을 직접 확인한다.</div>
+    <div>#95 [DESIGN] (2026-09-04, QA #92가 발견) 유황광석 채광 포인트(`mining_point_sulfur.tscn`)의 월드 그림이 "노란빛이 도는 결정형 광물"이라는 원래 의도(#86 원문)와 다르게, 회색 돌 위에 노란 뾰족한 스파이크 다발이 얹힌 형태라 광물보다 불꽃/폭발 이펙트처럼 보인다(스크린샷 `/tmp/qa86/wide.png`/`close.png`에서 확인 — 돌/철광석과 실루엣 구별은 잘 되지만 형태 자체가 "캘 수 있는 광물"로 안 읽혀서 처음 보는 사람이 위험 이펙트로 오인할 소지가 있음). `assets/sprites/resource_point/`(또는 해당 텍스처 경로)의 유황광석 그림을 결정질(각진 크리스탈 덩어리, 노란빛이 도는 반투명한 느낌)로 다시 그린다 — 돌(회색 둥근 블롭)/철광석과는 계속 실루엣이 구별되게 하되, 불꽃처럼 보이지 않도록 스파이크/화염 형태는 피한다. 완성 후 돌/철광석/유황광석 세 채광 포인트를 한 화면에 나란히 놓고 스크린샷으로 직접 비교해 확인한다.</div>
   </div>
   <div class="card">
     <div class="label">마지막 작업 커밋</div>
-    <div><code>eb0fa0b [INBOX #93] QA: #87~#91 구간(가공대/제련로/화약·탄약/조리대+조리용화로 + 신규 오브젝트4·아이콘8) 전체 스윕 — 결함 0건</code></div>
+    <div><code>9ed5691 [INBOX #94] DESIGN: 고기 아이콘(meat.png) 32px 미달 수정 — 절차적 생성 재작업</code></div>
   </div>
   <div class="card">
     <div class="label">디자인 개선 후보 (확인 후 지우기를 누르면 이 브라우저에서 안 보입니다)</div>
