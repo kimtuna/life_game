@@ -65,15 +65,18 @@ next_pending_line() {
 }
 
 # 다음 항목의 태그에 맞는 PROMPT 파일 경로를 고른다. 태그가 없으면 BUILD(기본값).
+# 항목 번호 바로 뒤에 오는 첫 [태그]만 본다 — 설명 본문 아무 데서나 "[DESIGN]" 같은
+# 글자를 우연히 포함해도(예: 태그 규칙을 설명하는 문장) 잘못 매칭되지 않게 앵커링한다.
+# (실제로 #67의 설명문에 "[BUILD]"/"[DESIGN]" 예시가 들어있어서, 예전의 느슨한
+# substring 매칭이 QA 항목을 DESIGN으로 잘못 라우팅해 수십 바퀴를 허비한 적이 있다.)
 select_prompt_file() {
-  local line="$1"
-  if [[ "$line" == *"[DESIGN"* ]]; then
-    echo "$PROMPT_DESIGN"
-  elif [[ "$line" == *"[QA"* ]]; then
-    echo "$PROMPT_QA"
-  else
-    echo "$PROMPT_BUILD"
-  fi
+  local line="$1" tag
+  tag=$(printf '%s' "$line" | sed -nE 's/^- \[[ xX]\] #[0-9]+ \[([A-Za-z]+)[^]]*\].*/\1/p' | tr '[:lower:]' '[:upper:]')
+  case "$tag" in
+    DESIGN) echo "$PROMPT_DESIGN" ;;
+    QA) echo "$PROMPT_QA" ;;
+    *) echo "$PROMPT_BUILD" ;;
+  esac
 }
 
 html_escape() {
