@@ -27,19 +27,19 @@
 </head>
 <body>
   <h1>auto-loop 진행 상황</h1>
-  <p class="updated">마지막 갱신: 2026-09-04 04:17:07</p>
+  <p class="updated">마지막 갱신: 2026-09-04 05:01:41</p>
   
   <div class="row">
-    <div class="card"><div class="label">남은 항목</div><div class="num">0</div></div>
+    <div class="card"><div class="label">남은 항목</div><div class="num">9</div></div>
     <div class="card"><div class="label">완료된 항목</div><div class="num">81</div></div>
   </div>
   <div class="card">
     <div class="label">지금 처리 중 / 다음으로 처리할 항목</div>
-    <div>(없음 — 큐 비어있음)</div>
+    <div>#83 [BUILD] (사용자 지시, 2026-09-04) 아이템 카테고리 체계 도입 + `iron` 아이템 이름을 `iron_ore`로 정정. DESIGN.md "아이템 카테고리 / 제작(크래프팅) 테크" 절을 먼저 읽는다. `world.gd`의 `ITEM_LABELS`(현재 키→표시이름 평면 딕셔너리) 옆에 `ITEM_CATEGORIES`(아이템 키 → "원재료"/"가공물"/"완성품"/"곡물"/"육류"/"채소"/"가공식품"/"요리"/"도구" 등 카테고리 문자열) 딕셔너리를 새로 추가하고, 지금 존재하는 모든 아이템(`rice_seed`, `rice`, `iron`, `wood`, `captured_deer`, `gun`/`axe`/`pickaxe`/`fishing_rod`)을 분류해서 채운다. 그리고 `iron`이라는 아이템 키를 쓰는 모든 참조 지점(`world.gd`의 `ITEM_LABELS`, `scenes/resource_point/mining_point.tscn`의 `item_name`, `scenes/dropped_item/dropped_item.gd`의 `ITEM_ICONS` 등 — grep으로 전부 찾을 것)을 `iron_ore`로 통일 개명하고 표시 이름도 "철"에서 "철광석"으로 바꾼다(가공된 "철"은 이 항목에서 만들지 않는다 — 원재료 이름만 바로잡는 것). 세이브 파일 호환은 신경 쓰지 않아도 된다(테스트 단계). 이 항목은 새 아이템/오브젝트를 만들지 않고 분류 체계 마련 + 이름 정정까지만 한다. 게임을 실행해서 인벤토리 창에 "철광석"으로 정상 표시되고 광산에서 캐도 정상 동작하는지 확인한다.</div>
   </div>
   <div class="card">
     <div class="label">마지막 작업 커밋</div>
-    <div><code>dac0ada [INBOX #81] 캐릭터 절차적 생성 실험: 남자 idle 4방향 (Pillow, AI 크레딧 불필요)</code></div>
+    <div><code>f8a3795 아이템 카테고리/제작 테크 시스템 설계 및 INBOX #83~#91 큐 등록</code></div>
   </div>
   <div class="card">
     <div class="label">디자인 개선 후보 (확인 후 지우기를 누르면 이 브라우저에서 안 보입니다)</div>
