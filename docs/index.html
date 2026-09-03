@@ -15,22 +15,24 @@
   .num{font-size:2rem;font-weight:700}
   .label{color:#9a9aa2;font-size:.85rem;margin-bottom:6px}
   code{background:#222;padding:2px 6px;border-radius:4px;word-break:break-all}
+  .alert{background:#3a1414;border:1px solid #7a2323;color:#ffd7d7;border-radius:10px;padding:16px;margin:12px 0}
 </style>
 </head>
 <body>
   <h1>auto-loop 진행 상황</h1>
-  <p class="updated">마지막 갱신: 2026-09-03 09:59:44</p>
+  <p class="updated">마지막 갱신: 2026-09-03 11:04:30</p>
+  
   <div class="row">
-    <div class="card"><div class="label">남은 항목</div><div class="num">2</div></div>
-    <div class="card"><div class="label">완료된 항목</div><div class="num">47</div></div>
+    <div class="card"><div class="label">남은 항목</div><div class="num">5</div></div>
+    <div class="card"><div class="label">완료된 항목</div><div class="num">49</div></div>
   </div>
   <div class="card">
     <div class="label">지금 처리 중 / 다음으로 처리할 항목</div>
-    <div>#48 (버그 리포트, #46 QA에서 발견) 총을 들고 **남쪽(정면) 또는 북쪽(후면)**을 볼 때, 총이 캐릭터가 실제로 조준하는 방향(화면 아래쪽/위쪽)과 무관하게 몸 앞에 완전히 수평(좌우)으로 걸쳐 들려 있다 — 마치 총을 옆으로 눕혀 몸에 걸치고 있는 것처럼 보이고, 아래/위를 겨누고 있다는 느낌이 전혀 들지 않는다. 반면 동/서(옆모습) 방향은 총이 실제로 보고 있는 쪽으로 자연스럽게 뻗어 있어 문제가 없다. DESIGN.md "전투 감각의 기준은 덕코프"에 맞춰, 남/북 방향에서도 총이 조준 방향(아래쪽/위쪽)으로 기울어져 보이도록 `gun_idle_south`/`gun_fire_south`/`gun_idle_north`/`gun_fire_north`(3색, 총 12장)를 다시 그린다. 4방향 스크린샷으로 재확인한다.</div>
+    <div>#50 [DESIGN] 캐릭터 기본 idle/walk 애니메이션을 SpriteCook으로 새로 만든다(자산 초기화 후 재작업, 기준 색상 green만 먼저). DESIGN.md "그래픽 파이프라인"대로 SpriteCook의 캐릭터 애니메이션 기능(idle/walk 등)을 먼저 조사해서 쓴다. 방향 4개(south/east/north/west) × idle(1프레임 이상)/walk(여러 프레임) 애니메이션을 만들어서 `world.gd`의 `_build_player_sprite_frames()`/`_current_animation_name()`에 walk_&lt;방향&gt; 분기를 추가한다(idle_&lt;방향&gt;은 이미 있음, 기존 정지 이미지 재사용 가능하면 재사용해도 됨). 걷는 동안 실제로 다리가 움직이는 것처럼 보여야 한다 — 이번 디자인 작업에서 자연스러움과 퀄리티가 최우선이다. 4방향 전부 스크린샷으로 직접 확인한다.</div>
   </div>
   <div class="card">
     <div class="label">마지막 작업 커밋</div>
-    <div><code>855fa76 [INBOX #48] PixelLab 잔액 재확인 결과 여전히 $0 — 착수 보류 (바퀴 68)</code></div>
+    <div><code>64c1e6f 건축/방 시스템을 DESIGN.md에 기록, 캐릭터/도구 애니메이션 재작업 큐 등록</code></div>
   </div>
 </body>
 </html>
