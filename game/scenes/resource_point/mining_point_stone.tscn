@@ -13,12 +13,11 @@ script = ExtResource("1_script")
 item_name = "stone"
 item_amount = 1
 prompt_text = "곡괭이낫을 들고 좌클릭: 채광 (돌)"
-texture_path = "res://assets/sprites/mining_point/mining_point.png"
+texture_path = "res://assets/sprites/mining_point/mining_point_stone.png"
 required_tool = "pickaxe"
 use_kind = "mining"
 
 [node name="Sprite" type="Sprite2D" parent="."]
-modulate = Color(0.78, 0.78, 0.8, 1)
 z_index = -1
 scale = Vector2(1.1, 1.1)
 texture_filter = 1
