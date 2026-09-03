@@ -5,6 +5,68 @@
 
 ## 마지막 갱신
 
+바퀴 85 / 2026-09-03 ([DESIGN] **INBOX #57 완료 — 도끼(자산 초기화로 삭제됐던 #43의
+재작업)의 "들고 있는"/"패는" 모션을 SpriteCook `generate-sync`+`edit_asset_id`로 green
+4방향 전부 새로 만들어 캐릭터 애니메이션 프레임에 통합, 4방향×2상태 인게임 스크린샷으로
+검증 후 커밋.**
+1) 세션 시작 시 잔액 재확인: `GET /v1/api/credits` → SpriteCook 1168크레딧(바퀴 83
+   종료 시점 추정치 1180대와 거의 일치, 충분), PixelLab은 확인하지 않았다(SpriteCook만
+   으로 충분해 굳이 확인할 필요가 없었음 — DESIGN.md 규칙대로 SpriteCook을 캐릭터
+   애니메이션 1순위로 바로 사용).
+2) **총(#52)/곡괭이낫(#54)이 정립한 레시피를 그대로 재사용**: `POST
+   /v1/api/assets/import`로 `green_south/north/east.png`(68px 그대로, 업스케일 불필요)를
+   업로드 → `POST /v1/api/generate-sync`에 `edit_asset_id`+`smart_crop:false`+
+   `width/height:68`+`variations:3`로 idle 생성 → 채택된 idle의 asset_id를 다시
+   `edit_asset_id`로 연쇄 편집해 chop(패기) 생성. `smart_crop:false` 덕분에 정렬
+   후처리(알파 bbox 매칭)가 전혀 필요 없었다(기존 문서화된 대로).
+3) **도끼 프롬프트는 기존 아이콘(`assets/sprites/tools/axe.png`, 갈색 나무 손잡이 +
+   은색/회색 초승달형 날의 벌목 도끼)을 8배 확대해서 먼저 직접 본 뒤** "light brown
+   wooden handle + curved gray metal axe head with a single wide crescent-shaped
+   cutting blade, NOT a pickaxe, NOT a thin line, NOT a sword"로 구체적으로 서술했다 —
+   총/곡괭이낫 때와 같은 "재질/구성요소 구체 서술 + NOT 문구" 패턴을 그대로 적용, 첫
+   시도부터 variations 3개 전부 합격 수준(도끼 실루엣이 뚜렷하고 손에 자연스럽게
+   쥐어짐)이 나왔다 — 재시도 없음.
+4) idle 3방향(south/north/east) × variations 3 = 9회, chop 3방향 × variations 3 =
+   9회, 총 18회 generate-sync 호출 × 12크레딧 = 216크레딧 소모. **이번엔 variations
+   9세트 전부 입력과 정확히 같은 68x68로 나왔다**(바퀴 81이 겪은 "출력 크기 불일치"가
+   재현되지 않음 — `smart_crop:false`+68px 그대로 업로드 조합이 안정적인 것으로 보인다).
+   west는 재생성 없이 east(idle/chop 둘 다)를 `ImageOps.mirror()`로 좌우반전.
+5) **chop 포즈 품질**: south/east는 첫 후보부터 흙바닥에 부딪히는 먼지/스파크
+   파티클이 자동으로 더해진 후보가 나와(요청한 프롬프트에 파티클을 명시하지
+   않았는데도) 곡괭이낫 mining 때와 비슷한 "타격감"이 저절로 강화됐다 — 이 후보를
+   우선 채택했다. north(후면)도 3후보 모두 idle과 뚜렷이 구분되는 런지 자세라
+   variation 선택에 곡괭이낫 north 때 같은 어려움은 없었다.
+6) 코드: `world.gd`의 `_build_player_sprite_frames()`에 gun/pickaxe와 동일한
+   `ResourceLoader.exists()` 가드 패턴으로 `axe_idle_<dir>`/`axe_chop_<dir>`을
+   추가했고, `_current_animation_name()`에 `_held_tool == "axe"` 분기(`_tool_use_flash_timer`
+   >0이면 chop, 아니면 idle)를 되살렸다. 좌클릭 시 `_tool_use_flash_timer =
+   AXE_CHOP_FLASH_DURATION`을 설정하는 입력 처리 코드는 자산 초기화 이전부터 이미
+   그대로 남아있어 수정이 필요 없었다(주석만 "패는 모션" 언급, 실제 트리거 로직은
+   살아있었음).
+7) **인게임 검증**: 바퀴 80~84가 확립한 방법(`Node` 스크립트를 `project.godot`
+   `[autoload]`에 임시 추가 → `godot --path .`(헤드리스 아님, 실제 렌더러)로 world 씬을
+   인스턴스화 → `set_physics_process(false)` → `_held_tool="axe"`/`_facing`/
+   `_tool_use_flash_timer`를 방향×상태별로 강제 설정 → `_update_player_animation()` →
+   3프레임 대기 → `img.get_size()` 기준 중심 크롭 → PNG 저장 → `get_tree().quit()`)를
+   그대로 재사용해 8장을 캡처, 콘택트시트 1장으로 묶어 직접 눈으로 봤다 — 4방향 전부
+   손과 도끼가 자연스럽게 붙어 있고(idle은 어깨에 걸치거나 몸 앞에 대각선으로 쥔 자세,
+   west는 east의 완전한 좌우반전), chop은 몸을 앞으로 기울인 런지 자세로 idle과
+   뚜렷이 구분되며 south/east는 도끼날 착지 지점에 먼지 효과까지 있어 총(#52)/
+   곡괭이낫(#54)과 손색없는 품질로 판단했다. 검증에 쓴 `scripts/_verify_axe57.gd`와
+   `project.godot`의 임시 `[autoload]` 항목은 커밋 전 원상복구(삭제/되돌리기)했다 —
+   `git status`에는 새 `game/assets/sprites/character/axe/green_*.png`(및 `.import`)
+   8개 파일과 `world.gd` 수정만 남았다(임시 스크립트/스크린샷은 `/tmp/axe57/`에서
+   실행해 레포에 남기지 않음).
+8) **BUILD/DESIGN 완료 카운터: 바퀴 83(#55)에서 0으로 리셋된 뒤 이번 바퀴(#57)로
+   1이 됨.**
+**다음 바퀴가 참고할 것**: 다음 미완료 항목은 INBOX #58(`[DESIGN]` 도끼 모션을
+blue/red로 확장)이다. 이번 바퀴가 확인한 "smart_crop:false+68px 그대로 업로드 시
+출력 크기가 항상 정확했다"는 관찰은 표본이 1세트뿐이니, #58에서도 안전하게
+variations:3으로 요청하고 68x68이 아닌 후보는 그냥 걸러낼 것(바퀴 81의 함정이 완전히
+사라졌다고 단정하지 말 것). 색상별 프롬프트 재사용(총/곡괭이낫이 확립한 패턴)을 먼저
+시도해볼 것 — green과 blue/red는 셔츠 색만 다르고 실루엣이 동일하다는 전제가 이미
+여러 번 재확인됐다.
+
 바퀴 84 / 2026-09-03 ([QA] **INBOX #56 완료 — 전체 스윕: 메인 메뉴 → 캐릭터 슬롯 →
 캐릭터 커스터마이징 → 멀티플레이 로비 → 월드 스폰 → 도구 4종 → 인벤토리 → 농사/채집/
 채광/목장/사냥까지 실제 화면 전환과 상태를 강제로 재현해 19장 스크린샷을 찍고 직접
@@ -804,13 +866,12 @@ grep으로 이 심볼들이 world.gd 밖(resource_point.gd 등)에서 쓰이지 
 
 ## 다음에 할 것
 
-- **(바퀴 84 갱신, 최우선) 다음 미완료 항목은 INBOX #57(`[DESIGN]` 도끼 모션 재작업,
-  green 기준)이다 — `[DESIGN]` 하네스(`PROMPT_DESIGN.md`) 몫이다.** 이어서 #58(도끼
-  색상 확장, DESIGN), #59/#60(낚싯대 모션+색상 확장, DESIGN), #61(잔디 텍스처 재생성,
-  DESIGN), #62(핫바 UI 텍스트 겹침, BUILD)가 대기 중이다. 세션 시작 시 잔액 확인은
-  여전히 습관적으로 할 것 — 바퀴 83 종료 시점 SpriteCook 약 1180크레딧대(1828에서 648
-  소모), PixelLab 여전히 $0. 이번 QA 바퀴(84)는 그림/코드를 만들지 않아 크레딧을 쓰지
-  않았다.
+- **(바퀴 85 갱신, 최우선) 다음 미완료 항목은 INBOX #58(`[DESIGN]` 도끼 모션을
+  blue/red로 확장)이다 — `[DESIGN]` 하네스(`PROMPT_DESIGN.md`) 몫이다.** 이어서
+  #59/#60(낚싯대 모션+색상 확장, DESIGN), #61(잔디 텍스처 재생성, DESIGN), #62(핫바
+  UI 텍스트 겹침, BUILD)가 대기 중이다. 세션 시작 시 잔액 확인은 여전히 습관적으로 할
+  것 — 바퀴 85 종료 시점 SpriteCook 약 952크레딧(1168에서 216 소모), PixelLab은 이번
+  바퀴에 확인하지 않음(SpriteCook만으로 충분).
 - **`game/qa/full_sweep.gd`가 재사용 가능한 전체 스윕 캡처 스크립트로 커밋됐다** — 다음
   `[QA]` 전체 스윕(BUILD/DESIGN 5개 더 완료되면 자동 등록)이 이 스크립트를 그대로
   재사용할 것. 재실행 전 `~/Library/Application Support/Godot/app_userdata/life_game/
@@ -827,8 +888,9 @@ grep으로 이 심볼들이 world.gd 밖(resource_point.gd 등)에서 쓰이지 
   때는 "시작 대기"와 "스텝별 대기"에 같은 카운터 변수를 재사용하지 말 것**(바퀴 83이
   실제로 이 실수로 마지막 캡처 1개를 놓쳤다 — 아래 바퀴 83 항목 7번 참고).
 - **BUILD/DESIGN 완료 카운터: 바퀴 83(#55)으로 5에 도달해 INBOX #56(QA 전체 스윕)을
-  큐에 추가하고 0으로 리셋했다.** 다음 BUILD/DESIGN 5개 완료 시 다시 QA 스윕을 추가할 것
-  (PROMPT_BUILD.md ③ / PROMPT_DESIGN.md ③과 동일 규칙).
+  큐에 추가하고 0으로 리셋했고, 바퀴 85(#57)로 다시 1이 됐다.** 다음 BUILD/DESIGN 4개
+  더 완료 시(합쳐서 5개) QA 스윕을 큐에 추가할 것(PROMPT_BUILD.md ③ / PROMPT_DESIGN.md
+  ③과 동일 규칙).
 - 다음 지시가 들어오면 참고할 만한 백로그(강제 사항 아님, 아래 "막힌 것/보류"·"오래된
   메모" 참고):
   - 멀티플레이 실제 두 클라이언트 접속/동기화를 실기기로 아직 검증 못함.
@@ -1003,6 +1065,53 @@ DESIGN.md가 "캐릭터/동물 애니메이션 전담 도구"로 지정한 Sprit
   east/north는 variations:2 중 1개 선택).
 - 이 세션이 만든 SpriteCook 자산은 전부 게임에 통합·커밋 완료라 재사용 불필요.
   `/tmp/gun52/`에 원본 응답 JSON/이미지/인게임 스크린샷이 남아있으나 임시 디렉터리다.
+
+### 바퀴 85 추가 조사 (INBOX #57 — 도끼 idle/chop 프롬프트 원문, #58이 재사용할 것)
+
+- 색상 언급이 전혀 없는 프롬프트라 blue/red에도 그대로 재사용 가능(총/곡괭이낫과 같은
+  "색상별 실루엣 동일" 전제).
+- **south(정면) idle**: `"Edit this pixel art character (front view, facing the
+  viewer) to hold a wood-chopping axe: a tool with a light brown wooden handle and a
+  curved gray metal axe head with a single wide crescent-shaped cutting blade (like a
+  real lumberjack axe, NOT a pickaxe, NOT a thin line, NOT a sword). The character
+  grips the wooden handle with both hands, resting the axe head up near the right
+  shoulder, blade facing forward, at rest (not swinging). The axe must be a clearly
+  recognizable axe silhouette, at least half the height of the character, with a
+  visible wood-to-metal color transition. Keep the character's exact identity, face,
+  hair, outfit colors, body proportions, position within the frame, and pixel art
+  style unchanged from the reference image -- do not move, resize, or recenter the
+  character. Transparent background, crisp pixel art, no anti-aliasing blur, no extra
+  text or UI."`
+- **north(후면) idle**: 위에서 `"front view, facing the viewer"`→`"back view, facing
+  away from the viewer"`로 바꾸고 얼굴 관련 문구(`"face,"`)를 제거한 버전.
+- **east(측면) idle**: `"side view, facing right"` + `"holding the axe diagonally
+  across the body with the axe head near the right shoulder, blade pointing up and to
+  the right, at rest (not swinging)"`(나머지는 south와 동일한 틀).
+- **west**: 생성하지 않음. east(idle/chop 둘 다)를 `PIL.ImageOps.mirror()`로 좌우반전.
+- **chop(방향 공통, `{view_desc}`만 방향별로 치환)**: `"Edit this pixel art character
+  (already holding a wood-chopping axe, {view_desc}) to show it MID-SWING chopping
+  downward and forward: the axe is raised up and swung down so the blade strikes
+  toward the ground just in front of the character, arms extended downward and
+  forward, body leaning into the swing with knees slightly bent for impact. Keep the
+  axe the same recognizable shape (wooden handle, curved metal blade), keep the
+  character's exact identity, hair, outfit colors, body proportions, and position
+  within the frame unchanged. Do not move or resize the character. Transparent
+  background, crisp pixel art, no anti-aliasing blur."` — idle의 채택된 asset_id를
+  `edit_asset_id`로 연쇄 편집해서 생성(새로 업로드하지 않음). east만 "downward and
+  forward"/"in front of"를 "forward and downward to the right"/"to the right of"로
+  방향에 맞게 바꿨다.
+- **`view_desc` 매핑**: south="front view, facing the viewer", north="back view,
+  facing away from the viewer", east="side view, facing right".
+- **이번엔 variations:3으로 받은 9세트(idle 3방향+chop 3방향) 전부 입력과 정확히 같은
+  68x68로 나왔다** — 바퀴 81이 겪은 "출력 크기 불일치"가 재현되지 않았다(표본이 이번
+  1세트뿐이니 다음 바퀴도 안전하게 variations:3+크기 필터링을 유지할 것, 이 관찰만
+  믿고 필터링을 생략하지 말 것).
+- **chop 포즈는 요청하지 않았는데도 south/east 후보 일부에 흙바닥 먼지/스파크
+  파티클이 자동으로 그려져 나왔다** — 곡괭이낫 mining 때의 "타격감"과 비슷한 효과라
+  이 후보들을 우선 채택했다. north는 3후보 모두 idle과 뚜렷이 구분되는 런지 자세라
+  고르기 쉬웠다(곡괭이낫 north gathering 때 겪었던 "구분 안 됨" 문제는 재현되지 않음).
+- 이 세션이 만든 SpriteCook 자산은 전부 게임에 통합·커밋 완료라 재사용 불필요.
+  `/tmp/axe57/`에 원본 응답 JSON/이미지/인게임 스크린샷이 남아있으나 임시 디렉터리다.
 
 ### 바퀴 82 추가 조사 (INBOX #54 — 곡괭이낫 idle/mining/gathering 프롬프트 원문, #55가 재사용할 것)
 

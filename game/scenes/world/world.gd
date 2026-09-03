@@ -703,6 +703,23 @@ func _build_player_sprite_frames(variant: String) -> SpriteFrames:
 			frames.add_animation(pickaxe_gathering_anim)
 			frames.set_animation_speed(pickaxe_gathering_anim, 1.0)
 			frames.add_frame(pickaxe_gathering_anim, load(pickaxe_gathering_path))
+
+		## 도끼의 "들고 있는"/"패는" 모션(INBOX #57, 자산 초기화로 삭제됐던 #43을
+		## SpriteCook `generate-sync`+`edit_asset_id`로 재작업). 총/곡괭이낫과 같은
+		## 패턴 — 아직 green 색상만 이 자산이 있을 수 있어 ResourceLoader.exists()로
+		## 확인해서, 없는 색상은 조용히 건너뛴다.
+		var axe_idle_path := "res://assets/sprites/character/axe/%s_%s_idle.png" % [variant, direction]
+		if ResourceLoader.exists(axe_idle_path):
+			var axe_idle_anim := "axe_idle_%s" % direction
+			frames.add_animation(axe_idle_anim)
+			frames.set_animation_speed(axe_idle_anim, 1.0)
+			frames.add_frame(axe_idle_anim, load(axe_idle_path))
+		var axe_chop_path := "res://assets/sprites/character/axe/%s_%s_chop.png" % [variant, direction]
+		if ResourceLoader.exists(axe_chop_path):
+			var axe_chop_anim := "axe_chop_%s" % direction
+			frames.add_animation(axe_chop_anim)
+			frames.set_animation_speed(axe_chop_anim, 1.0)
+			frames.add_frame(axe_chop_anim, load(axe_chop_path))
 	return frames
 
 
@@ -721,6 +738,10 @@ func _current_animation_name() -> String:
 			else ("pickaxe_idle_%s" % _facing)
 		if player_sprite.sprite_frames.has_animation(pickaxe_suffix):
 			return pickaxe_suffix
+	elif _held_tool == "axe":
+		var axe_anim := ("axe_chop_%s" if _tool_use_flash_timer > 0.0 else "axe_idle_%s") % _facing
+		if player_sprite.sprite_frames.has_animation(axe_anim):
+			return axe_anim
 	var prefix := "walk_" if _is_moving else "idle_"
 	return prefix + _facing
 
