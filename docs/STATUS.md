@@ -5,6 +5,49 @@
 
 ## 마지막 갱신
 
+바퀴 79 / 2026-09-03 (**INBOX #51 완료 — #50의 green 걷기 애니메이션을 blue/red로 확장,
+world.gd 코드 변경 없이 에셋만 추가, 4방향×2색 인게임 스크린샷으로 검증 후 커밋.**
+1) 세션 시작 시 잔액 재확인: SpriteCook 2868크레딧(바퀴 78이 남긴 수치와 거의 동일,
+   사람 개입 없이도 충분), PixelLab 여전히 $0 — SpriteCook만으로 전량 진행.
+2) 바퀴 78이 "바퀴 78 추가 조사"에 프롬프트 전문을 남기겠다고 예고했지만 실제로는
+   그 섹션을 STATUS.md에 쓰지 않았고 `/tmp`의 제출 스크립트도 남아있지 않아 정확한
+   원문은 복구 불가능했다 — 대신 "마지막 갱신"이 서술한 방법(south/north: 4프레임 +
+   "과장된 행진" 계열 프롬프트, east: 8프레임 기본/발-접지 프롬프트, west: east
+   좌우반전)을 그대로 재구성해 사용했다. **다음 바퀴를 위해 이번에 실제로 쓴 프롬프트
+   원문을 아래 "SpriteCook API 실측 조사" 절에 그대로 남겨둔다** — 같은 복구 작업을
+   반복하지 않도록.
+3) **핵심 확인 사항(다음 바퀴에 특히 중요)**: blue/red idle 스프라이트는 green과
+   실루엣이 사실상 동일(셔츠 색만 다름, PIL로 알파 bbox 비교해 확인)하다는 점에
+   착안해, 색상별로 프롬프트를 따로 튜닝하지 않고 green에서 검증된 프롬프트를 그대로
+   재사용했다 — blue_south 1건을 먼저 시험해 다리 위치가 프레임마다 뚜렷이 달라지는
+   것을 확인한 뒤(크롭+5배 확대 비교), 나머지 5건(blue north/east, red south/north/east)은
+   재검증 없이 같은 프롬프트로 바로 진행했고 전부 한 번에 합격 수준이 나왔다. 총
+   6콜(south/north/east × 2색) × 20크레딧 = 120크레딧 소모(실수로 blue south를 한 번
+   더 호출한 것 포함 시 140), west는 AI 생성 없이 east 프레임을 `ImageOps.mirror()`로
+   재사용(바퀴 78과 동일 패턴, west 좌우반전이 기존 idle과 일치함을 재확인).
+4) 소스 이미지(68px)를 256px로 NEAREST 업스케일 후 SpriteCook에 업로드하고,
+   결과 프레임은 다시 68px 캔버스로 NEAREST 다운스케일 + 알파 bbox 기준
+   바닥/가로중심 정렬(바퀴 78과 동일 알고리즘)로 처리했다.
+5) **4방향×2색 인게임 스크린샷 검증**: `--headless --path . --import`로 강제
+   재임포트 후, `world.gd`의 `_build_player_sprite_frames(color)`를 스크립트에서
+   직접 호출해 `_variant`를 blue/red로 전환하며 48프레임(2색×(4+4+8+8))을 실제
+   렌더러로 캡처했다. 화면 중앙을 크롭해 방향별 콘택트시트로 만들어 직접
+   확인했고, 두 색 모두 다리가 프레임마다 뚜렷이 다른 위치로 움직이고 캐릭터
+   정체성(옷 색, 헤어 색조)이 idle과 일관되게 유지됨을 확인했다 — ①(스타듀밸리/
+   코어키퍼 대비) 기준 통과로 판정.
+6) `world.gd`는 변경하지 않았다 — `_build_player_sprite_frames(variant)`와
+   `WALK_FRAME_COUNTS`가 이미 색상 파라미터화되어 있어 새 PNG 파일만 올바른 경로
+   (`walk/{color}_{direction}_walk_{i}.png`)에 넣으면 자동으로 동작했다.
+7) `git status`에는 `game/assets/sprites/character/walk/{blue,red}_*_walk_*.png`(및
+   `.import`) 신규 파일만 남았다(임시 스크립트/스크린샷은 `/tmp/w51/`에서 실행해
+   레포에 남기지 않음).
+**다음 바퀴가 참고할 것**: #52(총 들기/발사 모션, green 기준)를 시작하기 전에 이번
+바퀴가 확인한 "색상별 재검증 불필요" 원칙을 재사용할 수 있는지 판단할 것 — 다만 #52는
+새로운 포즈(총을 든 팔)라서 걷기와 달리 SpriteCook에 처음 시도하는 유형이니 green으로
+먼저 품질 검증한 뒤에 #53에서 blue/red로 확장하는 흐름은 그대로 유지. SpriteCook 잔액은
+이번 바퀴 종료 시점 약 2728크레딧(2868에서 140 사용) — 충분함. BUILD/DESIGN 완료
+카운터(아래 "다음에 할 것" 참고)를 1로 갱신함(이전에 추적되지 않아 이번이 첫 기록).
+
 바퀴 78 / 2026-09-03 (**INBOX #50 완료 — SpriteCook animate-sync로 green 4방향 walk 애니메이션 완성, world.gd에 통합, 4방향 인게임 스크린샷으로 검증 후 커밋.**
 1) 세션 시작 시 잔액을 재확인한 결과 **SpriteCook이 28 → 3028크레딧으로 회복(사람이
    "adventurer" 티어로 업그레이드한 것으로 보임)**, PixelLab은 여전히 $0. 예산 문제가
@@ -455,31 +498,23 @@ grep으로 이 심볼들이 world.gd 밖(resource_point.gd 등)에서 쓰이지 
 
 ## 다음에 할 것
 
-- **(바퀴 76 갱신, 최우선) INBOX #50(green 캐릭터 idle/walk)을 이어서 진행하기 전에
-  `GET /v1/api/credits`(SpriteCook)와 `/v1/balance`(PixelLab)를 둘 다 확인할 것.**
-  바퀴 76 종료 시점: SpriteCook 28크레딧(구독 0 + 충전 28), PixelLab $0.
-  - **PixelLab 잔액이 회복됐다면 그쪽을 먼저 시도할 것** — `/animate-with-text`를
-    "walk" 한 단어 프롬프트 + 기본 guidance(오버라이드 없음)로 호출하는 것이 지금까지
-    유일하게 성공한 레시피다(바퀴 44/INBOX #41, 위 "끝난 것" 참고). SpriteCook의
-    `animate-sync`는 서로 다른 프롬프트로 2회(바퀴 69, 76) 시도했지만 둘 다 "프레임0만
-    다르고 1·2·3은 near-duplicate"인 같은 결함으로 실패했다 — **더 이상 프롬프트만
-    바꿔서 animate-sync를 재시도하지 말 것** (근거는 아래 "SpriteCook API 실측 조사 >
-    바퀴 76 추가 조사" 참고).
-  - PixelLab이 계속 $0이고 SpriteCook 크레딧이 32 이상(방향당 20+12prep) 있다면, 공식
-    `character-workflows`(topdown, `walk_down`/`walk_up`/`walk_right`/`walk_left`)를
-    시도해볼 것 — 아직 실제 호출까지 가보지 못한 경로다. `front` 방향(prep 없음, 20만)
-    부터 저렴하게 시험해볼 수 있다(단, idle_front 자체는 이미 있는 정지 이미지로
-    충분하니 walk_down이 진짜 필요한 대상 — walk_down이 front prep 없이 처리되는지는
-    미확인, 첫 호출에서 가격을 다시 확인할 것).
-  - 크레딧이 둘 다 부족하면 무리하게 진행하지 말고, 확인 결과만 짧게 기록하고
-    종료할 것(바퀴 58~75가 반복해온 패턴 — ①에서 이미 한 번 기록한 뒤 바로 다음
-    바퀴도 똑같이 막혀 있으면 `EXTERNAL_TOOL_BLOCKED:` 출력하고 끝낼 것, PROMPT_DESIGN.md
-    ③ 참고).
-  - south 걷기 시험 결과물 2종이 `/tmp`에 남아있다(세션이 지나도 안 지워짐) —
-    바퀴 69 것은 `/tmp/walk_south_sheet*.png`, 바퀴 76 것은 `/tmp/walk50/`(원본
-    시트, 68x68 정렬 프레임, 실제 게임 렌더링 대조표 `ingame_contact_sheet.png`
-    포함) — 재판정 없이 바로 참고 가능하나, 결론(품질 미달)은 이미 확정됐으니 그대로
-    재생성하지 말고 다른 경로(PixelLab 또는 character-workflows)로 갈 것.
+- **(바퀴 79 갱신, 최우선) 다음 미완료 `[DESIGN]` 항목은 INBOX #52(총 들기/발사 모션,
+  green 기준)다.** 세션 시작 시 여느 때처럼 `GET /v1/api/credits`(SpriteCook)와
+  `/v1/balance`(PixelLab)를 먼저 확인할 것 — 바퀴 79 종료 시점 SpriteCook 약
+  2728크레딧(충분), PixelLab $0. #52는 걷기(#50/#51)와 달리 **새로운 포즈(총을 쥔
+  팔)를 그리는 작업**이라 지금까지 검증된 "색상별 재검증 불필요" 지름길이 곧바로
+  적용되지 않는다 — green으로 먼저 4방향 idle/발사 모션을 만들어 합격 기준을 통과시킨
+  뒤에야 #53에서 blue/red로 확장하는 흐름(이미 INBOX에 그렇게 나뉘어 있음)을 따를 것.
+  과거 무효화된 #48(PIL 합성+인페인트 우회법으로 총 각도를 억지로 틀었다가 계속
+  부자연스럽다는 지적을 받음)을 참고해, 이번엔 처음부터 SpriteCook의 캐릭터 애니메이션
+  기능으로 총을 쥔 손 모양 자체를 프레임에 그려 넣을 것 — 아이콘 오버레이나 사후 합성은
+  피할 것.
+- **BUILD/DESIGN 완료 카운터(마지막 전체 QA 스윕 이후 완료한 BUILD/DESIGN 항목 수):
+  현재 1** (이번 바퀴 79의 INBOX #51 완료분 — 이전에는 이 카운터가 한 번도 기록된 적이
+  없어 0부터 새로 세기 시작했다. #50 등 과거 완료분은 소급 집계하지 않음). 5가 되면
+  `[QA] 전체 스윕: 메인 메뉴부터 모든 시스템을 실제로 플레이해보며 문제를 찾는다` 항목을
+  INBOX 큐 끝에 추가하고 카운터를 0으로 리셋할 것 (PROMPT_BUILD.md ③ / PROMPT_DESIGN.md
+  ③과 동일 규칙, BUILD·DESIGN 완료를 합산해서 센다).
 - 다음 지시가 들어오면 참고할 만한 백로그(강제 사항 아님, 아래 "막힌 것/보류"·"오래된
   메모" 참고):
   - 멀티플레이 실제 두 클라이언트 접속/동기화를 실기기로 아직 검증 못함.
@@ -550,6 +585,42 @@ DESIGN.md가 "캐릭터/동물 애니메이션 전담 도구"로 지정한 Sprit
   - south 방향 4프레임 걷기 시험 결과(`animate-sync`, 20크레딧) — `/tmp/walk_south_sheet.png`(224×56, 56×56 프레임 4장)와 4배 확대본 `/tmp/walk_south_sheet_big.png`.
 - **품질 판정(이번 바퀴가 south 시험 결과를 직접 눈으로 본 결론)**: 캐릭터 정체성/색/의상은 원본(`green_south.png`)과 일관되게 유지됐다(합격). 하지만 다리 부분만 잘라 4배 확대해서 비교한 결과, 1번 프레임은 "다리를 벌린" 뚜렷이 다른 자세인데 2~3~4번 프레임은 서로 거의 구분이 안 되는 "다리를 꼰" 자세라, 애니메이션으로 재생하면 좌우로 번갈아 딛는 자연스러운 걸음이 아니라 "한 번 튀었다가 멈춰 있는" 것처럼 보일 위험이 크다고 판단했다 — 스타듀밸리/코어키퍼의 또렷한 4단계 보행(왼발 착지-중립-오른발 착지-중립)과 다르다. 이 결론을 근거로 게임에 통합하지 않았다. **다음에 재시도할 때**: 프롬프트에 프레임별 발 위치를 명시적으로 지정(예: "frame 1: right foot forward contact, frame 2: passing neutral pose, frame 3: left foot forward contact, frame 4: passing neutral pose")하고, 받은 즉시 다리 부분만 크롭+확대해서(이번 바퀴가 쓴 방법: PIL로 프레임 분할 → 하반신만 크롭 → 4~6배 nearest 확대 → 가로로 이어붙여 한 이미지로 비교) 4프레임이 실제로 다른 자세인지부터 확인한 뒤, 다른 방향에 크레딧을 쓸지 결정할 것.
 - **셸 관련 잡음(사소하지만 재현됨)**: 이 환경에서 `source loop/secrets.env`로 환경변수를 로드한 직후 같은 Bash 호출 안에서 `curl ... | tail`처럼 파이프를 쓰거나 `for` 루프 안에서 `curl`을 여러 번 부르면 간헐적으로 `command not found: curl`/`tail` 에러가 났다(원인 불명 — PATH는 정상이었음). 매번 `.sh` 파일에 스크립트를 써서 `bash file.sh`로 실행하면 안정적으로 동작했다 — 다음 바퀴도 curl 다중 호출은 임시 스크립트 파일 방식을 쓸 것.
+
+### 바퀴 79 추가 조사 (INBOX #51 — blue/red 확장에 실제로 쓴 프롬프트 원문, 재사용 가능)
+
+바퀴 78이 "다음 바퀴가 참고할 것"에서 프롬프트 전문을 별도 절에 남기겠다고 예고했지만
+실제로는 쓰지 않았고 `/tmp` 스크립트도 남지 않아 원문을 복구하지 못했다(교훈: 예고만
+하고 절을 비워두면 다음 바퀴가 그대로 헛수고를 반복한다 — 반드시 실제로 적어둘 것).
+이번 바퀴가 새로 만들어 검증까지 마친 프롬프트를 아래에 그대로 남긴다.
+
+- **공통 절차**: 소스 68px PNG를 PIL `Image.NEAREST`로 256px로 업스케일 → `POST
+  /v1/api/assets/import`로 업로드(무료) → `POST /v1/api/animate-sync`에 아래 프롬프트로
+  호출 → 결과 스프라이트시트를 68px 캔버스로 다시 `NEAREST` 다운스케일 + 알파 bbox
+  바닥/가로중심을 기존 idle PNG의 bbox에 맞춰 정렬.
+- **south(정면, `output_frames=4`)**: `"exaggerated marching walk cycle, front facing
+  view, knees raised very high, legs spread wide apart between frames, strong dynamic
+  weight shift, 4 clearly distinct walking poses, pixel art game character"`
+- **north(후면, `output_frames=4`)**: south와 동일하되 `"front facing view"`를 `"back
+  facing view"`로만 바꾼다.
+- **east(측면, `output_frames` 생략 → API 기본값 8)**: `"natural side-view walking
+  cycle, alternating legs, frame 1: right foot forward contact pose, frame 2: passing
+  neutral pose, frame 3: left foot forward contact pose, frame 4: passing neutral pose,
+  smooth walk animation, pixel art game character"` — 이 프롬프트는 바퀴 69/76이
+  south에 썼다가 실패했던 것과 거의 같은 문구인데, **east(측면)에서는 첫 시도부터
+  자연스럽게 성공**했다(바퀴 78의 발견을 이번에 blue/red에서도 재현). 즉 이 실패
+  패턴은 프롬프트 문제가 아니라 정면/후면(대칭 실루엣)에서만 나타나는 시점 고유의
+  한계로 보인다는 결론이 다시 한 번 뒷받침됐다.
+- **west**: AI 생성하지 않는다. east 결과 프레임을 `PIL.ImageOps.mirror()`로 좌우반전한
+  뒤, west idle PNG의 알파 bbox에 맞춰 재정렬한다(green_west가 green_east의 완전한
+  반전이었던 것과 같은 패턴이 blue/red에도 그대로 적용됨을 픽셀 bbox 비교로 재확인).
+- **색상 간 재사용 확인**: blue/red idle 스프라이트는 green과 실루엣이 사실상 동일(셔츠
+  색만 다름)하므로, 위 프롬프트를 색상별 튜닝 없이 그대로 재사용해도 된다 — blue에서
+  1건만 먼저 검증하고 나머지 5건(blue 나머지 2방향 + red 3방향)은 재검증 없이 바로
+  진행했는데 전부 한 번에 합격 수준이 나왔다. **다음에 새 색상(예: 향후 코스튬 색 추가)을
+  확장할 때도 이 순서(1건 검증 → 나머지 일괄 진행)를 재사용할 것.**
+- 이 세션이 만든 SpriteCook 자산은 재사용 필요 없음(이미 게임에 통합·커밋 완료) —
+  `/tmp/w51/`에 원본 시트/정렬 결과/인게임 스크린샷이 남아있으나 세션 종료 후 지워질
+  수 있는 임시 디렉터리다.
 
 ### 바퀴 76 추가 조사 (animate-sync 2회차 시도, 결론: 이 경로는 walk에 부적합해 보임)
 
