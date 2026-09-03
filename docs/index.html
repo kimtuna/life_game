@@ -27,19 +27,19 @@
 </head>
 <body>
   <h1>auto-loop 진행 상황</h1>
-  <p class="updated">마지막 갱신: 2026-09-03 22:28:08</p>
+  <p class="updated">마지막 갱신: 2026-09-03 22:40:56</p>
   
   <div class="row">
-    <div class="card"><div class="label">남은 항목</div><div class="num">0</div></div>
+    <div class="card"><div class="label">남은 항목</div><div class="num">4</div></div>
     <div class="card"><div class="label">완료된 항목</div><div class="num">69</div></div>
   </div>
   <div class="card">
     <div class="label">지금 처리 중 / 다음으로 처리할 항목</div>
-    <div>(없음 — 큐 비어있음)</div>
+    <div>#70 [DESIGN] (버그 리포트, 사용자 직접 확인) 걷기(walk) 애니메이션 프레임에서 캐릭터가 idle보다 눈에 띄게 크게 그려진다. 확인됨: `assets/sprites/character/green_south.png`(idle)와 `assets/sprites/character/walk/green_south_walk_0.png`는 캔버스 크기가 동일(68×68)한데 walk 프레임 쪽 캐릭터가 더 크다 — 서로 다른 생성 호출이라 확대 비율이 안 맞은 것으로 보인다(DESIGN.md "캐릭터 애니메이션" 절의 새 크기 일관성 규칙 참고). green 기준으로 걷기 프레임 8장(4방향×idle과 비슷한 크기로) 다시 맞추고, idle과 나란히 놓고 크기를 직접 비교해서 확인한다. 통과하면 blue/red 확장은 별도 항목으로 쪼갠다.</div>
   </div>
   <div class="card">
     <div class="label">마지막 작업 커밋</div>
-    <div><code>6b9f4d7 [INBOX #69] 도끼 chop 모션의 낙서 아티팩트 제거 (green_south_chop.png)</code></div>
+    <div><code>43e0946 크기 불일치 2건 + 곡괭이낫 모션 누락 + 총 정면 자세 등록 (#70~#73)</code></div>
   </div>
   <div class="card">
     <div class="label">디자인 개선 후보 (확인 후 지우기를 누르면 이 브라우저에서 안 보입니다)</div>
