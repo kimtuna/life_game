@@ -1,0 +1,26 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scenes/cooking_table/cooking_table.gd" id="1_script"]
+
+[sub_resource type="LabelSettings" id="LabelSettings_prompt"]
+font_size = 16
+font_color = Color(1, 1, 1, 1)
+outline_size = 4
+outline_color = Color(0, 0, 0, 1)
+
+[node name="CookingTable" type="Node2D"]
+script = ExtResource("1_script")
+
+[node name="Body" type="Polygon2D" parent="."]
+z_index = -1
+color = Color(0.62, 0.44, 0.24, 1)
+polygon = PackedVector2Array(-45, -32, 45, -32, 45, 32, -45, 32)
+
+[node name="Prompt" type="Label" parent="."]
+offset_left = -80.0
+offset_top = -70.0
+offset_right = 80.0
+offset_bottom = -46.0
+horizontal_alignment = 1
+label_settings = SubResource("LabelSettings_prompt")
+text = "좌클릭: 조리대 열기"

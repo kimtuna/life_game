@@ -38,6 +38,8 @@ const FarmPlotScene := preload("res://scenes/farm_plot/farm_plot.tscn")
 const RanchZoneScene := preload("res://scenes/ranch_zone/ranch_zone.tscn")
 const ProcessingTableScene := preload("res://scenes/processing_table/processing_table.tscn")
 const SmeltingFurnaceScene := preload("res://scenes/smelting_furnace/smelting_furnace.tscn")
+const CookingTableScene := preload("res://scenes/cooking_table/cooking_table.tscn")
+const CookingStoveScene := preload("res://scenes/cooking_stove/cooking_stove.tscn")
 const DroppedItemScene := preload("res://scenes/dropped_item/dropped_item.tscn")
 
 const DEER_COUNT := 6
@@ -67,6 +69,12 @@ const PROCESSING_TABLE_ORIGIN := Vector2(300.0, 500.0)
 ## 프롬프트/상호작용이 겹치지 않게 한다.
 const SMELTING_FURNACE_ORIGIN := Vector2(650.0, 650.0)
 
+## 조리대/조리용 화로(INBOX #90)는 가공 라인(가공대/제련로, 남동쪽)과 겹치지 않게 반대편
+## 남서쪽에 둔다. 서로(조리대↔화로)도, 목장 구역(RANCH_ZONE_ORIGIN)과도 INTERACT_RADIUS
+## 합보다 충분히 떨어뜨렸다.
+const COOKING_TABLE_ORIGIN := Vector2(-300.0, 500.0)
+const COOKING_STOVE_ORIGIN := Vector2(-650.0, 650.0)
+
 ## InventoryData가 저장하는 아이템 키(내부 이름) -> 화면 표시 이름.
 const ITEM_LABELS := {
 	"rice_seed": "벼 씨앗",
@@ -83,6 +91,8 @@ const ITEM_LABELS := {
 	"charcoal": "숯",
 	"gunpowder": "화약",
 	"ammo": "탄약",
+	"cooked_rice": "밥",
+	"cooked_meat": "익힌고기",
 	"gun": "총",
 	"axe": "도끼",
 	"pickaxe": "곡괭이낫",
@@ -109,6 +119,8 @@ const ITEM_CATEGORIES := {
 	"charcoal": "가공물",
 	"gunpowder": "가공물",
 	"ammo": "완성품",
+	"cooked_rice": "가공식품",
+	"cooked_meat": "가공식품",
 	"gun": "도구",
 	"axe": "도구",
 	"pickaxe": "도구",
@@ -221,6 +233,8 @@ func _ready() -> void:
 	_spawn_ranch_zone()
 	_spawn_processing_table()
 	_spawn_smelting_furnace()
+	_spawn_cooking_table()
+	_spawn_cooking_stove()
 	_ensure_starting_tools()
 	_build_inventory_slots()
 	_build_hotbar()
@@ -515,6 +529,24 @@ func _spawn_smelting_furnace() -> void:
 	furnace.player_ref = player_sprite
 	furnace.world_ref = self
 	add_child(furnace)
+
+
+## 스폰 지점에서 고정된 오프셋에 조리대를 배치한다 (INBOX #90).
+func _spawn_cooking_table() -> void:
+	var table := CookingTableScene.instantiate()
+	table.global_position = player_sprite.position + COOKING_TABLE_ORIGIN
+	table.player_ref = player_sprite
+	table.world_ref = self
+	add_child(table)
+
+
+## 스폰 지점에서 고정된 오프셋에 조리용 화로를 배치한다 (INBOX #90).
+func _spawn_cooking_stove() -> void:
+	var stove := CookingStoveScene.instantiate()
+	stove.global_position = player_sprite.position + COOKING_STOVE_ORIGIN
+	stove.player_ref = player_sprite
+	stove.world_ref = self
+	add_child(stove)
 
 
 ## 사냥/채집/채광 결과물을 바닥에 드롭 오브젝트로 스폰한다 (INBOX #24, DESIGN.md
