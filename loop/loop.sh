@@ -80,10 +80,31 @@ html_escape() {
   sed -e 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g'
 }
 
+# docs/STATUS.md의 "디자인 개선 후보" 섹션(- 로 시작하는 줄들)을 JS 배열 리터럴로
+# 뽑아낸다. 텍스트는 JS 문자열 이스케이프만 하고 HTML 이스케이프는 안 한다 — 브라우저에서
+# textContent로 넣을 것이라 그쪽이 안전하고, 사람이 쓴 그대로 보인다.
+design_candidates_json() {
+  local items=() line trimmed id esc
+  while IFS= read -r line; do
+    trimmed="${line#- }"
+    trimmed="$(printf '%s' "$trimmed" | sed -e 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+    [ -z "$trimmed" ] && continue
+    id=$(printf '%s' "$trimmed" | cksum | awk '{print $1}')
+    esc=$(printf '%s' "$trimmed" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g')
+    items+=("{\"id\":\"${id}\",\"text\":\"${esc}\"}")
+  done < <(awk '/^## 디자인 개선 후보/{flag=1; next} /^## /{flag=0} flag && /^- /' "$ROOT_DIR/docs/STATUS.md" 2>/dev/null)
+  local joined=""
+  if [ "${#items[@]}" -gt 0 ]; then
+    joined=$(IFS=,; echo "${items[*]}")
+  fi
+  echo "[${joined}]"
+}
+
 # docs/index.html 을 현재 큐 상태로 다시 그린다. (GitHub Pages: main / /docs 로 서빙)
 render_dashboard() {
-  local pending done_n current_item last_commit ts credit_banner
+  local pending done_n current_item last_commit ts credit_banner candidates_json
   pending=$(pending_count)
+  candidates_json="$(design_candidates_json)"
   done_n=$(grep -c '^- \[x\] #' "$INBOX_FILE" 2>/dev/null); done_n=${done_n:-0}
   current_item=$(next_pending_line | sed -E 's/^- \[ \] //' | html_escape)
   [ -z "$current_item" ] && current_item="(없음 — 큐 비어있음)"
@@ -117,6 +138,13 @@ render_dashboard() {
   .label{color:#9a9aa2;font-size:.85rem;margin-bottom:6px}
   code{background:#222;padding:2px 6px;border-radius:4px;word-break:break-all}
   .alert{background:#3a1414;border:1px solid #7a2323;color:#ffd7d7;border-radius:10px;padding:16px;margin:12px 0}
+  .cand-list{list-style:none;padding:0;margin:0}
+  .cand-item{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid #2a2b2e}
+  .cand-item:last-child{border-bottom:none}
+  .cand-text{flex:1;line-height:1.4}
+  .cand-dismiss{background:#222;color:#e8e8ea;border:1px solid #3a3b3e;border-radius:6px;padding:4px 10px;font-size:.8rem;cursor:pointer;white-space:nowrap}
+  .cand-dismiss:hover{background:#2e2f32}
+  .cand-empty{color:#9a9aa2;font-size:.9rem}
 </style>
 </head>
 <body>
@@ -135,6 +163,49 @@ render_dashboard() {
     <div class="label">마지막 작업 커밋</div>
     <div><code>${last_commit}</code></div>
   </div>
+  <div class="card">
+    <div class="label">디자인 개선 후보 (확인 후 지우기를 누르면 이 브라우저에서 안 보입니다)</div>
+    <ul class="cand-list" id="candList"></ul>
+    <div class="cand-empty" id="candEmpty" hidden>확인할 항목이 없습니다.</div>
+  </div>
+<script>
+(function(){
+  var CANDIDATES = ${candidates_json};
+  var KEY = "autoloop_dismissed_candidates";
+  var dismissed = [];
+  try { dismissed = JSON.parse(localStorage.getItem(KEY) || "[]"); } catch (e) { dismissed = []; }
+  var list = document.getElementById("candList");
+  var empty = document.getElementById("candEmpty");
+  var visible = CANDIDATES.filter(function(c){ return dismissed.indexOf(c.id) === -1; });
+  if (visible.length === 0) {
+    empty.hidden = false;
+  } else {
+    visible.forEach(function(c){
+      var li = document.createElement("li");
+      li.className = "cand-item";
+      var span = document.createElement("span");
+      span.className = "cand-text";
+      span.textContent = c.text;
+      var btn = document.createElement("button");
+      btn.className = "cand-dismiss";
+      btn.type = "button";
+      btn.textContent = "확인함 · 지우기";
+      btn.addEventListener("click", function(){
+        try {
+          var cur = JSON.parse(localStorage.getItem(KEY) || "[]");
+          if (cur.indexOf(c.id) === -1) cur.push(c.id);
+          localStorage.setItem(KEY, JSON.stringify(cur));
+        } catch (e) {}
+        li.remove();
+        if (list.children.length === 0) empty.hidden = false;
+      });
+      li.appendChild(span);
+      li.appendChild(btn);
+      list.appendChild(li);
+    });
+  }
+})();
+</script>
 </body>
 </html>
 HTML
