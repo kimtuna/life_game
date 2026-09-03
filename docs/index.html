@@ -27,19 +27,19 @@
 </head>
 <body>
   <h1>auto-loop 진행 상황</h1>
-  <p class="updated">마지막 갱신: 2026-09-04 05:49:12</p>
+  <p class="updated">마지막 갱신: 2026-09-04 05:54:38</p>
   
   <div class="row">
-    <div class="card"><div class="label">남은 항목</div><div class="num">4</div></div>
-    <div class="card"><div class="label">완료된 항목</div><div class="num">87</div></div>
+    <div class="card"><div class="label">남은 항목</div><div class="num">3</div></div>
+    <div class="card"><div class="label">완료된 항목</div><div class="num">88</div></div>
   </div>
   <div class="card">
     <div class="label">지금 처리 중 / 다음으로 처리할 항목</div>
-    <div>#89 [BUILD] (사용자 지시, 2026-09-04) 화약/탄약 레시피를 #87의 가공대에 추가한다(새 오브젝트 아님, 기존 가공대의 `RECIPES` 목록만 확장). 레시피 2개: **유황광석 1개 + 숯 1개 → 화약 1개**, **화약 1개 + 철 1개 → 탄약 3개**(수량은 재량, 밸런스는 나중에 조정). 새 완성품 아이템 `gunpowder`(화약, "가공물")/`ammo`(탄약, "완성품")를 `ITEM_LABELS`/`ITEM_CATEGORIES`에 추가한다. **주의: 이번 항목은 탄약 아이템을 "만들 수 있게"만 하는 것이고, 총의 재장전(R키)이 실제로 이 탄약을 소비하도록 연동하는 건 범위 밖이다** — 지금 총은 그대로 무한 재장전으로 두고 건드리지 않는다(DESIGN.md에도 이미 명시됨, 별도 지시가 오면 그때 연동). 가공대에서 화약과 탄약이 실제로 만들어지는지만 확인한다.</div>
+    <div>#90 [BUILD] (사용자 지시, 2026-09-04) 조리 라인 오브젝트 **조리대(Cooking Table)** + **조리용 화로(Cooking Stove)**를 만든다(#87/#88과 같은 상호작용+레시피 UI 프레임워크 재사용, 씬은 `scenes/cooking_table/`·`scenes/cooking_stove/`). DESIGN.md 규칙대로 이 화로는 제련로(#88)와 완전히 별개 오브젝트다(가공 라인과 조리 라인의 화로를 겸용하지 않음). 레시피 2개(조리용 화로에서): **벼 1개 → 밥 1개**, **고기 1개 → 익힌고기 1개**. 새 가공식품 아이템 `cooked_rice`(밥)/`cooked_meat`(익힌고기)를 `ITEM_LABELS`/`ITEM_CATEGORIES`("가공식품")에 추가한다. **조합 요리(밥+익힌고기+익힌채소→스테이크 같은 것)는 이번 범위가 아니다** — 채소 아이템이 아직 정해지지 않아서 만들 수 없다(채소 추가 뒤 별도 지시로 처리). 월드에 조리대+조리용 화로를 배치해서 벼→밥, 고기→익힌고기 조리가 실제로 되는지 확인한다.</div>
   </div>
   <div class="card">
     <div class="label">마지막 작업 커밋</div>
-    <div><code>77f9f94 [INBOX #88] 가공 라인 두 번째 오브젝트 제련로(Smelting Furnace) 추가</code></div>
+    <div><code>9dcd9d8 [INBOX #89] 가공대에 화약/탄약 레시피 추가</code></div>
   </div>
   <div class="card">
     <div class="label">디자인 개선 후보 (확인 후 지우기를 누르면 이 브라우저에서 안 보입니다)</div>
