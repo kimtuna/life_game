@@ -8,9 +8,11 @@
 ```
 auto-loop/
   loop/
-    loop.sh                 루프 본체 (INBOX 큐 소진 시 종료, STOP 파일 감지)
+    loop.sh                 루프 본체 (INBOX 큐 소진 시 종료, STOP 파일 감지, 크레딧 한도 감지)
     env.sh                  설정 (모델 / 예산 / 시간 / 대기 / 최대 바퀴 / 권한 모드)
-    PROMPT.md                매 바퀴 세션에 그대로 전달되는 지시서 (6절 틀)
+    PROMPT_BUILD.md          [BUILD] 하네스 지시서 — 게임 로직/기능 구현
+    PROMPT_DESIGN.md         [DESIGN] 하네스 지시서 — 스프라이트/애니메이션 (PixelLab)
+    PROMPT_QA.md             [QA] 하네스 지시서 — 관찰·티켓 발행 전담 (만들지 않음)
     ctl.sh                   제어 스크립트 (install/start/stop/graceful-stop/status/uninstall)
     STOP                     (평소엔 없음) 생기면 현재 바퀴를 마치고 멈춤
     launchd/
@@ -29,12 +31,26 @@ auto-loop/
 
 ## 작업 큐 (`docs/feedback/INBOX.md`)
 
-- "처리 대기"에 `- [ ] #N 내용`을 추가하면 루프가 번호가 작은 순서대로 **한 바퀴에 하나씩** 처리한다.
+- "처리 대기"에 `- [ ] #N [태그] 내용`을 추가하면 루프가 번호가 작은 순서대로 **한 바퀴에 하나씩** 처리한다.
+- **태그는 필수**: `[BUILD]`(로직/기능), `[DESIGN]`(그림/애니메이션), `[QA]`(관찰·티켓
+  발행 전담, 만들지 않음). 태그에 따라 `loop.sh`가 `PROMPT_BUILD.md`/`PROMPT_DESIGN.md`/
+  `PROMPT_QA.md` 중 맞는 지시서를 골라 세션에 넘긴다. 태그가 없으면 기본값으로
+  `[BUILD]`로 처리한다. 자세한 하네스별 규칙은 `docs/DESIGN.md`의 "하네스 구조" 절 참고.
 - **큐가 비면(미완료 항목 0개) `loop.sh`는 claude 세션을 아예 열지 않고 그 자리에서 스스로 종료한다.**
   무한 반복 대신 "할 일이 없으면 멈춘다"로 바꿔서, 시킨 적 없는데 토큰만 계속 나가는 상황을 막는다.
   (launchd로 띄워둔 상태여도 `exit 0`은 "정상 종료"라 재시작되지 않는다 — 아래 동작 방식 참고.)
 - 완료된 항목은 세션이 직접 `- [x]`로 바꾸고 완료 날짜를 붙인다 (지우지 않음).
-- 즉, **새 작업을 시키려면 INBOX.md에 항목을 추가하고 `loop/ctl.sh start`(또는 이미 켜져 있으면 다음 바퀴 대기 중 자동으로)로 다시 돌리면 된다.**
+- 즉, **새 작업을 시키려면 INBOX.md에 태그 붙여서 항목을 추가하고 `loop/ctl.sh start`(또는 이미 켜져 있으면 다음 바퀴 대기 중 자동으로)로 다시 돌리면 된다.**
+- `[BUILD]`/`[DESIGN]` 항목이 합쳐서 5개 완료될 때마다 전체를 훑는 `[QA]` 스윕 항목이
+  자동으로 큐에 추가된다 — 사람이 매번 QA를 지시할 필요가 없다.
+
+## 크레딧/사용량 한도에 걸렸을 때
+
+`loop.sh`는 매 바퀴 `claude -p` 출력에서 "credit balance is too low", "usage limit",
+"rate limit exceeded", "quota exceeded" 같은 문구를 감지한다. 감지되면 **재시도하지
+않고 루프 전체를 즉시 멈추고**, 상태 페이지(아래 "진행 상황 보기")에 빨간 경고 배너로
+표시한다. 해결되면 `loop/ctl.sh start`로 다시 켜면 된다(시작할 때 이전 경고는 자동으로
+지워진다).
 
 ## 진행 상황 보기
 
@@ -48,7 +64,7 @@ auto-loop/
 ## 채워야 할 것 (아직 전부 빈 틀)
 
 1. `docs/DESIGN.md` — 무엇을 만들지, 왜, 범위, 완성 기준
-2. `loop/PROMPT.md`의 ①(합격 기준) — ③(규칙과 근거)은 큐/커밋 규칙을 채워뒀다
+2. `loop/PROMPT_BUILD.md`/`PROMPT_DESIGN.md`/`PROMPT_QA.md`의 ①(합격 기준) — ③(규칙과 근거)은 이미 채워져 있다
 3. `docs/feedback/INBOX.md`에 처리할 작업을 `- [ ] #1 ...` 형식으로 추가 (필수 — 없으면 루프가 바로 종료함)
 
 DESIGN.md가 비어 있는 동안에도 루프는 (시험해본 결과) 임의로 프로젝트를 지어내지 않고,
@@ -59,8 +75,8 @@ INBOX 항목 내용에 없는 범위는 추측하지 않는다.
 | 변수 | 의미 | 기본값 |
 |---|---|---|
 | `MODEL` | 사용할 모델 (alias 가능: sonnet/opus/fable/haiku) | `sonnet` |
-| `MAX_BUDGET_USD_PER_LAP` | 한 바퀴 최대 예산(달러) | `2.00` |
-| `LAP_TIMEOUT_SECONDS` | 한 바퀴 최대 실행 시간(초) | `1800` |
+| `MAX_BUDGET_USD_PER_LAP` | 한 바퀴 최대 예산(달러) | `5.00` |
+| `LAP_TIMEOUT_SECONDS` | 한 바퀴 최대 실행 시간(초) | `3600` |
 | `WAIT_BETWEEN_LAPS` | 바퀴 사이 대기(초) | `60` |
 | `MAX_LAPS` | 최대 바퀴 수 (0=무제한) | `0` |
 | `PERMISSION_MODE` | 권한 모드 | `bypassPermissions` |
@@ -73,13 +89,13 @@ INBOX 항목 내용에 없는 범위는 추측하지 않는다.
 > `acceptEdits`에서는 `git add`/`git commit` 같은 Bash 명령이 승인 대기 상태로 막혀
 > **그 바퀴의 작업이 전혀 커밋되지 못했다.** 즉 `acceptEdits`로는 ⑤ 커밋 규칙 자체가
 > 지켜지지 않는다. 무인 실행에서 실제로 커밋까지 되게 하려면 `bypassPermissions`가 필요하다.
-> `loop/PROMPT.md` ③에 이미 "세션 안에서 직접 push하지 않는다"를 넣어뒀다 (push는
+> `loop/PROMPT_*.md` ③에 이미 "세션 안에서 직접 push하지 않는다"를 넣어뒀다 (push는
 > `loop.sh`가 바퀴 종료 후 대시보드 커밋과 함께 처리). 필요하면 "이 폴더 밖은 건드리지
 > 않는다" 같은 규칙을 더 추가할 것.
 
 ## 커밋 메시지 형식
 
-`loop/PROMPT.md` ⑤에 고정해둔 형식. 매 바퀴 세션이 이 형식으로 커밋한다.
+`loop/PROMPT_*.md` ⑤에 고정해둔 형식(세 하네스 공통). 매 바퀴 세션이 이 형식으로 커밋한다.
 
 - **제목**: `[INBOX #N] <이번 바퀴에서 실제로 한 일 한 줄>`
 - **본문**: 아래 4개 소제목 고정 순서 (해당 없으면 "없음"이라고 적음, 절 자체는 생략하지 않음)
