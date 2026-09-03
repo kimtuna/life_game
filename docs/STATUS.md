@@ -5,6 +5,56 @@
 
 ## 마지막 갱신
 
+바퀴 125 / 2026-09-03 ([BUILD] **INBOX #73 완료 — 곡괭이낫을 든 채 채집/채광 대상 없이
+허공에 좌클릭해도 스윙 모션이 나오지 않던 버그를 고쳤다. `world.gd`의
+`_unhandled_input()`에 도끼(#43)와 같은 패턴으로 `_held_tool == "pickaxe"` 브랜치를
+새로 추가해, 좌클릭 시 대상 존재 여부와 무관하게 `_tool_use_flash_timer`를 켠다.**
+1) **원인 확인**: `_unhandled_input()`을 읽어보니 gun/axe/fishing_rod는 좌클릭 시
+   `_tool_use_flash_timer`를 무조건 설정하는 자체 브랜치가 있는데, pickaxe만 그런
+   브랜치가 없고 `play_pickaxe_use(kind)`가 `resource_point.gd`의 `_harvest()`(실제
+   대상과 충돌했을 때만 호출)에서만 트리거됐다 — INBOX #73 원문의 원인 진단과 일치.
+2) **수정**: axe 브랜치와 fishing_rod 브랜치 사이에 pickaxe 브랜치를 추가해
+   `_tool_use_flash_timer = AXE_CHOP_FLASH_DURATION`만 설정하고 **`_pickaxe_use_kind`는
+   건드리지 않았다** — 실제 대상이 있어 `resource_point._harvest()`가 같은 입력 이벤트
+   처리 중에 `play_pickaxe_use(kind)`를 호출하면(두 `_unhandled_input()` 호출 순서가
+   Godot 내부적으로 어느 쪽이 먼저인지 보장되지 않으므로) kind 값을 내가 덮어쓰지 않게
+   해서 순서와 무관하게 항상 올바른 kind(mining/gathering)가 유지되도록 했다. 대상이
+   없을 때는 kind 필드를 아예 안 건드리므로 이전 값(초기값 "mining" 또는 마지막으로
+   실제 채광/채집했던 kind)이 그대로 재생된다 — INBOX #73 원문이 "실제 판정 로직은
+   그대로 두고 모션 트리거만 분리"라고 명시한 범위와 정확히 일치한다.
+3) **검증**: `game/_verify_pickaxe_empty_click.gd`(커밋 전 삭제)를 `project.godot`
+   `[autoload]`에 임시로 추가하고 `godot --path .`(레포 루트가 아니라 `game/`
+   디렉터리에서 실행, 바퀴 124 메모대로)로 실제 렌더링 드라이버를 돌렸다. world.tscn을
+   직접 로드해 `set_physics_process(false)`로 마우스 추종을 끄고 플레이어를 채집/채광
+   포인트가 전혀 없는 좌표(5000,5000)로 이동시킨 뒤, 곡괭이낫을 핫바에서 선택하고
+   실제 `InputEventMouseButton`(좌클릭) 객체를 만들어 `world._unhandled_input(click)`에
+   직접 흘려보냈다 — 콘솔에 `before_click anim=pickaxe_idle_south flash=0.0` →
+   `after_click anim=pickaxe_mining_south flash=0.25 kind=mining`으로 출력돼 코드가
+   의도대로 동작함을 확인했고, 클릭 전/후 스크린샷 2장을 직접 눈으로 봐서 idle(가만히
+   선 자세)에서 실제로 곡괭이를 내려찍는 자세로 바뀌는 것을 확인했다(합격 기준 ① 통과).
+   실행 중 `ERROR: Parent node is busy adding/removing children...`가 한 번 찍혔지만
+   (검증 스크립트가 `_ready()`에서 메인 메뉴가 아직 트리에 추가되는 중에 바로
+   `change_scene_to_file`을 호출해서 생긴 검증 스크립트 자체의 비치명적 잡음 —
+   STATUS.md 바퀴 84 메모의 "비치명적 에러만 나고 스크립트는 계속 진행됨"과 같은
+   종류) 스크립트는 끝까지 정상 진행되고 결과도 정확했다.
+4) 실제 대상이 있는 채집/채광 포인트에서의 기존 동작(아이템 드롭, 올바른 kind 표시)은
+   코드를 건드리지 않았으므로 회귀 위험이 낮다고 판단해 별도 재검증은 생략했다 — 2)의
+   설계(kind 필드를 새 브랜치가 아예 안 건드림)가 순서 무관하게 안전함을 보장한다.
+5) **BUILD/DESIGN 완료 카운터**: 바퀴 124(#72)에서 5에 도달해 0으로 리셋된 뒤,
+   이번(#73)으로 1이 됐다. 5에 도달하려면 4개 더 필요.
+6) 커밋 대상은 `game/scenes/world/world.gd` 1개, `docs/feedback/INBOX.md`(#73 완료
+   체크), 이 STATUS.md 갱신뿐이다. `project.godot`/`_verify_pickaxe_empty_click.gd`는
+   검증 후 원상복구/삭제했다.
+**다음 바퀴가 참고할 것**: INBOX 미완료 항목은 `#74`([QA] 전체 스윕, #68~#72 범위)
+하나뿐이다 — `[QA]` 하네스 몫. `game/qa/full_sweep.gd`를 재사용할 수 있다(바퀴
+124 종료 시점 STATUS 메모대로, 채집/채광 포인트 z_index(#68)/도끼 chop 아티팩트
+제거(#69)/걷기 4방향 크기(#70)/총 idle 동서 크기(#71)/총 남쪽 조준·발사 자세(#72)에
+더해, 이번(#73)의 "곡괭이낫 허공 좌클릭 시 스윙 모션" 도 함께 재확인할 것 — 아직
+전용 QA 관찰 대상으로 지정되진 않았지만 이번 바퀴가 새로 고친 동작이니 전체 스윕
+때 놓치지 않는 게 안전하다). SpriteCook 잔액은 바퀴 124 종료 시점 0크레딧(이번
+바퀴는 그림을 만들지 않아 재확인 안 함) — 다음 `[DESIGN]` 바퀴가 잔액을 다시 확인할
+차례.
+
 바퀴 124 / 2026-09-03 ([DESIGN] **INBOX #72 완료 — 총 든 캐릭터의 남쪽(정면) 조준/발사
 자세를 SpriteCook `generate-sync`+`edit_asset_id`로 다시 만들어, 몸 앞에 뻣뻣하게
 가로로 안고 있던 자세를 어깨에 견착하고 조준하는 자연스러운 자세로 바꿨다(green
@@ -1492,6 +1542,10 @@ grep으로 이 심볼들이 world.gd 밖(resource_point.gd 등)에서 쓰이지 
 
 ## 끝난 것 (지금까지의 스냅샷 — 바퀴별 상세 이력은 git 커밋 메시지 `[INBOX #N] ...`에 있음)
 
+- INBOX #73 완료 (바퀴 125, BUILD): 위 "마지막 갱신" 참고. 곡괭이낫을 든 채 대상 없이
+  허공에 좌클릭해도 스윙 모션이 나오게 `world.gd`의 `_unhandled_input()`에 도끼(#43)와
+  같은 패턴의 pickaxe 브랜치를 추가했다(kind 필드는 건드리지 않아 실제 채광/채집 판정
+  로직과 안전하게 공존, 새 그림 없음).
 - INBOX #68 완료 (바퀴 120, BUILD): 위 "마지막 갱신" 참고. `world.tscn`의 `UI`
   CanvasLayer에 `layer = 10`을 명시해, 월드 오브젝트(채광 포인트 Sprite2D, 목장 프롬프트
   Label)가 HUD 패널보다 앞에 그려지던 버그를 고쳤다(한 줄 변경, 새 그림 없음).
@@ -1663,11 +1717,11 @@ grep으로 이 심볼들이 world.gd 밖(resource_point.gd 등)에서 쓰이지 
 
 ## 다음에 할 것
 
-- **(바퀴 120 갱신, 최우선) 다음 미완료 항목은 INBOX #69(`[DESIGN]` 도끼 chop
-  스프라이트 낙서 아티팩트 제거)뿐이다 — `[DESIGN]` 하네스 몫.** `[BUILD]` 하네스가
-  다시 열릴 차례가 오면 새 `[BUILD]` 태그 항목이 INBOX에 추가될 때까지 처리할 것이
-  없다. 세션 시작 시 SpriteCook/PixelLab 잔액 확인은 여전히 습관적으로 할 것(마지막
-  확인은 바퀴 89 — 그 이후 재확인 안 됨).
+- **(바퀴 125 갱신, 최우선) 다음 미완료 항목은 INBOX #74(`[QA]` 전체 스윕, #68~#72
+  범위)뿐이다 — `[QA]` 하네스 몫.** `[BUILD]`/`[DESIGN]` 하네스가 다시 열릴 차례가
+  오면 새 태그 항목이 INBOX에 추가될 때까지 처리할 것이 없다. 세션 시작 시
+  SpriteCook/PixelLab 잔액 확인은 여전히 습관적으로 할 것(마지막 확인은 바퀴 124 —
+  SpriteCook 0크레딧, PixelLab은 바퀴 123에 $0으로 마지막 확인).
 - **`game/qa/full_sweep.gd`가 재사용 가능한 전체 스윕 캡처 스크립트로 커밋됐다** — 다음
   `[QA]` 전체 스윕(BUILD/DESIGN 5개 더 완료되면 자동 등록)이 이 스크립트를 그대로
   재사용할 것. 재실행 전 `~/Library/Application Support/Godot/app_userdata/life_game/
@@ -1691,12 +1745,11 @@ grep으로 이 심볼들이 world.gd 밖(resource_point.gd 등)에서 쓰이지 
   트랜지션 오버레이 등)를 추가하게 되면 이번처럼 기본값에 의존하지 말고 값을 명시하고,
   실제 화면(월드 오브젝트와 겹치는 상황을 강제로 재현)으로 위/아래 순서를 스크린샷으로
   확인할 것.
-- **BUILD/DESIGN 완료 카운터: 바퀴 91(#63 QA 완료)에서 0으로 리셋된 뒤 바퀴 92(#64)로
-  1, 바퀴 93(#65)으로 2, 바퀴 94(#66)로 3이 됐다. 바퀴 119(#67 QA 완료)에서 다시
-  0으로 리셋됐고(QA 전체 스윕 완료 자체가 카운터를 리셋시킨다 — 바퀴 91의 #63 완료
-  때와 동일 패턴), 바퀴 120(#68)으로 1이 됐다.** 5에 도달하려면 4개 더 필요 — 다음
-  BUILD/DESIGN 5개 완료 시 다시 QA 스윕을 큐에 추가할 것(PROMPT_BUILD.md ③ /
-  PROMPT_DESIGN.md ③과 동일 규칙).
+- **BUILD/DESIGN 완료 카운터: 바퀴 119(#67 QA 완료)에서 0으로 리셋된 뒤 바퀴
+  120(#68)=1 → 121(#69)=2 → 122(#70)=3 → 123(#71)=4 → 124(#72)=5가 되어 INBOX
+  #74(QA 전체 스윕)를 큐에 추가하고 다시 0으로 리셋됐다. 바퀴 125(#73)로 다시 1이
+  됐다.** 5에 도달하려면 4개 더 필요 — 다음 BUILD/DESIGN 5개 완료 시 다시 QA 스윕을
+  큐에 추가할 것(PROMPT_BUILD.md ③ / PROMPT_DESIGN.md ③과 동일 규칙).
 - 다음 지시가 들어오면 참고할 만한 백로그(강제 사항 아님, 아래 "막힌 것/보류"·"오래된
   메모" 참고):
   - 멀티플레이 실제 두 클라이언트 접속/동기화를 실기기로 아직 검증 못함.

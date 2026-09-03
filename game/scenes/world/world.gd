@@ -199,6 +199,16 @@ func _unhandled_input(event: InputEvent) -> void:
 		## (axe_chop_*)로 패는 모션을 보여준다 (총(#42)과 같은 패턴).
 		_tool_use_flash_timer = AXE_CHOP_FLASH_DURATION
 	elif event is InputEventMouseButton and event.pressed and not _paused and not _inventory_open \
+			and event.button_index == MOUSE_BUTTON_LEFT and _held_tool == "pickaxe":
+		## 곡괭이낫은 INBOX #73부터 도끼(#43)와 같은 방식으로, 채집/채광 대상이 없어도
+		## (허공에 대고) 좌클릭하면 항상 스윙 모션이 나가야 한다 (DESIGN.md "생활 스킬 —
+		## 채집 계열": 총/도끼/곡괭이낫은 대상 유무와 무관하게 항상 사용 모션 — 근접무기
+		## 확장 계획 근거). 실제 채광/채집 판정(어느 kind인지, 아이템 드롭 등)은 여전히
+		## resource_point.gd가 담당한다 — 이 브랜치는 `_pickaxe_use_kind`를 건드리지 않고
+		## 모션 타이머만 켠다. 대상이 실제로 있으면 resource_point.gd의 _harvest()가 같은
+		## 입력 이벤트 처리 중에 play_pickaxe_use(kind)로 올바른 kind를 덮어써 준다.
+		_tool_use_flash_timer = AXE_CHOP_FLASH_DURATION
+	elif event is InputEventMouseButton and event.pressed and not _paused and not _inventory_open \
 			and event.button_index == MOUSE_BUTTON_LEFT and _held_tool == "fishing_rod":
 		## 낚싯대는 INBOX #45부터 옆 아이콘이 아니라 캐릭터 애니메이션 프레임 자체
 		## (fishing_rod_fishing_*)로 낚시하는 모션을 보여준다 (도끼(#43)와 같은 패턴).
