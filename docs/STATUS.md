@@ -5,6 +5,137 @@
 
 ## 마지막 갱신
 
+바퀴 152 / 2026-09-04 ([BUILD] **INBOX #99 완료 — 제작 방식을 "즉시 완성"에서
+"수량 지정 → 재료 선소모 → 타이머(1개당 5초) → 작업대 내부 출력 버퍼에 쌓임 → 수동
+수령" 방식으로 전면 개편.** 가공대/제련로/조리대/조리용 화로 4개 전부 적용(공통 프레임워크를
+고쳤으니 4개 다 한 번에 적용됨).)
+1) **새 공용 베이스 클래스 `scripts/crafting_station.gd`(`class_name CraftingStation`,
+   `extends Node2D`)를 만들었다.** 기존 4개 작업대 스크립트(processing_table.gd/
+   smelting_furnace.gd/cooking_table.gd/cooking_stove.gd)가 "근처에서 좌클릭 → 프롬프트
+   표시 → world.gd의 범용 제작 창 열기" 코드를 거의 그대로 복붙해서 갖고 있었는데, 이번에
+   배치 제작 로직(재료 선소모/타이머/출력 버퍼/수령)까지 새로 추가해야 해서 네 곳에 각각
+   똑같이 넣는 대신 공통 베이스로 합쳤다(INBOX #99 원문 + DESIGN.md "코드 재사용/공통화"
+   지시). 각 작업대 스크립트는 이제 `extends CraftingStation` + `get_title()`/
+   `get_recipes()` 오버라이드만 남고 나머지는 전부 베이스에 있다 — 스크립트당 40줄
+   내외에서 15줄 내외로 줄었다.
+2) **베이스 클래스가 갖는 배치 상태**: `output_buffer`(Dictionary, item→count, 스택
+   제한 없음 — storage_chest.gd와 같은 개념), `_batch_recipe`/`_batch_remaining`/
+   `_batch_timer`(진행 중인 배치 하나, 한 번에 한 배치만). `CRAFT_SECONDS_PER_UNIT := 5.0`
+   상수는 **명시적 임시값**이라고 주석에 못박아뒀다(INBOX #99 원문 요구사항 — 나중에
+   밸런스 조정 시 이 값만 바뀔 예정).
+3) **`start_batch(recipe, qty)`**: 배치가 이미 진행 중이면 실패(false). qty분의 재료가
+   충분한지 먼저 확인하고, 있으면 **그 시점에 qty × 재료개수를 전량 한 번에 소모**한다
+   (INBOX #99 원문 "제작 시작을 누르면... 그 시점에 전량 한 번에 소모" 그대로).
+4) **`_advance_batch(delta)`**(매 `_process()`마다 호출): 타이머를 5초 간격으로 진행시켜
+   그때마다 결과물 1개를 `output_buffer`에 쌓는다. 이 함수는 작업대 노드 자체의
+   `_process()`에서 돌기 때문에, **플레이어가 제작 창을 닫거나 그 자리를 떠나도 계속
+   진행된다**(INBOX #99 원문 요구사항 — world.gd의 UI 상태와 무관하게 작업대 인스턴스가
+   자기 타이머를 갖고 있어서 자연스럽게 만족됨). 실제로 QA 스크립트에서 UI를 연 적도 없이
+   `station._process(4.0)`을 4번 호출하는 것만으로 배치가 끝까지 진행되는 것을 확인했다
+   (아래 6번 참고).
+5) **`collect_output()`**: `output_buffer`의 각 아이템을 `InventoryData.add_item()`으로
+   옮기되, **INBOX #98이 만든 안전 패턴을 그대로 재사용**한다 — `add_item()`이 반환하는
+   "실제로 넣은 개수"만큼만 버퍼에서 빼고, 인벤토리 공간이 모자라 못 옮긴 만큼은
+   버퍼에 그대로 남긴다(사라지지 않음). 별도의 `has_room()` 사전 확인이 필요 없다 —
+   `add_item()` 자체가 이미 "들어가는 만큼만 넣고 반환"하는 안전한 함수라서 그 결과를
+   보고 차감하는 것만으로 충분했다(지시받지 않았지만, #98 코드를 다시 읽고 판단해서
+   더 단순한 방식을 선택함 — 스스로 판단해서 고친 부분, 아래 참고).
+6) **`world.gd` 변경**: `open_crafting_window(title, recipes)` → `open_crafting_window(
+   title, recipes, station)`으로 시그니처를 바꿔 지금 열려있는 작업대 인스턴스를
+   `_crafting_station`에 저장하고(그 `changed` 신호를 구독 — `open_storage_window()`가
+   `_storage_chest`를 다루는 것과 완전히 같은 패턴), 4개 호출부(각 작업대의
+   `_unhandled_input()`, 이제 베이스 클래스에 하나만 있음)를 `self`를 넘기도록 고쳤다.
+   `_make_recipe_row()`를 다시 그려서 레시피 줄마다 **수량 SpinBox(기본값 1, 1~99) +
+   "제작 시작" 버튼**을 두고(배치가 이미 진행 중이면 버튼 비활성화), 그 아래에
+   `_make_batch_status_row()`를 새로 추가해 **진행 중인 배치의 남은 개수/다음 완성까지
+   남은 시간**과 **출력 버퍼 내용물 + 항목별 "수령" 버튼**을 보여준다. 기존
+   `_on_craft_pressed()`(즉시 완성 방식)는 완전히 지우고 `_on_craft_start_pressed()`/
+   `_on_collect_pressed()`로 교체했다. 제작 창 패널 폭을 380→460으로 넓혔다(SpinBox+버튼이
+   추가되면서 좁으면 줄바꿈/잘림이 생겨서).
+7) **실행 검증**: 새 QA 스크립트 `game/qa/batch_crafting_check.gd`(커밋, 재사용 가능)로
+   `project.godot` `[autoload]`에 임시 등록 후 실행 — **주의: `--headless`로는 스크린샷이
+   찍히지 않는다는 걸 이번에 처음 확인했다**(`get_tree().root.get_texture()`가 null —
+   `--headless`는 렌더링 자체를 더미 드라이버로 돌려서 실제 프레임버퍼가 없다). 기존 QA
+   스크립트들이 전부 `godot --path .`(headless 없이)로 실행하라고 적어둔 이유가 바로
+   이것이었다는 걸 뒤늦게 코드로 직접 확인함 — 다음 바퀴를 위해 이 절 자체에 명시적으로
+   적어둔다(아래 "어려움/에러와 해결" 참고). `godot --path .`로 재실행해서: (a) 가공대
+   근처에서 좌클릭 → 제작 창이 실제로 열리고 SpinBox/제작 시작 버튼/진행 상황 섹션이
+   스크린샷(`/tmp/qa99/01_window_open.png`)에서 정상적으로 그려짐, (b) 목재 6개로
+   수량 3 배치 시작 → 즉시 목재 6개 소모 확인, (c) 배치 진행 중 같은 레시피를 다시
+   시작하면 거부됨(한 번에 한 배치), (d) 제작 창을 닫은 뒤(`world.close_crafting_window()`)
+   `station._process(4.0)`을 4번 호출(총 16초 경과, 5초×3=15초 필요) → UI를 전혀 열지
+   않았는데도 배치가 끝까지 진행돼 `output_buffer == {"plank": 3}`이 됨, (e) 인벤토리를
+   18칸 전부 채운 상태에서 `collect_output()` → 버퍼가 그대로 유지되고 인벤토리에 판자가
+   안 들어감(안전 패턴 확인), (f) 슬롯 하나를 비운 뒤 다시 `collect_output()` →
+   판자 3개가 정상적으로 인벤토리에 들어가고 버퍼가 비워짐(스크린샷
+   `/tmp/qa99/02_after_collect.png`로 HUD 인벤토리 텍스트 "판자 x3" 확인) — 전부 통과
+   (`QA_BATCH_CRAFTING_CHECK_PASS`).
+8) **원상복구**: `project.godot`에 임시로 넣은 autoload 등록을 제거하고 `git diff`로
+   완전히 동일함을 확인했다.
+9) `docs/feedback/INBOX.md`의 `#99`를 `[x]`로 갱신. **BUILD/DESIGN 완료 카운터**: #98
+   완료 시 0으로 리셋됐던 것이 이번(#99)으로 **1**이 됐다(5 도달까지 4개 남음 — 다음
+   자동 QA 스윕은 이미 `#102`로 큐에 들어가 있고, 그 전에 카운터가 다시 5에 도달하면
+   `#102`보다 앞선 새 스윕 항목이 추가로 등록될 수 있다).
+
+## 스스로 판단해서 고친 부분 (INBOX #99)
+- INBOX #99 원문은 "저장 상자와 비슷한 개념이지만 재사용 안 해도 됨 — 새로 만들어도
+  됨"이라고 출력 버퍼 구현 방식에 재량을 줬다. `storage_chest.gd`의 슬롯 배열
+  (`Array`, 인덱스 기반) 대신 **더 단순한 `Dictionary`(item_name → count)**로 만들었다 —
+  출력 버퍼는 상자와 달리 "정해진 슬롯 수"나 "슬롯 위치 유지" 같은 요구사항이 없고
+  그냥 "어떤 아이템이 몇 개 쌓였는지"만 알면 되므로, 슬롯 배열보다 딕셔너리가 더
+  단순하고 코드도 짧아진다.
+- `collect_output()`에서 `InventoryData.has_room()`으로 미리 확인한 뒤 `add_item()`을
+  호출하는 대신, **`add_item()`의 반환값(실제로 넣은 개수)만 보고 차감**하도록 단순화했다
+  — INBOX #98이 만든 `add_item()`이 이미 "들어가는 만큼만 넣고 반환"하는 안전한
+  함수라서, 사전 확인 없이 결과만 봐도 아이템이 사라지지 않는다는 게 코드를 다시 읽고
+  확인한 결과였다(가공대 `_on_craft_pressed()`가 결과물 생산 "전"에 공간을 확인해야
+  했던 것과는 상황이 다르다 — 그건 재료 소모와 결과물 지급이 분리된 두 단계라 "공간
+  없으면 재료도 소모하지 말아야" 했지만, 수령은 이미 만들어진 버퍼에서 꺼내는 것뿐이라
+  사전 확인이 굳이 필요 없었다).
+- 네 작업대 스크립트를 각자 고치는 대신 공용 베이스 클래스로 합쳤다(위 1번 참고) —
+  INBOX #99 원문이 명시하진 않았지만, "4개 작업대 전부 적용"이라는 요구사항 자체가
+  이미 같은 로직을 네 번 복붙하라는 뜻은 아니었고, DESIGN.md가 이미 "코드 재사용/
+  공통화" 원칙을 요구하고 있어서(가공대/제련로/조리대/조리용 화로가 원래도 이 원칙으로
+  만들어졌음) 그 원칙을 유지하는 쪽을 택했다.
+
+## 어려움 / 에러와 해결 (INBOX #99)
+- **`class_name CraftingStation`을 쓰는 새 스크립트를 만들자마자 바로 `extends
+  CraftingStation`으로 참조했더니 "Could not find base class 'CraftingStation'"
+  파싱 에러가 났다.** 원인: Godot의 전역 클래스 이름(`class_name`) 목록은
+  `.godot/global_script_class_cache.cfg`에 캐시돼 있는데, 이 캐시는 에디터가 프로젝트를
+  스캔할 때만 갱신되고 순수 게임 실행(`godot --path .`)만으로는 새로 추가된
+  `class_name`을 인식하지 못한다. **해결**: `godot --headless --path . --editor
+  --quit-after 3`로 에디터를 헤드리스로 한 번 짧게 띄워 파일시스템을 스캔시키면
+  `global_script_class_cache.cfg`에 새 클래스가 등록된다 — 그 뒤부터는
+  `godot --path .`로 정상 실행됨. **다음에 새 `class_name`을 추가할 때 바로 참고할 것.**
+- **`godot --headless --path .`로 QA 스크립트를 실행하면 스크린샷이 찍히지 않는다
+  (`get_tree().root.get_texture()`가 null, "Parameter t is null" 에러).** `--headless`
+  플래그는 렌더링 자체를 더미 드라이버로 대체해서 실제 프레임버퍼가 없기 때문이다.
+  기존 QA 스크립트 주석들이 전부 "`godot --path .`로 실행"이라고만 적어놓고 왜 `--headless`를
+  빼야 하는지는 설명이 없었는데, 이번에 직접 이 에러를 만나면서 이유를 확인했다 —
+  화면 캡처가 필요한 QA는 `--headless` 없이 실행해야 한다(위 "실행 검증" 절에 이미
+  적어뒀지만 다음 바퀴가 헷갈리지 않도록 여기 결정 로그에도 남겨둔다).
+- GDScript 정적 타입 추론 관련: `var x := <Node 타입 변수>.<커스텀 프로퍼티>` 형태
+  (예: `_crafting_station.output_buffer.is_empty()`, `_crafting_station.start_batch(...)`)
+  로 `:=`(타입 추론) 대입을 하면 "Cannot infer the type" 파싱 에러가 난다 —
+  `_crafting_station`이 `Node` 타입으로 선언돼 있어서 그 위의 커스텀 멤버 접근 결과
+  타입을 정적으로 추론할 수 없기 때문. `: bool` 같은 명시적 타입 선언으로 바꾸면 해결된다.
+
+**다음에 할 것**: **다음 BUILD 세션은 INBOX #100**(나무벽/나무문/석제벽을 아이템으로
+가공대 레시피에 추가 — 설치는 범위 밖, #99가 끝났으니 새 방식 그대로 레시피만 추가하면
+됨)을 처리한다. 참고할 것: (1) `processing_table.gd`의 `RECIPES` 상수에 항목만
+추가하면 된다(새 오브젝트/새 UI 불필요, `get_recipes()`가 그대로 그 배열을 반환).
+(2) 텍스처는 이번 항목 범위가 아니다(#101 [DESIGN]에서 만듦) — 그때까지 인벤토리에
+텍스트로만 표시돼도 된다(이미 `ITEM_LABELS`에만 있으면 인벤토리 창은 텍스트로 표시하니
+문제없음). (3) 새 아이템 3종(`wood_wall`/`wood_door`/`stone_wall`)을 `ITEM_LABELS`/
+`ITEM_CATEGORIES`("완성품")에 추가할 것. (4) `game/qa/batch_crafting_check.gd`는 #99
+이후에도 배치 제작 프레임워크 자체를 재검증할 때 그대로 재사용 가능. (5) BUILD/DESIGN
+완료 카운터는 이번(#99)으로 **1** — 다음 BUILD/DESIGN 완료마다 계속 세어 5에 도달하면
+새 QA 전체 스윕 항목을 큐에 추가할 것(이미 큐에 `#102` QA 스윕이 있으니, 카운터가 5에
+도달하는 시점이 `#102` 처리보다 먼저인지 나중인지는 번호 순서대로 자연히 정해짐).
+
+## 지난 바퀴 기록 (바퀴 151, 그대로 보존)
+
 바퀴 151 / 2026-09-04 ([BUILD] **INBOX #98 완료 — 인벤토리 공간 부족 시 아이템이
 통째로 사라지던 버그 2건을 고침.** 사용자가 직접 확인한 버그 리포트: 바닥 드롭 줍기와
 제작 수령 두 경로 모두 `InventoryData.add_item()`이 공간 부족 시 초과분을 조용히 버리는

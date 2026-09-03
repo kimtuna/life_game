@@ -187,6 +187,10 @@ var _inventory_open: bool = false
 var _crafting_open: bool = false
 ## 지금 열려 있는 제작 창의 레시피 목록 (open_crafting_window()가 채운다).
 var _crafting_recipes: Array = []
+## 지금 열려 있는 제작 창이 보여주는 작업대 인스턴스 (CraftingStation, INBOX #99). 배치
+## 시작/수령 버튼이 이 인스턴스의 start_batch()/collect_output()을 직접 호출한다 —
+## _storage_chest와 같은 패턴(레시피처럼 값으로 복사하지 않고 노드 참조로 그때그때 조회).
+var _crafting_station: Node = null
 var _general_slot_labels: Array = []
 var _equipment_slot_labels: Array = []
 ## 핫바 9칸 셀(각 원소 {"panel": PanelContainer, "item_label": Label, "number_label": Label}).
@@ -852,7 +856,9 @@ func _build_crafting_window() -> void:
 	window.add_child(center)
 
 	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(380, 0)
+	# INBOX #99: 레시피 줄에 수량 SpinBox+"제작 시작" 버튼이 추가되고 진행 상황/수령
+	# 버튼 섹션도 새로 생겨서 이전(380)보다 더 넓혀야 안 잘린다.
+	panel.custom_minimum_size = Vector2(460, 0)
 	center.add_child(panel)
 
 	var vbox := VBoxContainer.new()
@@ -873,7 +879,7 @@ func _build_crafting_window() -> void:
 	vbox.add_child(_crafting_message_label)
 
 	var close_hint := Label.new()
-	close_hint.text = "ESC: 닫기"
+	close_hint.text = "ESC: 닫기 / 수량 지정 후 제작 시작 → 완성되면 수령 버튼으로 받기"
 	close_hint.modulate = Color(1, 1, 1, 0.6)
 	vbox.add_child(close_hint)
 
@@ -883,11 +889,17 @@ func _build_crafting_window() -> void:
 
 
 ## RECIPES 형식: [{"inputs": {아이템: 개수, ...}, "output": 아이템, "amount": 개수}, ...]
-## (DESIGN.md "생산 라인" 절 그대로). 상호작용 오브젝트(가공대 등)가 근처에서 좌클릭됐을
-## 때 호출한다.
-func open_crafting_window(title: String, recipes: Array) -> void:
+## (DESIGN.md "생산 라인" 절 그대로). 상호작용 오브젝트(가공대 등, CraftingStation)가
+## 근처에서 좌클릭됐을 때 호출한다. station은 그 오브젝트 자신(self) — 배치 시작/수령
+## 버튼이 이 인스턴스를 직접 조작하고, 타이머가 진행될 때마다(_advance_batch()) 보내는
+## `changed` 신호를 받아 창을 다시 그린다(INBOX #99 — open_storage_window()와 같은 패턴).
+func open_crafting_window(title: String, recipes: Array, station: Node) -> void:
 	if _paused or _inventory_open or _storage_open:
 		return
+	if _crafting_station != null and _crafting_station.changed.is_connected(_refresh_crafting_window):
+		_crafting_station.changed.disconnect(_refresh_crafting_window)
+	_crafting_station = station
+	_crafting_station.changed.connect(_refresh_crafting_window)
 	_crafting_title_label.text = title
 	_crafting_recipes = recipes
 	_crafting_open = true
@@ -911,65 +923,118 @@ func is_crafting_open() -> bool:
 ## 더 이상 제작 못 하게 되는 등) 버튼의 활성/비활성 상태가 즉시 갱신돼야 하므로
 ## InventoryData.changed에도 연결돼 있다.
 func _refresh_crafting_window() -> void:
-	if not _crafting_open:
+	if not _crafting_open or _crafting_station == null:
 		return
 	for child in _crafting_list.get_children():
 		child.queue_free()
 	for recipe in _crafting_recipes:
 		_crafting_list.add_child(_make_recipe_row(recipe))
+	_crafting_list.add_child(_make_batch_status_row())
 
 
+## 레시피 한 줄: 설명 + 수량 지정(SpinBox) + "제작 시작" 버튼(INBOX #99, 이전의 "누르면
+## 즉시 완성" 단일 버튼에서 바뀜). 배치가 이미 하나 진행 중이면(한 번에 한 배치만 —
+## CraftingStation.start_batch() 참고) 버튼을 비활성화한다. 재료 부족은 버튼을 누른
+## 시점에 start_batch()가 다시 확인하고 실패하면 메시지로 알린다(수량을 바꿀 때마다
+## 매번 버튼 상태를 다시 계산하지 않아도 되게, 클릭 시점 검증으로 단순화).
 func _make_recipe_row(recipe: Dictionary) -> Control:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 12)
 
 	var inputs: Dictionary = recipe.get("inputs", {})
 	var input_parts: Array[String] = []
-	var affordable := true
 	for item_key in inputs.keys():
-		var need := int(inputs[item_key])
-		if InventoryData.get_count(item_key) < need:
-			affordable = false
-		input_parts.append("%s x%d" % [ITEM_LABELS.get(item_key, item_key), need])
+		input_parts.append("%s x%d" % [ITEM_LABELS.get(item_key, item_key), int(inputs[item_key])])
 	var output: String = recipe.get("output", "")
 	var amount: int = int(recipe.get("amount", 1))
 
 	var desc := Label.new()
-	desc.text = "%s → %s x%d" % [", ".join(input_parts), ITEM_LABELS.get(output, output), amount]
+	desc.text = "%s → %s x%d (개당 %.0f초)" % [
+		", ".join(input_parts), ITEM_LABELS.get(output, output), amount, CraftingStation.CRAFT_SECONDS_PER_UNIT,
+	]
 	desc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	desc.autowrap_mode = TextServer.AUTOWRAP_WORD
 	row.add_child(desc)
 
+	var qty_spin := SpinBox.new()
+	qty_spin.min_value = 1
+	qty_spin.max_value = 99
+	qty_spin.value = 1
+	qty_spin.custom_minimum_size = Vector2(70, 0)
+	row.add_child(qty_spin)
+
 	var button := Button.new()
-	button.text = "제작" if affordable else "재료 부족"
-	button.disabled = not affordable
-	button.pressed.connect(_on_craft_pressed.bind(recipe))
+	button.text = "제작 시작"
+	button.disabled = _crafting_station.is_batch_active()
+	button.pressed.connect(_on_craft_start_pressed.bind(recipe, qty_spin))
 	row.add_child(button)
 	return row
 
 
-## 부족한 재료가 있으면 아무것도 소모하지 않고 조용히 무시한다 — 버튼이 이미
-## disabled=true라 정상 플레이에서는 눌릴 수 없지만, 클릭과 인벤토리 변화(재료 소모) 사이의
-## 경합을 대비해 실행 시점에도 다시 확인한다.
-## 재료를 소모하기 "전에" 결과물이 들어갈 공간이 있는지부터 확인한다(INBOX #98) — 이전에는
-## 재료부터 소모한 뒤 결과물을 add_item()하고 확인하지 않아서, 인벤토리가 꽉 차 있으면
-## 재료만 사라지고 결과물은 증발했다. 공간이 없으면 재료를 건드리지 않고 제작 자체를
-## 실패 처리하며, 잠깐 안내 메시지를 보여준다.
-func _on_craft_pressed(recipe: Dictionary) -> void:
-	var inputs: Dictionary = recipe.get("inputs", {})
-	for item_key in inputs.keys():
-		if InventoryData.get_count(item_key) < int(inputs[item_key]):
-			return
-	var output: String = recipe.get("output", "")
-	var amount: int = int(recipe.get("amount", 1))
-	if not InventoryData.has_room(output, amount):
-		_crafting_message_label.text = "인벤토리에 공간이 없습니다"
+## 진행 중인 배치의 남은 수량/시간과, 지금까지 쌓인 출력 버퍼(item -> count, INBOX #99)를
+## 보여주고 항목별로 "수령" 버튼을 둔다.
+func _make_batch_status_row() -> Control:
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 4)
+	box.add_child(HSeparator.new())
+
+	var progress: Dictionary = _crafting_station.batch_progress()
+	var status := Label.new()
+	if progress["active"]:
+		status.text = "제작 중: %d개 남음 (다음 완성까지 %.1f초)" % [progress["remaining"], progress["seconds_left"]]
+	else:
+		status.text = "진행 중인 제작 없음"
+	box.add_child(status)
+
+	var buffer: Dictionary = _crafting_station.output_buffer
+	if buffer.is_empty():
+		var empty_label := Label.new()
+		empty_label.text = "수령할 결과물 없음"
+		empty_label.modulate = Color(1, 1, 1, 0.6)
+		box.add_child(empty_label)
+	else:
+		for item_key in buffer.keys():
+			var row := HBoxContainer.new()
+			row.add_theme_constant_override("separation", 12)
+			var label := Label.new()
+			label.text = "%s x%d" % [ITEM_LABELS.get(item_key, item_key), int(buffer[item_key])]
+			label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			row.add_child(label)
+			var collect_btn := Button.new()
+			collect_btn.text = "수령"
+			collect_btn.pressed.connect(_on_collect_pressed)
+			row.add_child(collect_btn)
+			box.add_child(row)
+	return box
+
+
+## 지정한 수량만큼 배치를 시작한다(INBOX #99 — 시작 시점에 그 수량 전체분의 재료를 한
+## 번에 소모하고, 이후 타이머로 결과물이 하나씩 작업대 내부 출력 버퍼에 쌓인다).
+## start_batch()가 이미 배치가 진행 중이거나 재료가 부족하면 아무것도 소모하지 않고
+## false를 반환하므로 그 경우에만 메시지를 보여준다.
+func _on_craft_start_pressed(recipe: Dictionary, qty_spin: SpinBox) -> void:
+	if _crafting_station == null:
+		return
+	var qty := int(qty_spin.value)
+	if not _crafting_station.start_batch(recipe, qty):
+		_crafting_message_label.text = "재료가 부족하거나 이미 다른 제작이 진행 중입니다"
 		_crafting_message_label.visible = true
 		_crafting_message_timer = 1.5
+
+
+## 작업대 출력 버퍼를 플레이어 인벤토리로 수령한다(INBOX #99). CraftingStation.
+## collect_output()이 이미 InventoryData.add_item()의 반환값으로 "들어간 만큼만 빼고
+## 나머지는 버퍼에 남기는" 안전 패턴(INBOX #98)을 쓰므로, 여기서는 결과를 보고 인벤토리가
+## 꽉 차서 일부만 수령됐는지 확인해 메시지만 보여준다.
+func _on_collect_pressed() -> void:
+	if _crafting_station == null:
 		return
-	for item_key in inputs.keys():
-		InventoryData.remove_item(item_key, int(inputs[item_key]))
-	InventoryData.add_item(output, amount)
+	var had_items: bool = not _crafting_station.output_buffer.is_empty()
+	_crafting_station.collect_output()
+	if had_items and not _crafting_station.output_buffer.is_empty():
+		_crafting_message_label.text = "인벤토리에 공간이 없어 일부만 수령했습니다"
+		_crafting_message_label.visible = true
+		_crafting_message_timer = 1.5
 
 
 ## 저장 상자(INBOX #96)가 공유하는 범용 상자 창을 코드로 한 번만 조립해둔다
