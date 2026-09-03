@@ -27,19 +27,19 @@
 </head>
 <body>
   <h1>auto-loop 진행 상황</h1>
-  <p class="updated">마지막 갱신: 2026-09-03 22:54:43</p>
+  <p class="updated">마지막 갱신: 2026-09-03 23:07:51</p>
   
   <div class="row">
     <div class="card"><div class="label">남은 항목</div><div class="num">2</div></div>
-    <div class="card"><div class="label">완료된 항목</div><div class="num">71</div></div>
+    <div class="card"><div class="label">완료된 항목</div><div class="num">72</div></div>
   </div>
   <div class="card">
     <div class="label">지금 처리 중 / 다음으로 처리할 항목</div>
-    <div>#72 [DESIGN] (버그 리포트, 사용자 직접 확인) 총을 들고 정면(남쪽)을 볼 때 조준/발사 자세가 부자연스럽다 — 총을 몸 앞에 뻣뻣하게 가로로 안고 있는 것처럼 보여서 조준하는 느낌이 안 든다. 참고로 후면(북쪽)은 총을 들어올린 자세가 자연스럽게 나온다(비교 기준으로 삼을 것). DESIGN.md "완성의 기준"(기본만 지키면 됨)은 이미 통과하지만, 이 항목은 정면 자세 자체를 더 자연스럽게(견착하고 조준하는 느낌이 들도록) 다시 만드는 게 목적이다. green 기준으로 `gun_idle_south`/`gun_fire_south`를 다시 만들고 스크린샷으로 확인한다.</div>
+    <div>#73 [BUILD] (버그 리포트, 사용자 직접 확인) 곡괭이낫을 든 상태에서 채집/채광 대상 없이 허공에 좌클릭하면 아무 반응(모션)이 없다. 원인 확인됨: `world.gd`는 도끼의 패기 모션을 `_unhandled_input()`에서 좌클릭 시 무조건 재생하는데, 곡괭이낫의 `play_pickaxe_use()`는 `resource_point.gd`가 실제 대상과 충돌했을 때만 호출된다. DESIGN.md "도구 동작 표현"(총/도끼/곡괭이낫은 대상 유무와 무관하게 항상 사용 모션이 나와야 함 — 근접무기 확장 계획 근거)에 따라, 곡괭이낫도 도끼와 같은 방식으로 좌클릭하면 대상이 없어도 항상 모션이 나가게 고친다(실제 채광/채집 판정 로직 자체는 그대로 두고, 모션 재생만 좌클릭 이벤트에서 직접 트리거하도록 분리).</div>
   </div>
   <div class="card">
     <div class="label">마지막 작업 커밋</div>
-    <div><code>e9bd109 [INBOX #71] 총 든 캐릭터 idle 동/서 크기 불일치 — 재현 안 됨, 재확인만 하고 종료</code></div>
+    <div><code>8fdc4bd [INBOX #72] 총 든 캐릭터 남쪽 조준/발사 자세를 자연스럽게 재생성</code></div>
   </div>
   <div class="card">
     <div class="label">디자인 개선 후보 (확인 후 지우기를 누르면 이 브라우저에서 안 보입니다)</div>
