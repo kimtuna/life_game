@@ -27,19 +27,19 @@
 </head>
 <body>
   <h1>auto-loop 진행 상황</h1>
-  <p class="updated">마지막 갱신: 2026-09-04 16:56:21</p>
+  <p class="updated">마지막 갱신: 2026-09-04 17:01:38</p>
   
   <div class="row">
-    <div class="card"><div class="label">남은 항목</div><div class="num">8</div></div>
-    <div class="card"><div class="label">완료된 항목</div><div class="num">104</div></div>
+    <div class="card"><div class="label">남은 항목</div><div class="num">7</div></div>
+    <div class="card"><div class="label">완료된 항목</div><div class="num">105</div></div>
   </div>
   <div class="card">
     <div class="label">지금 처리 중 / 다음으로 처리할 항목</div>
-    <div>#105 [BUILD] (사용자 지시, 2026-09-04) 제련로에 강철/유리/구리 레시피를 추가한다(#88이 만든 제련로의 `RECIPES`만 확장, 새 오브젝트 아님). **레시피 재료는 항상 1개만 쓴다**(DESIGN.md "생산 라인" 2026-09-04 규칙 — 재료 종류를 얕게 유지): `iron_ore`→`iron`은 이미 있음, 이번엔 **철 2개 → 강철(`steel`) 1개**, **모래(`sand`) 2개 → 유리(`glass`) 1개**, **구리광석(`copper_ore`) 2개 → 구리(`copper`) 1개**. 새 가공물 아이템 3종을 `ITEM_LABELS`/`ITEM_CATEGORIES`("가공물")에 추가한다. #99가 만든 수량 지정+타이머+수동 수령 방식이 그대로 적용된다(새로 만들 것 없음). 제련로에서 세 레시피 모두 실제로 동작하는지 확인한다.</div>
+    <div>#106 [BUILD] (사용자 지시, 2026-09-04) 가공대에 부재료 5종 레시피를 추가한다(#87이 만든 가공대의 `RECIPES`만 확장). **레시피 재료는 항상 1개만 쓴다.** **못(`nail`)**: 철 1개 → 4개(대량 생산). **경첩(`hinge`)**: 철 2개 → 1개. **톱니바퀴(`gear`)**: 강철 2개 → 1개(#105 완료 후 진행). **구리선(`copper_wire`)**: 구리 1개 → 2개(#105 완료 후 진행). **유리병(`glass_bottle`)**: 유리 1개 → 1개(#105 완료 후 진행). 5종 모두 `ITEM_LABELS`/`ITEM_CATEGORIES`("가공물")에 추가한다. 이 5개는 그 자체로 최종 소비 아이템이 아니라 **다른 완성품에 한 개씩만 들어가는 공용 부재료**다(#108/#109에서 사용) — 이번 항목에서는 만들 수 있게만 하면 된다. 가공대에서 다섯 레시피 모두 실제로 동작하는지 확인한다.</div>
   </div>
   <div class="card">
     <div class="label">마지막 작업 커밋</div>
-    <div><code>a0749d8 [INBOX #104] 모래/구리광석 전용 아이템 아이콘 + 채광 포인트 월드 그림 제작</code></div>
+    <div><code>959efca [INBOX #105] 제련로에 강철/유리/구리 레시피 추가</code></div>
   </div>
   <div class="card">
     <div class="label">디자인 개선 후보 (확인 후 지우기를 누르면 이 브라우저에서 안 보입니다)</div>
