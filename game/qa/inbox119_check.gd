@@ -155,13 +155,19 @@ func _run_checks() -> void:
 		return
 
 	# --- 4) 플레이어가 벽을 통과 못 하는지 확인 (grid collision) ---
-	# 목표 칸 바로 왼쪽(플레이어 칸)에서 오른쪽으로 크게 이동을 시도 — 벽 칸을 넘어가면 안 됨.
+	# 목표 칸 바로 왼쪽(플레이어 칸)에서 오른쪽으로 이동을 시도 — 벽 칸을 넘어가면 안 됨.
+	# (INBOX #125 수정) 예전엔 한 번에 500유닛을 통째로 넘겼는데, 그러면
+	# _move_player_with_grid_collision()이 목적지 지점만 확인해서 벽을 통째로
+	# 건너뛰어도 통과 실패로 안 잡힐 수 있다(STATUS.md 바퀴173 결정 로그에 이미 기록된
+	# 함정 — #120 검증 때 실제로 이 방식 때문에 원인 불명 실패를 겪었다). 실제 물리
+	# 루프처럼 격자 크기보다 훨씬 작은 이동을 여러 번 반복해서 검증한다(#120과 동일 패턴).
 	world.player_sprite.global_position = world._grid_to_world_center(player_cell)
 	var before_pos: Vector2 = world.player_sprite.global_position
-	world._move_player_with_grid_collision(Vector2(500.0, 0.0))
+	for i in range(80):
+		world._move_player_with_grid_collision(Vector2(8.0, 0.0))
 	var after_pos: Vector2 = world.player_sprite.global_position
 	var after_cell: Vector2i = world._world_to_grid(after_pos)
-	if after_cell == target_cell or world._world_to_grid(after_pos) == (target_cell + Vector2i(1, 0)):
+	if after_cell.x >= target_cell.x:
 		_fail("플레이어가 벽 칸을 통과해버림: after_cell=%s target_cell=%s" % [str(after_cell), str(target_cell)])
 		return
 	print("PROBE player blocked before_pos=", before_pos, " after_pos=", after_pos, " after_cell=", after_cell)

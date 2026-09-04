@@ -92,9 +92,12 @@ const COOKING_STOVE_ORIGIN := Vector2(-650.0, 650.0)
 ## 999개씩 채워 넣는 건 INBOX #97의 몫이다(DESIGN.md 결정 로그 참고).
 const STORAGE_CHEST_ORIGIN := Vector2(0.0, 850.0)
 
-## 건축 격자 배치 시스템 (INBOX #119). DESIGN.md "건축/방(Room) 시스템" 2026-09-05
-## 확정대로, 기존 잔디 바닥 타일(grass_tile.png, 64x64)과 크기를 맞춘다.
-const BUILD_GRID_SIZE := 64.0
+## 건축 격자 배치 시스템 (INBOX #119). 처음엔 기존 잔디 바닥 타일(grass_tile.png,
+## 64x64)과 크기를 맞췄으나, 벽 아이콘(32x32)이 그 크기로 2배 확대되면서 플레이어
+## (화면 기준 약 102px)에 비해 벽이 지나치게 커 보인다는 지적을 받았다(INBOX #125,
+## 사용자 스크린샷 기준). 캐릭터 대비 자연스러운 비율이 나오도록 1/4 수준인 16.0으로
+## 줄인다 — 잔디 타일과의 격자 정렬(64의 약수)은 유지된다.
+const BUILD_GRID_SIZE := 16.0
 
 ## 격자에 설치 가능한 아이템(INBOX #119가 나무벽, #120이 나무문으로 프레임워크를 검증,
 ## #121이 나머지 5종 — 석제벽/강철벽/강철문/창문 — 을 아이템 키만 추가해 연결). 아이콘은
@@ -128,7 +131,10 @@ var _grid_occupancy: Dictionary = {}
 ## 벽/문이 설치되거나 제거될 때(매 프레임이 아니라 변경 시점에만) _recompute_rooms()가
 ## 다시 계산한다. 탐색 상한(한 방이 가질 수 있는 최대 칸 수) — 이 안에서 flood-fill이
 ## 스스로 끝나면 "막힌 공간"(방), 상한을 넘기면 바깥 들판으로 새는 것으로 보고 방 아님.
-const ROOM_FLOOD_CELL_CAP := 400
+## (INBOX #125) BUILD_GRID_SIZE를 64→16(1/4)로 줄이면서 같은 물리적 면적이 16배(=4x4)
+## 많은 칸으로 쪼개지므로, 기존과 같은 최대 방 면적을 유지하려면 상한도 16배로 올려야
+## 한다(400 → 6400).
+const ROOM_FLOOD_CELL_CAP := 6400
 const ROOM_DIRS := [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
 
 ## CraftingStation.get_title() 문자열 -> 방 카테고리. "주방"은 조리대/조리용 화로 둘 다
@@ -900,22 +906,31 @@ func _move_player_with_grid_collision(motion: Vector2) -> void:
 	player_sprite.position = pos
 
 
-## pos를 중심으로 한 작은 사각형(플레이어 폭 근사)의 네 모서리 중 하나라도 건축물이
-## 설치된 격자 칸에 들어가면 막힌 것으로 본다. 열린 문(INBOX #120)이 있는 칸은 예외 —
-## `_grid_occupancy`에는 여전히 문 노드가 남아있지만(방 감지가 "문이 있다"는 사실 자체를
-## 볼 수 있어야 하므로) 지나갈 수는 있어야 한다.
+## pos를 중심으로 한 작은 사각형(플레이어 폭 근사, 한 변 2*PLAYER_COLLISION_RADIUS)이
+## 걸치는 모든 격자 칸을 확인해서, 그중 하나라도 건축물이 설치된 칸이면 막힌 것으로
+## 본다. 열린 문(INBOX #120)이 있는 칸은 예외 — `_grid_occupancy`에는 여전히 문 노드가
+## 남아있지만(방 감지가 "문이 있다"는 사실 자체를 볼 수 있어야 하므로) 지나갈 수는
+## 있어야 한다.
+## (INBOX #125 수정) 예전엔 네 대각선 모서리 점만 표본으로 확인했는데, BUILD_GRID_SIZE를
+## 64→16으로 줄이면서 PLAYER_COLLISION_RADIUS(16)와 값이 같아져 대각선 모서리가 항상
+## 옆 행/열로 어긋나 버려 정면으로 다가오는 벽을 아예 못 보는 실제 버그가 됐다(실측:
+## 닫힌 문을 정면으로 통과해버림). 표본 점 대신 겹치는 칸 범위 전체를 스캔하도록 고쳐서
+## 격자 크기와 충돌 반경의 비율에 관계없이 항상 정확하게 판정한다.
 func _is_position_blocked(pos: Vector2) -> bool:
 	if _grid_occupancy.is_empty():
 		return false
 	var r := PLAYER_COLLISION_RADIUS
-	for offset in [Vector2(-r, -r), Vector2(r, -r), Vector2(-r, r), Vector2(r, r)]:
-		var cell := _world_to_grid(pos + offset)
-		if not _grid_occupancy.has(cell):
-			continue
-		var node = _grid_occupancy[cell]
-		if node is Door and node.is_open:
-			continue
-		return true
+	var min_cell := _world_to_grid(pos - Vector2(r, r))
+	var max_cell := _world_to_grid(pos + Vector2(r, r))
+	for gx in range(min_cell.x, max_cell.x + 1):
+		for gy in range(min_cell.y, max_cell.y + 1):
+			var cell := Vector2i(gx, gy)
+			if not _grid_occupancy.has(cell):
+				continue
+			var node = _grid_occupancy[cell]
+			if node is Door and node.is_open:
+				continue
+			return true
 	return false
 
 
