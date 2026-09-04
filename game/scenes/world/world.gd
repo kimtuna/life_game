@@ -1032,6 +1032,22 @@ func get_room_category(room_id: int) -> String:
 	return _rooms[room_id]["category"]
 
 
+## world_pos가 속한, 잡실이 아닌 정상 인식된 방 안에 있는 저장 상자 목록을 반환한다
+## (INBOX #123, DESIGN.md "방-상자 자동 연동" — 판정 기준은 거리가 아니라 방 ID 일치
+## 여부). world_pos가 방에 속하지 않았거나 그 방이 잡실이면 빈 배열을 반환한다 — 호출부
+## (CraftingStation.start_batch())는 빈 배열이면 지금처럼 플레이어 인벤토리만 본다(회귀
+## 없음). 방 ID는 벽/문이 바뀔 때마다 다시 부여되므로 캐싱하지 않고 매번 새로 조회한다.
+func get_room_chests(world_pos: Vector2) -> Array:
+	var room_id := get_room_id_at(world_pos)
+	if room_id == -1 or get_room_category(room_id) == "잡실":
+		return []
+	var chests: Array = []
+	for child in get_children():
+		if child is StorageChest and get_room_id_at(child.global_position) == room_id:
+			chests.append(child)
+	return chests
+
+
 ## 사냥/채집/채광 결과물을 바닥에 드롭 오브젝트로 스폰한다 (INBOX #24, DESIGN.md
 ## "아이템 획득 방식 — 바닥 드롭"). 드롭 오브젝트가 player_ref로 플레이어와의 거리를
 ## 직접 재서 접촉하면 스스로 인벤토리에 들어가고 사라진다.

@@ -108,20 +108,60 @@ func batch_progress() -> Dictionary:
 ## 수량 qty만큼 배치를 시작한다. 이미 배치가 진행 중이거나(한 번에 한 배치만) 재료가
 ## 부족하면 아무것도 소모하지 않고 false를 반환한다. 성공하면 그 시점에 qty분의 재료를
 ## 전량 한 번에 소모한다(INBOX #99 원문 "제작 시작을 누르면... 그 시점에 전량 한 번에 소모").
+## (INBOX #123) 재료는 플레이어 인벤토리뿐 아니라, 이 작업대와 같은 방(잡실이 아닌 정상
+## 인식된 방)에 있는 저장 상자의 내용물도 함께 인식한다 — 방이 없거나 잡실이면
+## _room_chests()가 빈 배열을 반환해 기존(인벤토리만 보는) 동작 그대로 유지된다.
 func start_batch(recipe: Dictionary, qty: int) -> bool:
 	if is_batch_active() or qty <= 0:
 		return false
 	var inputs: Dictionary = recipe.get("inputs", {})
+	var chests: Array = _room_chests()
 	for item_key in inputs.keys():
-		if InventoryData.get_count(item_key) < int(inputs[item_key]) * qty:
+		if _available_count(item_key, chests) < int(inputs[item_key]) * qty:
 			return false
 	for item_key in inputs.keys():
-		InventoryData.remove_item(item_key, int(inputs[item_key]) * qty)
+		_consume(item_key, int(inputs[item_key]) * qty, chests)
 	_batch_recipe = recipe
 	_batch_remaining = qty
 	_batch_timer = 0.0
 	changed.emit()
 	return true
+
+
+## 이 작업대가 속한, 잡실이 아닌 정상 인식된 방에 있는 저장 상자 목록. world_ref가 아직
+## 없으면(이론상 안 생기지만 방어적으로) 빈 배열.
+func _room_chests() -> Array:
+	if world_ref == null:
+		return []
+	return world_ref.get_room_chests(global_position)
+
+
+## item_key를 플레이어 인벤토리 + chests 전체에서 합쳐서 총 몇 개 쓸 수 있는지.
+func _available_count(item_key: String, chests: Array) -> int:
+	var total: int = InventoryData.get_count(item_key)
+	for chest in chests:
+		total += chest.get_count(item_key)
+	return total
+
+
+## item_key를 amount만큼 소모한다. 플레이어 인벤토리에서 먼저 빼고, 모자란 만큼만 방의
+## 상자에서 순서대로 뺀다(둘 다 합쳐 충분한지는 start_batch()가 이미 확인했으므로 여기서는
+## 실패하지 않는다).
+func _consume(item_key: String, amount: int, chests: Array) -> void:
+	var remaining := amount
+	var from_inventory: int = min(InventoryData.get_count(item_key), remaining)
+	if from_inventory > 0:
+		InventoryData.remove_item(item_key, from_inventory)
+		remaining -= from_inventory
+	for chest in chests:
+		if remaining <= 0:
+			break
+		var have: int = chest.get_count(item_key)
+		if have <= 0:
+			continue
+		var take: int = min(have, remaining)
+		chest.remove_item(item_key, take)
+		remaining -= take
 
 
 ## 출력 버퍼에서 플레이어 인벤토리로 옮길 수 있는 만큼 옮긴다. InventoryData.add_item()이

@@ -1,4 +1,5 @@
 extends Node2D
+class_name StorageChest
 ## 저장 상자 (INBOX #96, 사용자 지시 2026-09-04). processing_table.gd와 같은 "근처에서
 ## 좌클릭" 패턴으로 상호작용해 상자 UI(world.gd의 범용 저장 상자 창)를 연다.
 ## 플레이어 인벤토리(InventoryData)와 완전히 별개인 자체 슬롯 배열을 갖고,
@@ -85,6 +86,39 @@ func add_item(item_name: String, amount: int) -> void:
 	if unlimited:
 		_slots.append({"item": item_name, "count": amount})
 		changed.emit()
+
+
+## ---- 방-상자 자동 연동 (INBOX #123, DESIGN.md "방-상자 자동 연동") ----
+## CraftingStation.start_batch()가 같은 방의 상자를 재료로 함께 인식할 때 쓴다.
+## InventoryData.get_count()/remove_item()과 이름/동작을 그대로 맞춰서, 호출부가 상자와
+## 플레이어 인벤토리를 같은 방식으로 다룰 수 있게 한다.
+
+func get_count(item_name: String) -> int:
+	var total := 0
+	for slot in _slots:
+		if slot != null and slot.get("item") == item_name:
+			total += int(slot["count"])
+	return total
+
+
+## 보유량이 부족하면 아무것도 바꾸지 않고 false를 반환한다(InventoryData.remove_item()과
+## 같은 안전 패턴).
+func remove_item(item_name: String, amount: int) -> bool:
+	if get_count(item_name) < amount:
+		return false
+	var remaining := amount
+	for i in range(_slots.size()):
+		if remaining <= 0:
+			break
+		var slot = _slots[i]
+		if slot != null and slot.get("item") == item_name:
+			var take: int = min(int(slot["count"]), remaining)
+			slot["count"] = int(slot["count"]) - take
+			remaining -= take
+			if int(slot["count"]) <= 0:
+				_slots[i] = null
+	changed.emit()
+	return true
 
 
 ## 상자 슬롯 하나에서 플레이어 인벤토리로 최대 TRANSFER_AMOUNT개를 옮기려 시도한다.
