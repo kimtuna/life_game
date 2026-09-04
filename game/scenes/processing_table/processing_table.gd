@@ -31,6 +31,12 @@ const RECIPES := [
 	{"inputs": {"steel": 2}, "output": "gear", "amount": 1},
 	{"inputs": {"copper": 1}, "output": "copper_wire", "amount": 2},
 	{"inputs": {"glass": 1}, "output": "glass_bottle", "amount": 1},
+	## 강철 도구 3종 (INBOX #108) — 아이템으로 만들 수 있게만 한다. 기존 곡괭이낫/도끼/
+	## 낚싯대와 다른 실제 성능(채집 속도 등)을 내는 건 범위 밖(도구 등급 시스템 자체가
+	## 아직 없음, DESIGN.md "도구 등급" 절 참고).
+	{"inputs": {"steel": 3}, "output": "steel_pickaxe", "amount": 1},
+	{"inputs": {"steel": 3}, "output": "steel_axe", "amount": 1},
+	{"inputs": {"steel": 2}, "output": "steel_fishing_rod", "amount": 1},
 ]
 
 
