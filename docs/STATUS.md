@@ -5,6 +5,46 @@
 
 ## 마지막 갱신
 
+바퀴 168 / 2026-09-04 ([BUILD] **INBOX #115 완료 — 리소스 포인트(채집/채광/벌목)가
+서로 겹쳐 스폰되고 좌클릭 한 번에 겹친 포인트 전부가 동시에 채집되던 버그를 고쳤다.**)
+1) `world.gd`에 `RESOURCE_MIN_DISTANCE_BETWEEN_POINTS := 220.0`(resource_point.gd의
+   `INTERACT_RADIUS`(70) 두 개 합(140)보다 넉넉히 큰 값) 상수와 `_spawned_resource_positions`
+   배열을 추가. `_spawn_resource_points()`가 시작 시 배열을 비우고, `_spawn_one_resource_point()`
+   가 새 위치를 고를 때(20회 재시도 루프) 플레이어와의 최소 거리뿐 아니라 이미 스폰된
+   다른 포인트들과의 거리(`_is_too_close_to_spawned_resources()`)도 함께 확인하도록
+   고쳤다. 스폰이 끝난 포인트 위치는 배열에 계속 누적된다(`_spawn_resource_points()`가
+   딱 한 번, 월드 초기화 시에만 호출되므로 이후 리셋 걱정은 없음 — 재생성은 각
+   `resource_point.gd`가 같은 위치에서 쿨다운 후 다시 나타나는 방식이라 새 위치를
+   고르지 않는다).
+2) `resource_point.gd`의 `_unhandled_input()`이 `_harvest()`를 호출한 직후
+   `get_viewport().set_input_as_handled()`를 호출하도록 한 줄 추가 — 혹시라도 두
+   포인트가 여전히 가깝게 있는 경우를 대비한 2차 방어(INBOX 원문이 요구한 두 가지
+   수정 중 두 번째).
+3) **검증**: 새 QA 스크립트 `game/qa/resource_point_overlap_check.gd`(커밋, 재사용
+   가능)를 작성해 `project.godot [autoload]`에 임시 등록하고 `godot --path .`(실제
+   렌더러)로 실행. (a) `_spawn_resource_points()`를 8번 반복 재실행해서 매번 15개
+   포인트 전부가 `RESOURCE_MIN_DISTANCE_BETWEEN_POINTS` 이상 떨어져 있는지 확인(8회
+   전부 통과 — 우연이 아니라 항상 지켜짐을 확인). (b) 필드와 격리된 좌표
+   `(-5000,-5000)`에 채집 포인트와 채광 포인트를 일부러 40유닛 간격으로 배치하고,
+   곡괭이낫을 손에 든 채 `Input.parse_input_event()`로 실제 엔진 입력 경로에 좌클릭
+   이벤트 1회를 흘려서 정확히 하나만 채집(`sprite.visible == false`)되고 나머지
+   하나는 그대로 남는지 확인 — `QA_INBOX115_CHECK_PASS` 출력으로 통과 확인. 검증 후
+   `project.godot`의 임시 autoload 등록을 원상복구하고 `diff /tmp/project.godot.bak115
+   project.godot`로 완전히 동일함을 확인, 테스트 중 생성된 세이브 파일
+   (`characters.save`/`inventory.save`)도 삭제했다.
+4) `docs/feedback/INBOX.md`의 `#115`를 `[x]`로 갱신. **BUILD/DESIGN 완료 카운터**:
+   `#111`(DESIGN) 완료 시점 3(5 도달까지 2개 남음)에서 이번 `#115`(BUILD)로 **4**가
+   됐다(5 도달까지 1개 남음 — 다음 BUILD/DESIGN 항목 하나가 더 끝나면 QA 전체 스윕
+   신규 등록).
+
+**다음에 할 것**: INBOX.md에 남은 미완료 항목이 없다(`#115`까지 전부 `[x]`). 새 지시가
+추가되지 않으면 `loop.sh`가 세션을 새로 열지 않고 스스로 종료한다. 다음에 새
+`[BUILD]`/`[DESIGN]` 항목이 하나 더 추가되고 완료되면 BUILD/DESIGN 완료 카운터가
+5에 도달하므로, 그 항목을 처리하는 세션이 규칙(PROMPT_BUILD.md ③)대로 `[QA] 전체
+스윕` 항목을 큐 끝에 추가하고 카운터를 0으로 리셋해야 한다.
+
+## 지난 바퀴 기록 (바퀴 167, 그대로 보존)
+
 바퀴 167 / 2026-09-04 ([QA] **INBOX #114 완료 — 전체 스윕(#104~#108 구간 집중 확인),
 결함 0건.** 범위: #113과 같은 43스텝 전체 흐름 + #104~#108이 추가한 것들을 독립
 재검증(모래/구리광석 채광 포인트 그림, 제련로 강철/유리/구리 레시피, 가공대 못/경첩/
@@ -42,15 +82,6 @@
    결함 0건이라 "전체 스윕" 규칙대로 재확인 루프(QA 재확인 항목)를 추가하지
    않는다.
 6) `docs/feedback/INBOX.md`의 `#114`를 `[x]`로 갱신.
-
-**다음에 할 것**: INBOX.md에 남은 미완료 항목은 `#115`([BUILD], 리소스 포인트 겹침
-버그 — `_spawn_one_resource_point()`에 포인트 간 최소 거리 확인 추가 +
-`resource_point.gd`의 `_unhandled_input()`에 `set_input_as_handled()` 방어) 하나뿐이다.
-다음 [BUILD] 세션이 열리면 이걸 맡는다. `game/qa/steel_glass_copper_check.gd`/
-`processing_bymaterials_check.gd`/`inbox107_check.gd`/`steel_tools_check.gd`는
-"BUILD가 만든 기능 검증 스크립트를 QA가 독립 재실행해서 자기 채점을 피하는" 패턴으로
-이번에 처음 재사용해봤다 — 앞으로도 특정 기능 구간을 지목한 QA 항목이 오면 먼저
-`game/qa/`에 그 기능 전용 스크립트가 있는지 찾아서 재실행하는 방식을 기본으로 삼을 것.
 
 ## 지난 바퀴 기록 (바퀴 166, 그대로 보존)
 

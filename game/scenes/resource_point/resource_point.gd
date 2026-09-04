@@ -55,6 +55,8 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT \
 			and world_ref != null and world_ref.get_held_tool() == required_tool:
 		_harvest()
+		## 겹쳐 스폰된 다른 포인트가 같은 클릭을 또 처리하지 못하게 막는다 (INBOX #115).
+		get_viewport().set_input_as_handled()
 
 
 func _harvest() -> void:

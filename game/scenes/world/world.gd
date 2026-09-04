@@ -57,6 +57,10 @@ const DEER_MIN_DISTANCE_FROM_PLAYER := 300.0
 const RESOURCE_POINT_COUNT := 5
 const RESOURCE_SPAWN_RADIUS := 1400.0
 const RESOURCE_MIN_DISTANCE_FROM_PLAYER := 200.0
+## resource_point.gd의 INTERACT_RADIUS(70) 두 개 합(140)보다 충분히 커야 두 포인트의
+## Prompt 라벨/좌클릭 판정이 겹치지 않는다 (INBOX #115 — 겹쳐 스폰돼 좌클릭 한 번에
+## 둘 다 채집되던 버그).
+const RESOURCE_MIN_DISTANCE_BETWEEN_POINTS := 220.0
 
 ## 밭은 채집/채광 포인트처럼 흩어놓지 않고, DESIGN.md "밭(정해진 구역)" 요구대로
 ## 스폰 지점 기준 항상 같은 자리에 고정된 격자로 배치한다.
@@ -279,6 +283,9 @@ var _hotbar_normal_style: StyleBoxFlat
 var _hotbar_selected_style: StyleBoxFlat
 var _ammo_type: String = "normal"
 var _fire_cooldown: float = 0.0
+## 이미 스폰된 리소스 포인트들의 위치 (INBOX #115 — 새 포인트가 기존 포인트와 겹치지
+## 않게 거리 확인용). _spawn_resource_points() 시작 시 비우고 매번 채운다.
+var _spawned_resource_positions: Array[Vector2] = []
 var _recoil: float = 0.0
 ## 탄종별로 완전히 분리된 탄창 (INBOX #36 — 기본탄/마취탄이 잔여 발수를 공유하면 안 됨).
 var _ammo_in_magazine: Dictionary = {"normal": GUN_MAGAZINE_SIZE, "tranq": GUN_MAGAZINE_SIZE}
@@ -549,6 +556,7 @@ func _spawn_deer() -> void:
 ## 포인트 종류(required_tool)에 따라 알맞은 도구 판정을 자동 적용한다(도구 선택 UI
 ## 없음) — resource_point.gd 참고.
 func _spawn_resource_points() -> void:
+	_spawned_resource_positions.clear()
 	for i in range(RESOURCE_POINT_COUNT):
 		_spawn_one_resource_point(GatheringPointScene)
 	for i in range(RESOURCE_POINT_COUNT):
@@ -579,12 +587,25 @@ func _spawn_one_resource_point(scene: PackedScene) -> void:
 			randf_range(-RESOURCE_SPAWN_RADIUS, RESOURCE_SPAWN_RADIUS),
 			randf_range(-RESOURCE_SPAWN_RADIUS, RESOURCE_SPAWN_RADIUS)
 		)
-		if pos.distance_to(player_sprite.position) >= RESOURCE_MIN_DISTANCE_FROM_PLAYER:
-			break
+		if pos.distance_to(player_sprite.position) < RESOURCE_MIN_DISTANCE_FROM_PLAYER:
+			continue
+		if _is_too_close_to_spawned_resources(pos):
+			continue
+		break
 	point.global_position = pos
 	point.player_ref = player_sprite
 	point.world_ref = self
 	add_child(point)
+	_spawned_resource_positions.append(pos)
+
+
+## 이미 스폰된 다른 리소스 포인트와 RESOURCE_MIN_DISTANCE_BETWEEN_POINTS보다 가까운지
+## 확인한다 (INBOX #115).
+func _is_too_close_to_spawned_resources(pos: Vector2) -> bool:
+	for other_pos in _spawned_resource_positions:
+		if pos.distance_to(other_pos) < RESOURCE_MIN_DISTANCE_BETWEEN_POINTS:
+			return true
+	return false
 
 
 ## 스폰 지점에서 고정된 오프셋에 밭 칸을 격자로 배치한다 (INBOX #11).
