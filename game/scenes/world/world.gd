@@ -111,6 +111,9 @@ const ITEM_LABELS := {
 	"wood_wall": "나무벽",
 	"wood_door": "나무문",
 	"stone_wall": "석제벽",
+	"steel": "강철",
+	"glass": "유리",
+	"copper": "구리",
 	"gun": "총",
 	"axe": "도끼",
 	"pickaxe": "곡괭이낫",
@@ -144,6 +147,9 @@ const ITEM_CATEGORIES := {
 	"wood_wall": "완성품",
 	"wood_door": "완성품",
 	"stone_wall": "완성품",
+	"steel": "가공물",
+	"glass": "가공물",
+	"copper": "가공물",
 	"gun": "도구",
 	"axe": "도구",
 	"pickaxe": "도구",
@@ -611,7 +617,7 @@ func _spawn_cooking_stove() -> void:
 const DEBUG_STARTER_CHEST_AMOUNT := 999
 const DEBUG_STARTER_CHEST_ITEMS := [
 	# 원재료
-	"rice_seed", "iron_ore", "stone", "sulfur_ore", "wood",
+	"rice_seed", "iron_ore", "stone", "sulfur_ore", "wood", "sand", "copper_ore",
 	# 곡물
 	"rice",
 	# 육류

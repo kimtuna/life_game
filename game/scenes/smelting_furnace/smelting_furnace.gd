@@ -10,9 +10,13 @@ extends CraftingStation
 const TABLE_TITLE := "제련로"
 
 ## {"inputs": {아이템: 개수, ...}, "output": 아이템, "amount": 개수} 목록.
+## 레시피 재료는 항상 1종만 쓴다(DESIGN.md "생산 라인" 2026-09-04 규칙, INBOX #105).
 const RECIPES := [
 	{"inputs": {"iron_ore": 2}, "output": "iron", "amount": 1},
 	{"inputs": {"wood": 2}, "output": "charcoal", "amount": 1},
+	{"inputs": {"iron": 2}, "output": "steel", "amount": 1},
+	{"inputs": {"sand": 2}, "output": "glass", "amount": 1},
+	{"inputs": {"copper_ore": 2}, "output": "copper", "amount": 1},
 ]
 
 
