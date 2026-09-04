@@ -317,6 +317,7 @@ const STATE_BROADCAST_INTERVAL := 0.1
 @onready var room_overlay_toggle: Button = $UI/HUD/RoomOverlayToggle
 @onready var deconstruct_mode_panel: PanelContainer = $UI/HUD/DeconstructModePanel
 @onready var room_overlay: RoomOverlay = $RoomOverlay
+@onready var fog_of_war: FogOfWar = $FogOfWar
 @onready var day_night_modulate: CanvasModulate = $DayNightModulate
 @onready var rain_overlay: ColorRect = $UI/RainOverlay
 @onready var ui_layer: CanvasLayer = $UI
@@ -330,6 +331,10 @@ const EQUIPMENT_LABELS := ["모자", "상의", "하의", "신발", "목걸이", 
 
 var _variant: String = "green"
 var _facing: String = "south"
+## 시야/전장의 안개(INBOX #135)가 참고하는 연속 조준 방향(정규화 벡터) — `_facing`(4방향
+## 문자열)과 달리 부채꼴 콘 각도 계산에 그대로 쓸 수 있는 실제 각도를 담는다. 기본값은
+## `_facing`의 기본값(south)과 맞춘다.
+var _aim_direction: Vector2 = Vector2.DOWN
 var _paused: bool = false
 var _inventory_open: bool = false
 ## 가공대/제련로 등 생산 라인 작업대가 공유하는 범용 제작 창이 열려 있는지 (INBOX #87).
@@ -430,6 +435,7 @@ func _ready() -> void:
 	_setup_networking()
 	room_overlay.setup(self, BUILD_GRID_SIZE)
 	room_overlay_toggle.toggled.connect(_on_room_overlay_toggle_toggled)
+	fog_of_war.setup(self, BUILD_GRID_SIZE)
 
 
 func _process(delta: float) -> void:
@@ -546,6 +552,7 @@ func _physics_process(delta: float) -> void:
 	var to_mouse := get_global_mouse_position() - player_sprite.global_position
 	if to_mouse.length() > 1.0:
 		_facing = _facing_from_direction(to_mouse)
+		_aim_direction = to_mouse.normalized()
 
 	if _is_moving != _was_moving or player_sprite.animation != _current_animation_name():
 		_was_moving = _is_moving
@@ -1306,6 +1313,25 @@ func get_room_category(room_id: int) -> String:
 	if not _rooms.has(room_id):
 		return ""
 	return _rooms[room_id]["category"]
+
+
+## 플레이어의 연속 조준 방향(정규화 벡터)을 밖에서 읽을 수 있게 하는 공개 접근자
+## (INBOX #135, fog_of_war.gd가 사용) — 총 조준에 이미 쓰는 `_aim_direction`을 그대로
+## 재사용해서 시야 콘 계산 로직을 중복 구현하지 않는다.
+func get_aim_direction() -> Vector2:
+	return _aim_direction
+
+
+## 격자 칸에 벽이나 닫힌 문이 있어 시야가 가로막히는지 밖에서 조회하는 공개 접근자
+## (INBOX #135, fog_of_war.gd가 사용) — `_is_position_blocked()`의 이동 충돌 판정과
+## 같은 "열린 문은 막지 않는다" 규칙을 시야 판정에도 그대로 적용한다.
+func is_cell_sight_blocked(cell: Vector2i) -> bool:
+	if not _grid_occupancy.has(cell):
+		return false
+	var node = _grid_occupancy[cell]
+	if node is Door and node.is_open:
+		return false
+	return true
 
 
 ## world_pos가 속한, 잡실이 아닌 정상 인식된 방 안에 있는 저장 상자 목록을 반환한다
