@@ -14,9 +14,9 @@ var is_open: bool = false
 
 var _col: CollisionShape2D = null
 var _sprite: Sprite2D = null
-## (INBOX #132) 예전엔 격자 칸 크기(BUILD_GRID_SIZE)를 그대로 받아 슬라이드 거리를
-## 정했지만, 이제 벽/문의 시각적 크기(BUILD_STRUCTURE_VISUAL_SIZE)가 격자 크기와
-## 분리됐으므로 문이 실제로 보이는 크기에 비례해서 슬라이드하도록 그 값을 받는다.
+## (INBOX #133) 격자 칸 크기와 벽/문의 시각적 크기가 다시 하나(BUILD_GRID_SIZE)로
+## 합쳐졌으므로, world.gd가 넘겨주는 값은 곧 그 격자 크기다 — 문이 실제로 보이는
+## 크기에 비례해서 슬라이드 거리를 정한다는 의도 자체는 #132와 동일하게 유지된다.
 var _visual_size: float = 32.0
 
 ## 사슴 등 스폰 오브젝트와 같은 패턴(world.gd가 스폰 직후 채워줌).
