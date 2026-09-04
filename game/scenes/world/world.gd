@@ -118,6 +118,11 @@ const ITEM_LABELS := {
 	"axe": "도끼",
 	"pickaxe": "곡괭이낫",
 	"fishing_rod": "낚싯대",
+	"nail": "못",
+	"hinge": "경첩",
+	"gear": "톱니바퀴",
+	"copper_wire": "구리선",
+	"glass_bottle": "유리병",
 }
 
 ## 아이템 키 -> 카테고리 (INBOX #83, DESIGN.md "아이템 카테고리 / 제작 테크" 절 참고).
@@ -154,6 +159,11 @@ const ITEM_CATEGORIES := {
 	"axe": "도구",
 	"pickaxe": "도구",
 	"fishing_rod": "도구",
+	"nail": "가공물",
+	"hinge": "가공물",
+	"gear": "가공물",
+	"copper_wire": "가공물",
+	"glass_bottle": "가공물",
 }
 
 ## 도구 아이템(INBOX #22). 순서대로 핫바 시작 슬롯(1~4번 키)에 지급된다.

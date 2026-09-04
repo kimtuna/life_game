@@ -24,6 +24,13 @@ const RECIPES := [
 	{"inputs": {"plank": 4}, "output": "wood_wall", "amount": 1},
 	{"inputs": {"plank": 3}, "output": "wood_door", "amount": 1},
 	{"inputs": {"stone_block": 4}, "output": "stone_wall", "amount": 1},
+	## 공용 부재료 5종 (INBOX #106) — 다른 완성품에 한 개씩만 들어가는 부품.
+	## 레시피 재료는 항상 1종만 쓴다(DESIGN.md "생산 라인" 2026-09-04 규칙).
+	{"inputs": {"iron": 1}, "output": "nail", "amount": 4},
+	{"inputs": {"iron": 2}, "output": "hinge", "amount": 1},
+	{"inputs": {"steel": 2}, "output": "gear", "amount": 1},
+	{"inputs": {"copper": 1}, "output": "copper_wire", "amount": 2},
+	{"inputs": {"glass": 1}, "output": "glass_bottle", "amount": 1},
 ]
 
 
