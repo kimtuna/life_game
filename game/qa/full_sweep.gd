@@ -40,6 +40,13 @@ extends Node
 ## STATUS.md가 "실제 제작 UI 클릭까지는 확인 안 함"이라고 남긴 미검증 경로를 메운다.
 ## 마우스 좌표 기준 배치이므로 inbox119~123_check.gd와 같은 "카메라를 옮겨서 마우스가
 ## 특정 격자 칸 위에 있는 것처럼 만드는" 고정 오프셋 트릭을 그대로 재사용한다.
+##
+## (INBOX #131 QA 전체 스윕) hud_no_tool/room_overlay_view/deconstruct_wall_highlight/
+## deconstruct_wall_removed/deconstruct_chest_blocked 다섯 스텝을 추가했다. #125(건축
+## 격자 크기 64→16 축소)/#126(방 오버레이 토글 UI)/#127(HUD 정리 — 총 안 든 상태에서
+## 탄약 패널 숨김, 인벤토리 패널 제거)/#128~#130(건설 해제 모드, 상태 있는 설치물까지
+## 확장)이 전부 그림/UI로 눈에 보이는 변경인데 이 스윕이 한 번도 실제로 지나가 본 적이
+## 없었다.
 
 const OUT_DIR := "/tmp/qa67"
 
@@ -97,6 +104,11 @@ func _ready() -> void:
 		"room_with_table",
 		"room_chest_craft_start",
 		"room_chest_craft_collect",
+		"hud_no_tool",
+		"room_overlay_view",
+		"deconstruct_wall_highlight",
+		"deconstruct_wall_removed",
+		"deconstruct_chest_blocked",
 		"hunting_aim",
 		"hunting_hit",
 		"world_night",
@@ -172,6 +184,11 @@ func _run_step(name: String) -> void:
 		"room_with_table": await _step_room_with_table()
 		"room_chest_craft_start": await _step_room_chest_craft_start()
 		"room_chest_craft_collect": _step_room_chest_craft_collect()
+		"hud_no_tool": _step_hud_no_tool()
+		"room_overlay_view": _step_room_overlay_view()
+		"deconstruct_wall_highlight": await _step_deconstruct_wall_highlight()
+		"deconstruct_wall_removed": _step_deconstruct_wall_removed()
+		"deconstruct_chest_blocked": await _step_deconstruct_chest_blocked()
 		"hunting_aim": _step_hunting_aim()
 		"hunting_hit": _step_hunting_hit()
 		"world_night": _step_world_night()
@@ -671,7 +688,12 @@ func _step_room_chest_craft_start() -> void:
 	InventoryData.remove_item("wood", InventoryData.get_count("wood"))
 
 	var chest: Node2D = load("res://scenes/storage_chest/storage_chest.tscn").instantiate()
-	chest.global_position = _build_room_center_world + Vector2(10, 10)
+	# (INBOX #131) BUILD_GRID_SIZE가 #125로 64->16이 되면서 반칸(8)보다 큰 옛 오프셋(10,10)은
+	# 방(1칸)의 경계를 벗어나 이웃 칸(방 밖)에 상자를 놓아버렸다 — 방-상자 인식이 room_id
+	# 불일치로 조용히 실패하는 것을 재현해봤다(재료가 전혀 안 줄고 batch_active=false로
+	# 확인). 이 자체는 게임 결함이 아니라 이 스크립트가 옛 격자 크기 기준 오프셋을 그대로
+	# 쓰고 있던 것이었다 — 반칸(8) 안쪽으로 줄여 같은 칸 안에 확실히 들어오게 한다.
+	chest.global_position = _build_room_center_world + Vector2(2, 2)
 	chest.player_ref = _player
 	chest.world_ref = _world
 	_world.add_child(chest)
@@ -705,6 +727,69 @@ func _step_room_chest_craft_collect() -> void:
 	var before_plank: int = InventoryData.get_count("plank")
 	_world._on_collect_pressed()
 	print("room_chest_craft_collect: plank before=", before_plank, " after=", InventoryData.get_count("plank"))
+
+
+# ---- HUD 정리(#127) / 방 오버레이(#126) / 건설 해제(#128~#130) — INBOX #131 QA ----
+
+## 도구를 안 든 상태(핫바 4번 — rice_seed 등 비도구 아이템이 들어있어도 됨, world_night
+## 스텝이 이미 같은 슬롯으로 검증한 안전한 선택)에서 탄약 패널이 숨는지, 인벤토리 요약
+## 패널(#127이 완전히 지운 것)이 실제로 화면에 없는지 스크린샷으로 직접 본다.
+func _step_hud_no_tool() -> void:
+	_world.close_crafting_window()
+	_world._set_inventory_open(false)
+	_world._select_hotbar(4)
+	_player.position = Vector2.ZERO
+	_world.camera.global_position = Vector2.ZERO
+
+
+## room_with_table 스텝이 만들어둔 방(가공대 1개 = "제작소")을 방 오버레이 토글로 켜서
+## 색칠이 실제로 보이는지 확인한다. 토글 버튼을 실제로 누르는 대신(프로그램적으로
+## button_pressed만 바꾸면 toggled 시그널이 안 나갈 수 있음) 신호 콜백을 직접 부른다 —
+## 이 스크립트 전체가 이미 쓰고 있는 "private 함수 직접 호출" 패턴과 동일.
+func _step_room_overlay_view() -> void:
+	_player.position = _build_room_center_world
+	_world.camera.global_position = _build_room_center_world
+	_world._on_room_overlay_toggle_toggled(true)
+
+
+## 건설 해제 모드(X 토글)를 켜고 build_wall_placed가 설치해둔 벽 위에 마우스를 올려서
+## 빨간 하이라이트가 실제로 보이는지 확인한다.
+func _step_deconstruct_wall_highlight() -> void:
+	_world._on_room_overlay_toggle_toggled(false)  # 오버레이 색과 안 겹치게 끈다.
+	_player.position = BUILD_WALL_TEST_POS
+	_world.camera.global_position = BUILD_WALL_TEST_POS
+	_world._deconstruct_mode = true
+	_world.deconstruct_mode_panel.visible = true
+	await _point_build_mouse_at(_build_wall_cell)
+	await get_tree().process_frame  # _process()가 하이라이트를 갱신할 시간을 준다.
+
+
+## 하이라이트된 벽을 좌클릭 경로(_try_deconstruct_structure)로 실제 철거해서, 아이템이
+## 100% 환급되는지(#128 규칙) 인벤토리 개수로 확인한다.
+func _step_deconstruct_wall_removed() -> void:
+	var before_count: int = InventoryData.get_count("wood_wall")
+	_world._try_deconstruct_structure()
+	print("deconstruct_wall_removed: wood_wall before=", before_count,
+			" after=", InventoryData.get_count("wood_wall"),
+			" cell_still_occupied=", _world._grid_occupancy.has(_build_wall_cell))
+
+
+## room_chest_craft_start가 만들어둔 상자(_build_chest, wood가 들어있어 비어있지 않음)
+## 위에서 건설 해제를 시도한다. #130 규칙대로 내용물이 있는 상자는 철거가 막혀야 하므로,
+## 하이라이트는 보이되 클릭해도 상자가 그대로 남아있어야 한다(회귀 없음 확인).
+func _step_deconstruct_chest_blocked() -> void:
+	Input.warp_mouse(get_viewport().get_visible_rect().size / 2)
+	_player.position = _build_chest.global_position
+	_world.camera.global_position = _build_chest.global_position
+	await get_tree().process_frame
+	await get_tree().process_frame  # 하이라이트 갱신 대기.
+	_world._try_deconstruct_structure()
+	print("deconstruct_chest_blocked: chest still valid=", is_instance_valid(_build_chest),
+			" is_empty=", (_build_chest.is_empty() if is_instance_valid(_build_chest) else null))
+	# 이후 스텝(사냥/낮밤)에 빨간 하이라이트/해제 모드가 남아있지 않도록 정리한다.
+	_world._deconstruct_mode = false
+	_world.deconstruct_mode_panel.visible = false
+	_world._update_deconstruct_highlight()
 
 
 # ---- 사냥 ----
