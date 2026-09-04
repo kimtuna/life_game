@@ -42,6 +42,16 @@ const ITEM_ICONS := {
 	# 모래/구리광석(INBOX #103 아이템, INBOX #104 전용 그림) — 파이썬 절차적 생성.
 	"sand": preload("res://assets/sprites/items/sand.png"),
 	"copper_ore": preload("res://assets/sprites/items/copper_ore.png"),
+	# 강철/유리/구리 + 못/경첩/톱니바퀴/구리선/유리병(INBOX #105~#106 아이템, INBOX #107
+	# 전용 그림) — 파이썬 절차적 생성.
+	"steel": preload("res://assets/sprites/items/steel.png"),
+	"glass": preload("res://assets/sprites/items/glass.png"),
+	"copper": preload("res://assets/sprites/items/copper.png"),
+	"nail": preload("res://assets/sprites/items/nail.png"),
+	"hinge": preload("res://assets/sprites/items/hinge.png"),
+	"gear": preload("res://assets/sprites/items/gear.png"),
+	"copper_wire": preload("res://assets/sprites/items/copper_wire.png"),
+	"glass_bottle": preload("res://assets/sprites/items/glass_bottle.png"),
 }
 
 ## tree.png처럼 원본 아이콘 자체가 32px 규격이 아닌 경우에만 스프라이트 스케일을
