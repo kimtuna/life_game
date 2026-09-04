@@ -776,6 +776,30 @@ func _build_inventory_slots() -> void:
 	inventory_window.world_ref = self
 
 
+## 코드로 조립하는 팝업 창(가공대/저장 상자 등)의 PanelContainer가 쓸 불투명 배경
+## (INBOX #112 — `PanelContainer.new()`에 스타일을 안 넣으면 엔진 기본 테마의 패널
+## 스타일로 대체되는데, 이게 이 프로젝트 테마와 안 맞아 사실상 배경이 거의 안 보이는
+## 수준이었다. `world.tscn`의 인벤토리 창 `Panel`(StyleBoxFlat_pause_panel)과 같은
+## 값으로 맞춰서 재사용 — 새 색을 지어내지 않는다).
+func _make_window_panel_style() -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.157, 0.212, 0.184, 1)
+	style.border_width_left = 2
+	style.border_width_top = 2
+	style.border_width_right = 2
+	style.border_width_bottom = 2
+	style.border_color = Color(0.4, 0.49, 0.44, 1)
+	style.corner_radius_top_left = 14
+	style.corner_radius_top_right = 14
+	style.corner_radius_bottom_right = 14
+	style.corner_radius_bottom_left = 14
+	style.content_margin_left = 36.0
+	style.content_margin_top = 28.0
+	style.content_margin_right = 36.0
+	style.content_margin_bottom = 28.0
+	return style
+
+
 func _make_slot_style(bg: Color) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
 	style.bg_color = bg
@@ -865,6 +889,7 @@ func _build_crafting_window() -> void:
 	# INBOX #99: 레시피 줄에 수량 SpinBox+"제작 시작" 버튼이 추가되고 진행 상황/수령
 	# 버튼 섹션도 새로 생겨서 이전(380)보다 더 넓혀야 안 잘린다.
 	panel.custom_minimum_size = Vector2(460, 0)
+	panel.add_theme_stylebox_override("panel", _make_window_panel_style())
 	center.add_child(panel)
 
 	var vbox := VBoxContainer.new()
@@ -1065,6 +1090,7 @@ func _build_storage_window() -> void:
 
 	var panel := PanelContainer.new()
 	panel.custom_minimum_size = Vector2(420, 0)
+	panel.add_theme_stylebox_override("panel", _make_window_panel_style())
 	center.add_child(panel)
 
 	var vbox := VBoxContainer.new()
