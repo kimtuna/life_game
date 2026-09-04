@@ -25,14 +25,21 @@ const GatheringPointScene := preload("res://scenes/resource_point/gathering_poin
 const MiningPointScene := preload("res://scenes/resource_point/mining_point.tscn")
 const MiningPointStoneScene := preload("res://scenes/resource_point/mining_point_stone.tscn")
 const MiningPointSulfurScene := preload("res://scenes/resource_point/mining_point_sulfur.tscn")
+const MiningPointSandScene := preload("res://scenes/resource_point/mining_point_sand.tscn")
+const MiningPointCopperScene := preload("res://scenes/resource_point/mining_point_copper.tscn")
 const LoggingPointScene := preload("res://scenes/resource_point/logging_point.tscn")
 
-## 채광 포인트 종류별 스폰 가중치 (INBOX #84). DESIGN.md "예시 자원"이 "돌이 가장 흔하고
-## 철광석, 유황광석 순으로 희귀해짐"이라고만 정해서, 정확한 수치는 재량으로 정함.
+## 채광 포인트 종류별 스폰 가중치 (INBOX #84, #103으로 모래/구리광석 추가). DESIGN.md
+## "예시 자원"이 "돌이 가장 흔하고 철광석, 유황광석 순으로 희귀해짐"이라고만 정해서,
+## 정확한 수치는 재량으로 정함. 모래/구리광석은 강철/전기 테크의 기반 재료라 INBOX #103
+## 원문 제안대로 유황광석과 비슷한 비중으로 잡았다(모래는 조금 더 흔하게, 구리광석은
+## 조금 더 희귀하게).
 const MINING_POINT_WEIGHTS := [
-	{"scene": MiningPointStoneScene, "weight": 60.0},
-	{"scene": MiningPointScene, "weight": 30.0},
-	{"scene": MiningPointSulfurScene, "weight": 10.0},
+	{"scene": MiningPointStoneScene, "weight": 50.0},
+	{"scene": MiningPointScene, "weight": 25.0},
+	{"scene": MiningPointSulfurScene, "weight": 8.0},
+	{"scene": MiningPointSandScene, "weight": 10.0},
+	{"scene": MiningPointCopperScene, "weight": 7.0},
 ]
 const FarmPlotScene := preload("res://scenes/farm_plot/farm_plot.tscn")
 const RanchZoneScene := preload("res://scenes/ranch_zone/ranch_zone.tscn")
@@ -88,6 +95,8 @@ const ITEM_LABELS := {
 	"iron_ore": "철광석",
 	"stone": "돌",
 	"sulfur_ore": "유황광석",
+	"sand": "모래",
+	"copper_ore": "구리광석",
 	"wood": "나무",
 	"captured_deer": "포획된 사슴",
 	"meat": "고기",
@@ -119,6 +128,8 @@ const ITEM_CATEGORIES := {
 	"iron_ore": "원재료",
 	"stone": "원재료",
 	"sulfur_ore": "원재료",
+	"sand": "원재료",
+	"copper_ore": "원재료",
 	"wood": "원재료",
 	"captured_deer": "가축",
 	"meat": "육류",

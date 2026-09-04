@@ -5,6 +5,52 @@
 
 ## 마지막 갱신
 
+바퀴 157 / 2026-09-04 ([BUILD] **INBOX #103 완료 — 필드 채광 포인트에 모래/구리광석
+2종을 추가해 5종 가중치 랜덤 스폰으로 확장했다.**)
+1) **아이템 등록**: `world.gd`의 `ITEM_LABELS`/`ITEM_CATEGORIES`에 `sand`(모래)/
+   `copper_ore`(구리광석)를 둘 다 "원재료"로 추가.
+2) **새 채광 포인트 씬 2개**: `scenes/resource_point/mining_point_sand.tscn`/
+   `mining_point_copper.tscn`을 #84가 만든 `mining_point_stone.tscn`/
+   `mining_point_sulfur.tscn`과 완전히 같은 구조(`resource_point.gd` 공용 스크립트,
+   `required_tool="pickaxe"`, `use_kind="mining"`)로 만들었다. 텍스처는 INBOX #103
+   원문 지시대로 이번 범위 밖이라 기존 광물 그림을 재사용했다 — 모래는
+   `mining_point_stone.png`, 구리광석은 `mining_point.png`(철광석) 텍스처를 그대로
+   쓰되 Sprite에 `modulate`(모래=베이지, 구리=붉은 갈색)만 다르게 줘서 임시로
+   구별했다(#84가 stone/sulfur_ore에 처음 썼던 것과 같은 패턴, 후속 [DESIGN] #104가
+   전용 그림으로 교체할 예정).
+3) **스폰 가중치**: `world.gd`의 `MINING_POINT_WEIGHTS`를 3종(돌60/철광석30/유황광석10)
+   에서 5종(돌50/철광석25/유황광석8/모래10/구리광석7)으로 확장했다 — INBOX #103
+   원문이 "유황광석과 비슷하거나 약간 흔한 정도를 제안"했으므로 모래는 유황광석보다
+   조금 흔하게, 구리광석은 조금 희귀하게 잡았다(스스로 판단, 근거는 코드 주석에도
+   남김).
+4) **드롭 아이템 표시**: `dropped_item.gd`의 `ITEM_ICONS`에 `sand`(stone.png 재사용)/
+   `copper_ore`(iron_ore.png 재사용)를 추가하고, 채광 포인트와 같은 색으로 보이도록
+   새 `ITEM_ICON_MODULATE` 딕셔너리(#84가 한 번 도입했다가 #86에서 전용 그림으로
+   교체되며 사라졌던 패턴을 다시 도입)로 `_ready()`에서 modulate를 적용했다 — 안 하면
+   바닥에 드롭됐을 때 아이콘이 아예 없어 투명하게 사라져 보이는 문제를 미리 막음
+   (#84 커밋 메시지에 남겨진 것과 동일한 근거).
+5) **검증**: 새 QA 스크립트 `game/qa/mining_variety5_check.gd`(커밋, 재사용 가능,
+   `mining_variety_check.gd`의 5종 확장판 — 기존 3종 스크립트는 그대로 보존)를
+   `project.godot [autoload]`에 임시 등록하고 `godot --path .`(실제 렌더링)로 실행:
+   (a) `ITEM_LABELS`/`ITEM_CATEGORIES`에 두 아이템이 "원재료"로 정상 등록됨,
+   (b) `_pick_mining_point_scene()`을 2000회 굴려 5종 전부(`{stone:988, iron_ore:515,
+   sulfur_ore:162, sand:195, copper_ore:140}`) 나옴을 확인, (c) 5종을 각각 직접
+   배치해서 캤을 때 정확히 그 아이템이 인벤토리에 들어감을 확인, (d) 모래/구리광석
+   채광 포인트를 필드에 놓고 스크린샷(`/tmp/qa103/field_sand.png`,
+   `field_copper_ore.png`)을 Read 도구로 직접 봐서 베이지색/붉은 갈색으로 기존
+   돌(회색)/철광석/유황광석(노란빛)과 실루엣은 같지만 색으로 뚜렷이 구별되고, HUD
+   인벤토리 라벨("모래 x1", "구리광석 x1")도 정상 표시됨을 확인 — 콘솔에
+   `QA_MINING_VARIETY5_CHECK_PASS` 출력. 검증 후 `project.godot`의 임시 autoload
+   등록을 원상복구하고 `diff <(git show HEAD:game/project.godot) game/project.godot`로
+   완전히 동일함을 확인했다(커밋 대상은 새 파일 3개 + `world.gd`/`dropped_item.gd`
+   두 파일 수정뿐).
+6) `docs/feedback/INBOX.md`의 `#103`을 `[x]`로 갱신. **BUILD/DESIGN 완료 카운터**:
+   #112(BUILD) 시점 4였던 것이 이번(#103, BUILD)으로 **5**에 도달 — 규칙대로
+   `[QA] 전체 스윕` 항목을 새 번호 `#113`으로 INBOX 큐 끝(취소된 항목 앞)에 추가하고
+   카운터를 0으로 리셋했다.
+
+## 지난 바퀴 기록 (바퀴 156, 그대로 보존)
+
 바퀴 156 / 2026-09-04 ([BUILD] **INBOX #112 완료 — 저장 상자/가공대/제련로/조리대/
 조리용 화로 5개 창을 열면 플레이어가 창 패널 위에 겹쳐 그려지던 버그를 고쳤다.**
 원인은 CanvasLayer 순서가 아니었다(#75가 이미 "CanvasLayer는 정상 동작, 반투명
@@ -3160,6 +3206,14 @@ grep으로 이 심볼들이 world.gd 밖(resource_point.gd 등)에서 쓰이지 
 
 ## 끝난 것 (지금까지의 스냅샷 — 바퀴별 상세 이력은 git 커밋 메시지 `[INBOX #N] ...`에 있음)
 
+- INBOX #103 완료 (바퀴 157, BUILD): 위 "마지막 갱신" 참고. 채광 포인트를 돌/철광석/
+  유황광석 3종에서 모래/구리광석을 더한 5종으로 확장(가중치 50/25/8/10/7). 두
+  아이템을 `ITEM_LABELS`/`ITEM_CATEGORIES`("원재료")에 추가하고, `mining_point_sand.
+  tscn`/`mining_point_copper.tscn`을 #84와 같은 구조로 신설, 텍스처는 기존 광물
+  그림+modulate 임시 처리(전용 그림은 후속 [DESIGN] #104). `game/qa/
+  mining_variety5_check.gd`로 분포/스폰/채광 전체 경로 + 색 구분 스크린샷 검증.
+  **BUILD/DESIGN 완료 카운터가 5에 도달해 `[QA] 전체 스윕` 항목(#113)을 자동으로
+  큐에 추가하고 0으로 리셋함.**
 - INBOX #112 완료 (바퀴 156, BUILD): 위 "마지막 갱신" 참고. 저장 상자/가공대/제련로/
   조리대/조리용 화로 5개 창의 `PanelContainer`에 불투명 스타일
   (`_make_window_panel_style()`)을 명시해, 스타일이 없어 사실상 배경이 안 보이던
@@ -3411,15 +3465,22 @@ grep으로 이 심볼들이 world.gd 밖(resource_point.gd 등)에서 쓰이지 
 
 ## 다음에 할 것
 
-- **(2026-09-04 갱신, 바퀴 156) INBOX #112([BUILD]) 완료 — 5개 창 패널 위에
-  플레이어가 겹쳐 그려지던 버그 수정.** 위 "마지막 갱신" 참고. **INBOX에 남은
-  미완료 항목(번호 순, 전부 #112 이후): `#103`([BUILD] 모래/구리광석 채광 포인트,
-  다음 BUILD 차례) → `#104`([DESIGN], #103 완료 후) → `#105`/`#106`(BUILD, 제련로·
+- **(2026-09-04 갱신, 바퀴 157) INBOX #103([BUILD]) 완료 — 채광 포인트 5종(모래/
+  구리광석 추가) 확장.** 위 "마지막 갱신" 참고. **INBOX에 남은 미완료 항목(번호 순):
+  `#104`([DESIGN] 모래/구리광석 전용 그림, 다음 차례) → `#105`/`#106`(BUILD, 제련로·
   가공대 레시피 확장) → `#107`(DESIGN) → `#108`~`#110`(BUILD, 강철 도구/건축/전기
-  계열) → `#111`(DESIGN).** **BUILD/DESIGN 완료 카운터**: #98에서 5 도달로 0
-  리셋된 뒤 #99=1→#100=2→#101=3→(#102는 QA라 미반영, 3 유지)→#112(BUILD)=**4**,
-  5 도달까지 1개 남음 — 다음 BUILD/DESIGN 항목(`#103`) 하나가 더 끝나면 QA 전체
-  스윕 항목이 자동으로 큐에 추가된다.
+  계열) → `#111`(DESIGN) → `#113`([QA] 전체 스윕, 아래 참고).** **BUILD/DESIGN 완료
+  카운터**: #112(BUILD)=4였던 것이 이번 #103(BUILD)으로 **5에 도달** → 규칙대로
+  `#113`([QA] 전체 스윕)을 큐에 추가하고 카운터를 **0**으로 리셋했다. 다음 QA
+  하네스가 `#113`을 처리할 때 `game/qa/full_sweep.gd`(바퀴 155가 저장 상자/가공대/
+  제련로/조리대/조리용 화로 창까지 스텝을 추가해둔 버전)를 재사용하되, 이번에 새로
+  생긴 모래/구리광석 채광 포인트를 실제로 캐보는 스텝도 하나 추가하면 좋다(INBOX
+  #113 원문에 이미 이렇게 적어뒀음).
+- **(신규, 바퀴 157) `game/qa/mining_variety5_check.gd`(#103이 만든 5종 채광 검증
+  스크립트, `mining_variety_check.gd`의 확장판)를 재사용할 때 참고**: `_pick_mining_
+  point_scene()`을 2000회 굴려 5종 전부가 나오는지 확인하는 방식은 표본이 충분히
+  커야 희귀 종(가중치 7~8)이 우연히 안 나오는 flaky 실패를 피할 수 있다 — 표본을
+  더 줄이지 말 것.
 - **(신규, 바퀴 155) `game/qa/inventory_safety_check.gd`를 재사용할 때 참고**: 이
   스크립트는 인벤토리 18칸을 필러로 완전히 채우는 방식으로 "공간 없음"을 만드는데,
   **한 체크가 끝난 뒤 다음 체크를 위해 또 다른 prefix로 다시 "완전히 채우려" 하면,

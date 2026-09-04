@@ -39,12 +39,25 @@ const ITEM_ICONS := {
 	# 같은 96x128 tree.png를 재사용한다 — 다른 아이템과 화면 크기가 맞도록 아래
 	# ITEM_ICON_SCALE_OVERRIDES에서만 별도로 축소한다(새 그림을 만들지 않음).
 	"wood": preload("res://assets/sprites/logging_point/tree.png"),
+	# 모래/구리광석(INBOX #103) 전용 아이콘은 아직 없다 — 기존 돌/철광석 아이콘을
+	# 재사용하고 ITEM_ICON_MODULATE로 색만 다르게 임시 처리한다(#84가 stone/sulfur_ore에
+	# 썼던 것과 같은 패턴). 실제 그림은 후속 [DESIGN] #104.
+	"sand": preload("res://assets/sprites/items/stone.png"),
+	"copper_ore": preload("res://assets/sprites/items/iron_ore.png"),
 }
 
 ## tree.png처럼 원본 아이콘 자체가 32px 규격이 아닌 경우에만 스프라이트 스케일을
 ## 덮어쓴다(다른 아이템은 씬 기본 scale=0.9를 그대로 쓴다).
 const ITEM_ICON_SCALE_OVERRIDES := {
 	"wood": Vector2(0.34, 0.34),
+}
+
+## mining_point_sand.tscn/mining_point_copper.tscn의 Sprite modulate와 같은 색으로
+## 맞춰서, 바닥에 떨어진 드롭 아이템도 채광 포인트에서 캔 것과 같은 색으로 보이게 한다
+## (INBOX #84가 도입한 임시 처리 패턴 재사용).
+const ITEM_ICON_MODULATE := {
+	"sand": Color(0.87, 0.78, 0.58, 1),
+	"copper_ore": Color(0.85, 0.45, 0.3, 1),
 }
 
 @export var item_name: String = ""
@@ -63,6 +76,8 @@ func _ready() -> void:
 		sprite.texture = ITEM_ICONS[item_name]
 	if ITEM_ICON_SCALE_OVERRIDES.has(item_name):
 		sprite.scale = ITEM_ICON_SCALE_OVERRIDES[item_name]
+	if ITEM_ICON_MODULATE.has(item_name):
+		sprite.modulate = ITEM_ICON_MODULATE[item_name]
 
 
 func _process(_delta: float) -> void:
