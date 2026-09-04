@@ -27,19 +27,19 @@
 </head>
 <body>
   <h1>auto-loop 진행 상황</h1>
-  <p class="updated">마지막 갱신: 2026-09-05 04:23:43</p>
+  <p class="updated">마지막 갱신: 2026-09-05 04:29:43</p>
   
   <div class="row">
-    <div class="card"><div class="label">남은 항목</div><div class="num">4</div></div>
-    <div class="card"><div class="label">완료된 항목</div><div class="num">125</div></div>
+    <div class="card"><div class="label">남은 항목</div><div class="num">3</div></div>
+    <div class="card"><div class="label">완료된 항목</div><div class="num">126</div></div>
   </div>
   <div class="card">
     <div class="label">지금 처리 중 / 다음으로 처리할 항목</div>
-    <div>#127 [BUILD] (버그 리포트/UI 정리, 사용자 지시 2026-09-05) 왼쪽 위 HUD를 정리한다. 1) `world.gd:291`의 `AmmoPanel`(`$UI/HUD/AmmoPanel/AmmoLabel`)은 지금 상시 표시되는데, **플레이어가 총을 손에 들고 있을 때만 보이고 다른 도구를 들거나 빈손이면 숨긴다**(총을 다시 들면 다시 보이게). 2) `world.gd:292`의 `InventoryPanel`(`$UI/HUD/InventoryPanel/InventoryLabel`, 상시 요약 표시)은 **완전히 제거한다** — 플레이어는 이미 E키로 여는 인벤토리 창(#21)이 있으니 상시 HUD 요약은 불필요하다는 사용자 판단. 인벤토리 패널을 지운 뒤 남은 HUD 요소(TimePanel/NetPanel/HotbarBar 등)의 레이아웃이 깨지지 않는지(빈 공간이 어색하게 남거나 겹치지 않는지) 스크린샷으로 확인한다.</div>
+    <div>#128 [BUILD] (사용자 지시 2026-09-05) "건설 해제" 모드를 만든다. **X키**를 누르면 건설 해제 모드가 켜지고, 다시 누르면 꺼진다(배치 모드처럼 우클릭이 아니라 X 토글로 켜고 끔 — 배치 모드와 건설 해제 모드는 동시에 켜질 수 없으니, 한쪽이 켜질 때 다른 쪽은 자동으로 꺼지게 한다). 건설 해제 모드가 켜져 있는 동안: 1) 기존 배치 고스트와 같은 방식으로 마우스 아래 가장 가까운 격자 칸을 계산하고, **그 칸에 철거 가능한 설치물(이번 항목 범위: `_grid_occupancy`에 들어있는 벽/문/창문류 전부)이 있으면 그 오브젝트를 반투명 빨간색으로 덧칠**해서 "이걸 클릭하면 삭제된다"는 걸 플레이어가 미리 알 수 있게 한다(빈 칸이면 아무 표시 없음). 2) 그 상태에서 좌클릭하면 해당 오브젝트가 철거되어 대응하는 아이템(예: `wood_wall`)이 인벤토리에 1개 들어온다(가득 차 있으면 #24의 바닥 드롭 패턴 재사용, 100% 환급 — 손실 없음). `_grid_occupancy`(`world.gd:125`)에서 칸을 제거하고 노드를 `queue_free()`하며, 방 감지 재계산(#122, `world.gd:922` 근처)을 설치 때와 동일하게 트리거한다. 문은 열려있든 닫혀있든 철거 가능해야 한다. 건설 해제 모드가 꺼져 있을 때는 기존 동작(도구별 좌클릭 등)이 전혀 변하지 않아야 한다(회귀 없음). 실제로 X로 모드를 켜고 벽 위에 마우스를 올려 빨간색이 보이는지, 클릭해서 철거 후 인벤토리 개수가 원래대로 돌아오는지, 문 철거도 동일하게 동작하는지, 철거 후 방 감지가 올바르게 갱신되는지(방이었던 곳이 벽 하나 철거로 더 이상 방으로 인식 안 되는지), X를 다시 눌러 모드를 끄면 빨간 하이라이트가 사라지고 평소처럼 좌클릭이 도구 동작을 하는지 확인한다.</div>
   </div>
   <div class="card">
     <div class="label">마지막 작업 커밋</div>
-    <div><code>d5b6302 [INBOX #126] 방(Room) 오버레이 UI(산소미포함 스타일 반투명 격자 색칠 토글) 추가</code></div>
+    <div><code>d48dea3 [INBOX #127] 왼쪽 위 HUD 정리 — AmmoPanel은 총을 들었을 때만 표시, InventoryPanel 완전 제거</code></div>
   </div>
   <div class="card">
     <div class="label">디자인 개선 후보 (확인 후 지우기를 누르면 이 브라우저에서 안 보입니다)</div>
