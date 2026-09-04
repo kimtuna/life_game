@@ -299,6 +299,8 @@ const STATE_BROADCAST_INTERVAL := 0.1
 @onready var time_label: Label = $UI/HUD/TimePanel/TimeLabel
 @onready var net_panel: PanelContainer = $UI/HUD/NetPanel
 @onready var net_label: Label = $UI/HUD/NetPanel/NetLabel
+@onready var room_overlay_toggle: Button = $UI/HUD/RoomOverlayToggle
+@onready var room_overlay: RoomOverlay = $RoomOverlay
 @onready var day_night_modulate: CanvasModulate = $DayNightModulate
 @onready var rain_overlay: ColorRect = $UI/RainOverlay
 @onready var ui_layer: CanvasLayer = $UI
@@ -412,6 +414,8 @@ func _ready() -> void:
 	_update_time_label()
 	rain_overlay.visible = TimeData.is_raining
 	_setup_networking()
+	room_overlay.setup(self, BUILD_GRID_SIZE)
+	room_overlay_toggle.toggled.connect(_on_room_overlay_toggle_toggled)
 
 
 func _process(delta: float) -> void:
@@ -1865,6 +1869,11 @@ func _on_settings_pressed() -> void:
 func _on_quit_pressed() -> void:
 	NetworkSession.leave()
 	get_tree().change_scene_to_file("res://scenes/main_menu/main_menu.tscn")
+
+
+## 방 오버레이 토글(INBOX #126, 산소미포함 참고) — HUD 우상단 버튼.
+func _on_room_overlay_toggle_toggled(pressed: bool) -> void:
+	room_overlay.set_active(pressed)
 
 
 ## 멀티플레이 세션(INBOX #14)이 열려 있으면(NetworkSession.host_room/join_room을 거쳐
