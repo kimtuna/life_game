@@ -28,6 +28,18 @@ extends Node
 ## 추가한 모래/구리광석 채광 포인트를 실제로 캐보는 경로가 스윕에 없었다 —
 ## mining_variety5_check.gd(#103)와 같은 방식으로 mining_point_sand.tscn/
 ## mining_point_copper.tscn을 직접 인스턴스화해서 확실히 검증한다.
+##
+## (INBOX #124 QA 전체 스윕) build_wall_ghost/build_wall_placed/build_door_ghost/
+## build_door_closed/build_door_open/room_with_table/room_chest_craft_start/
+## room_chest_craft_collect 여덟 스텝을 추가했다. #119~#123(격자 건축 배치/방 감지/
+## 방-상자 자동 연동)이 만들어진 뒤에도 이 스윕이 그 경로를 한 번도 실제로 지나가 본
+## 적이 없었다 — inbox119~123_check.gd(BUILD 세션이 스스로 짠 검증 스크립트)는 전부
+## 있었지만 자기 채점이라 QA로서는 별도로 직접 눈으로/UI 클릭 경로로 확인해야 한다.
+## 특히 room_chest_craft_start는 `start_batch()`를 코드로 직접 부르지 않고 실제
+## "제작 시작" `Button`을 찾아 `.pressed.emit()`으로 눌러서, #123 완료 시점에
+## STATUS.md가 "실제 제작 UI 클릭까지는 확인 안 함"이라고 남긴 미검증 경로를 메운다.
+## 마우스 좌표 기준 배치이므로 inbox119~123_check.gd와 같은 "카메라를 옮겨서 마우스가
+## 특정 격자 칸 위에 있는 것처럼 만드는" 고정 오프셋 트릭을 그대로 재사용한다.
 
 const OUT_DIR := "/tmp/qa67"
 
@@ -77,6 +89,14 @@ func _ready() -> void:
 		"logging_point_idle",
 		"logging_point_harvest",
 		"ranch_zone",
+		"build_wall_ghost",
+		"build_wall_placed",
+		"build_door_ghost",
+		"build_door_closed",
+		"build_door_open",
+		"room_with_table",
+		"room_chest_craft_start",
+		"room_chest_craft_collect",
 		"hunting_aim",
 		"hunting_hit",
 		"world_night",
@@ -144,6 +164,14 @@ func _run_step(name: String) -> void:
 		"logging_point_idle": _step_logging_point_idle()
 		"logging_point_harvest": _step_logging_point_harvest()
 		"ranch_zone": await _step_ranch_zone()
+		"build_wall_ghost": await _step_build_wall_ghost()
+		"build_wall_placed": _step_build_wall_placed()
+		"build_door_ghost": await _step_build_door_ghost()
+		"build_door_closed": _step_build_door_closed()
+		"build_door_open": _step_build_door_open()
+		"room_with_table": await _step_room_with_table()
+		"room_chest_craft_start": await _step_room_chest_craft_start()
+		"room_chest_craft_collect": _step_room_chest_craft_collect()
 		"hunting_aim": _step_hunting_aim()
 		"hunting_hit": _step_hunting_hit()
 		"world_night": _step_world_night()
@@ -508,6 +536,175 @@ func _step_ranch_zone() -> void:
 	_world.camera.global_position = _player.position
 	zone._release_one()
 	await get_tree().process_frame
+
+
+# ---- 건축(격자 배치)/문/방 감지/방-상자 자동 연동 (INBOX #124가 새로 추가) ----
+# 잔디 범위(대략 ±4000, 위 mining_point 주석 참고) 안에서 다른 스텝들의 좌표(원점 근처,
+# ISOLATED_SPAWN_POS=(2500,2500))와 겹치지 않는 두 구역을 쓴다: 단독 벽/문 시험용과
+# 방(4면 벽) 시험용을 충분히 떨어뜨려 둔다.
+const BUILD_WALL_TEST_POS := Vector2(-3200, -3400)
+const BUILD_ROOM_TEST_POS := Vector2(-3200, -2600)
+
+## 이전 스텝들(도구 지급/농사/목장 등)이 이미 핫바 0~3번(총/도끼/곡괭이낫/낚싯대,
+## _ensure_starting_tools 순서)과 그 뒤 몇 칸(rice_seed/iron_ore/rice/wood/captured_deer
+## 등)을 채워놓은 상태라, `InventoryData.add_item()`으로 wood_wall/wood_door를 추가하면
+## 첫 시도에서 핫바 밖(인덱스 9 이상)에 들어가 `_select_hotbar()`가 조용히 실패하고
+## 여전히 이전 도구(gun)를 든 채로 남는 버그를 겪었다(실제로 재현: 벽/문이 전혀
+## 설치되지 않음). 핫바 마지막 칸(8번)을 이 QA 스텝들이 배치 아이템 전용으로 강제
+## 점유해서 확실하게 만든다 — 0~3번(도구)은 절대 건드리지 않아 이후 사냥 스텝이
+## 여전히 정상 동작한다.
+const BUILD_HOTBAR_SLOT := 8
+
+var _build_mouse_offset := Vector2.ZERO
+var _build_wall_cell: Vector2i
+var _build_door_cell: Vector2i
+var _build_room_center_cell: Vector2i
+var _build_room_center_world: Vector2
+var _build_table: Node = null
+var _build_chest: Node = null
+
+
+func _hold_build_item(item: String, amount: int) -> void:
+	# 슬롯 형식은 {"item": String, "count": int} — InventoryData._general_slots 문서
+	# 주석 참고("amount"가 아니라 "count").
+	InventoryData._general_slots[BUILD_HOTBAR_SLOT] = {"item": item, "count": amount}
+	InventoryData._save()
+	_world._select_hotbar(BUILD_HOTBAR_SLOT)
+
+
+## 마우스 자체를 움직이지 않고, 지금 마우스가 가리키는 화면 위치와 카메라 사이의
+## 오프셋을 고정해둔 뒤 카메라를 옮겨서 "마우스가 특정 격자 칸 위에 있는 것"처럼
+## 만든다(inbox119~123_check.gd와 동일한 트릭, STATUS.md 결정 로그 바퀴173 참고).
+## 호출 직전에 카메라 위치를 옮겼다면, get_global_mouse_position()이 그 변화를
+## 반영하도록 먼저 프레임을 하나 기다려야 한다(inbox119_check.gd 패턴 — 이걸 빠뜨려서
+## 처음엔 옛(한 프레임 전) 카메라 위치 기준으로 오프셋이 계산돼 이후 모든 배치 좌표가
+## 체계적으로 어긋나는 버그를 겪었다).
+func _capture_build_mouse_offset() -> void:
+	# 실제 OS 마우스 커서 위치는 예측 불가능해서(원래 트릭은 그 임의 위치를 기준으로
+	# 카메라를 옮기므로, 논리 검증에는 문제없지만 화면 캡처는 매번 카메라가 엉뚱한
+	# 곳으로 튀어 벽/문이 화면 밖으로 나가버렸다) 마우스를 뷰포트 정중앙으로 미리
+	# 고정시켜(offset이 항상 0이 되게) 카메라가 항상 배치 대상 칸을 정확히 중앙에
+	# 두도록 만든다 — 논리(정확한 칸 계산)와 화면 캡처(눈으로 볼 수 있는 위치) 둘 다
+	# 만족시키기 위함.
+	Input.warp_mouse(get_viewport().get_visible_rect().size / 2)
+	await get_tree().process_frame
+	var mouse_before: Vector2 = _world.get_global_mouse_position()
+	_build_mouse_offset = mouse_before - _world.camera.global_position
+
+
+## Camera2D의 global_position 변경분이 get_global_mouse_position()에 곧바로 반영되지
+## 않고 한 프레임 지연되는 것을 처음엔 놓쳐서(inbox119_check.gd의 `await
+## get_tree().process_frame`을 빠뜨림) 벽/문이 전혀 설치되지 않는 버그를 겪었다 —
+## 이 함수를 반드시 await로 호출할 것.
+func _point_build_mouse_at(cell: Vector2i) -> void:
+	var target_world: Vector2 = _world._grid_to_world_center(cell)
+	_world.camera.global_position = target_world - _build_mouse_offset
+	await get_tree().process_frame
+
+
+func _step_build_wall_ghost() -> void:
+	_player.position = BUILD_WALL_TEST_POS
+	_world.camera.global_position = BUILD_WALL_TEST_POS
+	await _capture_build_mouse_offset()
+	_hold_build_item("wood_wall", 1)
+	_build_wall_cell = _world._world_to_grid(BUILD_WALL_TEST_POS) + Vector2i(2, 0)
+	await _point_build_mouse_at(_build_wall_cell)
+
+
+func _step_build_wall_placed() -> void:
+	_world._try_place_structure()
+	print("build_wall_placed: grid_occupancy has cell = ", _world._grid_occupancy.has(_build_wall_cell))
+
+
+func _step_build_door_ghost() -> void:
+	_hold_build_item("wood_door", 1)
+	_build_door_cell = _build_wall_cell + Vector2i(2, 0)  # 벽과 떨어뜨려 문 고스트만 단독으로 보이게
+	await _point_build_mouse_at(_build_door_cell)
+
+
+func _step_build_door_closed() -> void:
+	_world._try_place_structure()
+	var door = _world._grid_occupancy.get(_build_door_cell)
+	print("build_door_closed: door placed = ", door != null, " is_open = ", (door.is_open if door != null else null))
+
+
+func _step_build_door_open() -> void:
+	var door = _world._grid_occupancy.get(_build_door_cell)
+	if door == null:
+		print("build_door_open: 문이 설치되지 않아 토글을 건너뜀 (직전 스텝 실패)")
+		return
+	door._toggle()
+	print("build_door_open: is_open now = ", door.is_open)
+
+
+## 벽 4개로 완전히 둘러싼 칸 하나를 만들고 가공대를 넣어 "제작소"로 인식되는지 확인한다
+## (inbox122_check.gd의 검증 로직을 그대로 재사용하되, 이번엔 그 결과를 실제
+## 스크린샷으로도 눈으로 본다 — 논리 검증과 그림 검증은 다른 것이므로 QA가 따로 본다).
+func _step_room_with_table() -> void:
+	_build_room_center_cell = _world._world_to_grid(BUILD_ROOM_TEST_POS) + Vector2i(3, 3)
+	_build_room_center_world = _world._grid_to_world_center(_build_room_center_cell)
+	_hold_build_item("wood_wall", 4)
+	for dir in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+		await _point_build_mouse_at(_build_room_center_cell + dir)
+		_world._try_place_structure()
+
+	var table: Node2D = load("res://scenes/processing_table/processing_table.tscn").instantiate()
+	table.global_position = _build_room_center_world
+	table.player_ref = _player
+	table.world_ref = _world
+	_world.add_child(table)
+	_build_table = table
+	_world._recompute_rooms()
+
+	_player.position = _build_room_center_world
+	_world.camera.global_position = _build_room_center_world
+
+	var room_id: int = _world.get_room_id_at(_build_room_center_world)
+	print("room_with_table: room_id=", room_id, " category=", _world.get_room_category(room_id))
+
+
+## STATUS.md #123 "다음에 할 것"이 남긴 미검증 경로: start_batch()를 코드로 직접
+## 부르는 대신, 실제 제작 창의 "제작 시작" `Button` 노드를 찾아 `.pressed.emit()`으로
+## 눌러서 그 클릭 경로 자체가 방-상자 자동 연동과 함께 정상 동작하는지 확인한다.
+## 플레이어 인벤토리에는 재료(wood)를 전혀 넣지 않고, 같은 방의 상자에만 넣어둔다.
+func _step_room_chest_craft_start() -> void:
+	InventoryData.remove_item("wood", InventoryData.get_count("wood"))
+
+	var chest: Node2D = load("res://scenes/storage_chest/storage_chest.tscn").instantiate()
+	chest.global_position = _build_room_center_world + Vector2(10, 10)
+	chest.player_ref = _player
+	chest.world_ref = _world
+	_world.add_child(chest)
+	chest.add_item("wood", 10)
+	_build_chest = chest
+
+	_world.open_crafting_window(_build_table.get_title(), _build_table.get_recipes(), _build_table)
+	# _refresh_crafting_window()가 이전(cooking_stove_open 등) 창의 레시피 줄을
+	# queue_free()로 지우는데, 이건 이번 프레임 끝에야 실제로 사라진다 — 지우자마자
+	# get_children()을 읽으면 아직 안 지워진 옛 줄이 인덱스 0에 남아있어 엉뚱한 버튼을
+	#누르게 된다(처음 시도에서 이 함정에 걸려 "클릭해도 재료가 안 줄어드는" 것처럼
+	# 보였다 — 게임 버그가 아니라 이 스크립트의 타이밍 실수였다). 프레임을 하나 기다려
+	# 옛 줄이 실제로 사라진 뒤에 새로 만들어진 레시피 줄만 남은 상태에서 찾는다.
+	await get_tree().process_frame
+	# processing_table.RECIPES[0] == {"inputs": {"wood": 2}, "output": "plank", "amount": 1}
+	# (world.gd._make_recipe_row가 레시피 순서대로 줄을 만들고, 마지막에 상태 줄을 붙임).
+	var row: Control = _world._crafting_list.get_child(0)
+	var button: Button = row.get_child(2)
+	print("room_chest_craft_start: row_child_count=", _world._crafting_list.get_child_count(),
+			" button_text=", button.text,
+			" wood in inventory=", InventoryData.get_count("wood"),
+			" wood in chest(before)=", chest.get_count("wood"))
+	button.pressed.emit()
+	print("room_chest_craft_start: wood in chest(after click)=", chest.get_count("wood"),
+			" batch_active=", _build_table.is_batch_active())
+
+
+func _step_room_chest_craft_collect() -> void:
+	_build_table._advance_batch(CraftingStation.CRAFT_SECONDS_PER_UNIT)
+	_world._refresh_crafting_window()
+	var before_plank: int = InventoryData.get_count("plank")
+	_world._on_collect_pressed()
+	print("room_chest_craft_collect: plank before=", before_plank, " after=", InventoryData.get_count("plank"))
 
 
 # ---- 사냥 ----

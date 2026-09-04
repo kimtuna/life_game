@@ -5,6 +5,76 @@
 
 ## 마지막 갱신
 
+바퀴 177 / 2026-09-05 ([QA] **INBOX #124 완료 — 전체 스윕, 결함 0건.** 격자 건축
+배치(#119~#121)/방 감지(#122)/방-상자 자동 연동(#123)이 처음으로 실제 스크린샷과
+실제 UI 클릭 경로로 검증됨.)
+1) `game/qa/full_sweep.gd`(기존 재사용 가능 스크립트)에 8개 스텝을 추가했다:
+   `build_wall_ghost`/`build_wall_placed`/`build_door_ghost`/`build_door_closed`/
+   `build_door_open`/`room_with_table`/`room_chest_craft_start`/
+   `room_chest_craft_collect`. `inbox119~123_check.gd`(BUILD 세션이 스스로 짠
+   검증 스크립트, 논리만 확인하고 스크린샷은 안 찍음)는 있었지만 이 전체 스윕이
+   그 경로를 한 번도 실제로 지나가 본 적이 없었다 — 자기 채점 문제를 피하려면 QA가
+   독립적으로 확인해야 한다.
+2) **STATUS.md #123이 명시적으로 남긴 미검증 경로("start_batch()를 코드로 직접
+   불렀지 실제 제작 UI 클릭까지는 확인 안 함")를 이번에 메웠다**: `room_chest_craft_start`
+   스텝은 `start_batch()`를 직접 부르지 않고, 실제 제작 창의 "제작 시작" `Button`
+   노드를 찾아 `.pressed.emit()`으로 눌렀다. 방 안 상자에만 재료(wood 10개)를 넣고
+   플레이어 인벤토리는 비운 채로 버튼을 눌렀을 때 상자 wood가 10→8로 줄고
+   배치가 시작되며(`is_batch_active()=true`), 타이머를 강제로 진행시킨 뒤 "수령"
+   경로로 인벤토리에 판자 1개가 실제로 들어오는 것까지 스크린샷(`46_room_chest_craft_start.png`/
+   `47_room_chest_craft_collect.png`)으로 확인했다.
+3) 격자 배치(나무벽/나무문)와 방 감지도 실제 화면으로 확인: 벽 1개를 격자에 정확히
+   스냅해서 설치(`41_build_wall_placed.png`), 문을 설치 후 닫힘→열림 토글 시 스프라이트가
+   실제로 반투명+옆으로 밀린 모습으로 바뀌는 것(`43_build_door_closed.png` vs
+   `44_build_door_open.png`), 벽 4개로 둘러싼 칸에 가공대를 넣었을 때 `get_room_category()`가
+   "제작소"로 판정되는 것(`45_room_with_table.png`, 로그로도 `room_id=2 category=제작소`
+   확인)을 눈으로 봤다. 크기 비교: 벽/문 스프라이트는 플레이어(약 102px) 대비 화면에서
+   약 64~74px로, DESIGN.md "아이템/오브젝트 크기 표준"의 최소 32px 기준을 넉넉히 넘고
+   비율도 어색하지 않았다.
+4) **결함 0건** — 새 INBOX 항목을 추가하지 않았다(전체 스윕은 좁은 범위 QA와 달리
+   0건이어도 재확인 스윕을 다시 큐에 넣지 않음, DESIGN.md "하네스 구조" 참고).
+
+## 어려움 / 에러와 해결 (INBOX #124)
+
+- **QA 스크립트 자체의 버그를 3개 발견해 고쳤다(게임 코드 결함 아님)**:
+  (1) 카메라를 옮겨 마우스를 특정 격자 칸 위로 "이동"시키는 고정 오프셋 트릭
+  (`inbox119~123_check.gd` 패턴)에서 `await get_tree().process_frame`을 두 곳
+  모두(오프셋을 "캡처"하기 직전, 그리고 카메라를 옮긴 직후)에 넣어야 하는데 처음엔
+  하나만 넣어서 모든 배치 좌표가 체계적으로 어긋났다(요청한 칸과 실제 계산된 칸이
+  달라 벽/문이 전혀 설치되지 않음) — Camera2D의 `global_position` 변경이
+  `get_global_mouse_position()`에 반영되기까지 한 프레임이 걸린다는 걸 놓쳤던 것.
+  (2) `_general_slots`에 슬롯을 직접 써넣을 때 슬롯 딕셔너리 키를 `"amount"`로
+  잘못 썼다 — 실제 형식은 `{"item": String, "count": int}`(`inventory_data.gd` 주석
+  확인). (3) **가장 까다로웠던 함정**: 제작 창을 새로 열면 `_refresh_crafting_window()`가
+  이전 작업대의 레시피 줄들을 `queue_free()`로 지우는데, `queue_free()`는 그 프레임
+  끝에야 실제로 사라진다 — 지우자마자(`open_crafting_window()` 호출 직후) `_crafting_list.get_child(0)`을
+  읽으면 아직 안 사라진 **이전 작업대(cooking_stove)의 옛 레시피 줄**이 남아있어서
+  엉뚱한 버튼을 누르게 됐다("제작 시작을 눌러도 상자 재료가 안 줄어든다"처럼 보여서
+  처음엔 진짜 결함인 줄 알았다). `await get_tree().process_frame`을 한 번 더 넣어
+  옛 줄이 실제로 사라진 뒤에 새 레시피 줄을 찾도록 고쳐서 해결 — 이 세 가지 다음
+  바퀴가 비슷한 QA 스크립트를 짤 때 참고할 것(아래 결정 로그에도 남김).
+- **화면 캡처가 처음엔 전부 빈 화면(플레이어도 벽도 안 보임)으로 나왔다.** 원인:
+  마우스 오프셋 트릭이 실제 OS 마우스 커서의 (예측 불가능한) 위치를 기준으로 카메라를
+  계산해서, 논리적으로는 정확한 칸에 배치되지만 카메라가 화면에 아무것도 안 보이는
+  엉뚱한 곳으로 이동해버렸다. `Input.warp_mouse(get_viewport().get_visible_rect().size / 2)`로
+  마우스를 뷰포트 정중앙에 미리 고정시켜 오프셋을 0으로 만들어서, 카메라가 항상 배치
+  대상 칸을 정확히 화면 중앙에 두도록 고쳤다(논리 검증과 화면 캡처 둘 다 만족).
+- `user://` 저장 파일(캐릭터/인벤토리)이 이전 실행들 사이에 계속 남아있어서, 여러 번
+  다시 실행하는 동안 캐릭터 슬롯이 이미 채워진 상태로 시작되거나 인벤토리 슬롯
+  형식이 꼬여 `_refresh_hotbar()`에서 `Invalid access to property or key 'count'`
+  에러가 났다. 매 실행 전 `~/Library/Application Support/Godot/app_userdata/life_game/`의
+  `characters.save`/`inventory.save`를 지우고 시작해야 매번 진짜 "새 게임"과 같은
+  재현 가능한 상태가 된다 — 다음 바퀴도 이 스크립트를 재실행할 때 반드시 지우고 시작할 것.
+
+**다음에 할 것**: `#124`가 결함 0건으로 끝나서, 다음으로 미완료된 `[QA]`/`[BUILD]`/
+`[DESIGN]` 항목이 INBOX.md에 없다(전체 스윕 뒤에는 재확인 스윕을 다시 큐에 넣지
+않음). 다음 세션은 INBOX.md에 새 지시가 추가되기를 기다리거나, 사람이 새 항목을
+넣을 때까지 대기한다. `game/qa/full_sweep.gd`의 건축/방 관련 8개 스텝은 재사용
+가능한 상태로 남아있으니, 나중에 건축/방 시스템이 확장되면(예: 실제 배치 UI 미리보기
+품질, 더 많은 방 종류) 이 스텝들을 확장해서 쓸 것.
+
+## 지난 바퀴 기록 (바퀴 176, 그대로 보존)
+
 바퀴 176 / 2026-09-05 ([BUILD] **INBOX #123 완료 — 방-상자 자동 연동(제작대류가 같은
 방의 저장 상자 재료를 인식/소모)을 만들었다.**)
 1) `game/scenes/storage_chest/storage_chest.gd`에 `class_name StorageChest`를
