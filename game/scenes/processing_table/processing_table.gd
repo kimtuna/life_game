@@ -37,6 +37,14 @@ const RECIPES := [
 	{"inputs": {"steel": 3}, "output": "steel_pickaxe", "amount": 1},
 	{"inputs": {"steel": 3}, "output": "steel_axe", "amount": 1},
 	{"inputs": {"steel": 2}, "output": "steel_fishing_rod", "amount": 1},
+	## 강철 건축 완성품 + 창문 + 강철 갑옷 (INBOX #109). 재료는 최대 2종
+	## (DESIGN.md "생산 라인" 규칙). 강철 갑옷은 원단/가죽 출처가 아직 없어(DESIGN.md
+	## "가죽/직물" 보류 참고) 강철 단일 재료로만 만든다.
+	{"inputs": {"steel": 3, "nail": 1}, "output": "steel_wall", "amount": 1},
+	{"inputs": {"steel": 2, "hinge": 1}, "output": "steel_door", "amount": 1},
+	{"inputs": {"steel": 4, "nail": 2}, "output": "steel_chest", "amount": 1},
+	{"inputs": {"glass": 2, "nail": 1}, "output": "window", "amount": 1},
+	{"inputs": {"steel": 5}, "output": "steel_armor", "amount": 1},
 ]
 
 

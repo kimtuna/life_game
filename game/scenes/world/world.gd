@@ -126,6 +126,11 @@ const ITEM_LABELS := {
 	"steel_pickaxe": "강철곡괭이낫",
 	"steel_axe": "강철도끼",
 	"steel_fishing_rod": "강철낚싯대",
+	"steel_wall": "강철벽",
+	"steel_door": "강철문",
+	"steel_chest": "강철 상자",
+	"window": "창문",
+	"steel_armor": "강철 갑옷",
 }
 
 ## 아이템 키 -> 카테고리 (INBOX #83, DESIGN.md "아이템 카테고리 / 제작 테크" 절 참고).
@@ -170,6 +175,11 @@ const ITEM_CATEGORIES := {
 	"steel_pickaxe": "도구",
 	"steel_axe": "도구",
 	"steel_fishing_rod": "도구",
+	"steel_wall": "완성품",
+	"steel_door": "완성품",
+	"steel_chest": "완성품",
+	"window": "완성품",
+	"steel_armor": "완성품",
 }
 
 ## 도구 아이템(INBOX #22). 순서대로 핫바 시작 슬롯(1~4번 키)에 지급된다.
