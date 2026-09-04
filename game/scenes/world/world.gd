@@ -665,12 +665,15 @@ func _spawn_cooking_stove() -> void:
 	add_child(stove)
 
 
-## ⚠️ 테스트/개발 편의용 — 정식 게임 밸런스가 아니다 (INBOX #97, 사용자 지시 2026-09-04).
-## 크래프팅 재료를 채집/제작하지 않고도 가공대/제련로/조리대/조리용 화로 레시피를 바로
-## 테스트할 수 있도록, 스폰 상자에 카테고리별 재료 15종을 999개씩 미리 채워둔다. 도구
-## (gun/axe/pickaxe/fishing_rod)는 이미 무료 지급되고 captured_deer는 생포 전용이라 제외.
-## 나중에 실제 밸런스를 잡을 시점에는 이 자동 채우기를 없애거나 디버그 전용 빌드로 옮기는
-## 정리가 필요하다 — STATUS.md에도 같은 내용을 기록해뒀다.
+## ⚠️ 테스트/개발 편의용 — 정식 게임 밸런스가 아니다 (INBOX #97/#117, 사용자 지시
+## 2026-09-04/2026-09-05). 크래프팅 재료를 채집/제작하지 않고도 가공대/제련로/조리대/
+## 조리용 화로 레시피를 바로 테스트할 수 있도록, 스폰 상자에 41종을 999개씩 미리 채워둔다.
+## 무료 지급 기본 도구(gun/axe/pickaxe/fishing_rod)와 생포 전용 captured_deer는 제외하지만,
+## 제작 결과물인 강철 도구 3종(steel_pickaxe/steel_axe/steel_fishing_rod)은 포함한다.
+## **상시 규칙(INBOX #117 이후)**: 새 아이템 종류가 하나라도 추가되면, 그 아이템을 만든
+## 바퀴가 같은 바퀴 안에서 이 목록에도 추가해야 한다(loop/PROMPT_BUILD.md·PROMPT_DESIGN.md
+## ③ 참고). 나중에 실제 밸런스를 잡을 시점에는 이 자동 채우기를 없애거나 디버그 전용
+## 빌드로 옮기는 정리가 필요하다 — STATUS.md에도 같은 내용을 기록해뒀다.
 const DEBUG_STARTER_CHEST_AMOUNT := 999
 const DEBUG_STARTER_CHEST_ITEMS := [
 	# 원재료
@@ -681,10 +684,15 @@ const DEBUG_STARTER_CHEST_ITEMS := [
 	"meat",
 	# 가공물
 	"plank", "stone_block", "iron", "charcoal", "gunpowder",
+	"steel", "glass", "copper", "nail", "hinge", "gear", "copper_wire", "glass_bottle",
 	# 완성품
-	"ammo",
+	"ammo", "wood_wall", "wood_door", "stone_wall",
+	"steel_wall", "steel_door", "steel_chest", "window", "steel_armor",
+	"battery", "lamp", "generator", "water_pump",
 	# 가공식품
-	"cooked_rice", "cooked_meat",
+	"cooked_rice", "cooked_meat", "feed",
+	# 도구 (제작 결과물 — 무료 지급 기본 도구와는 별개, INBOX #117)
+	"steel_pickaxe", "steel_axe", "steel_fishing_rod",
 ]
 
 

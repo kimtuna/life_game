@@ -5,6 +5,49 @@
 
 ## 마지막 갱신
 
+바퀴 170 / 2026-09-05 ([BUILD] **INBOX #117 완료 — 테스트용 저장 상자에 #97 이후
+새로 추가된 아이템을 999개씩 채워 넣었다(원문이 나열한 26종 중 `sand`/`copper_ore`는
+#103/#104 처리 시점에 이미 다른 바퀴가 채워둔 상태였음을 확인해 실질적으로는 24종
+신규 추가, 목록 전체는 41종).**)
+1) `scenes/world/world.gd`의 `DEBUG_STARTER_CHEST_ITEMS`(INBOX #97이 만든 상수 배열)에
+   `steel`/`glass`/`copper`/`nail`/`hinge`/`gear`/`copper_wire`/`glass_bottle`(가공물),
+   `wood_wall`/`wood_door`/`stone_wall`/`steel_wall`/`steel_door`/`steel_chest`/`window`/
+   `steel_armor`/`battery`/`lamp`/`generator`/`water_pump`(완성품), `feed`(가공식품),
+   `steel_pickaxe`/`steel_axe`/`steel_fishing_rod`(도구, 제작 결과물이라 무료 지급 기본
+   도구 4종과는 별개로 포함)를 추가했다. `sand`/`copper_ore`는 INBOX #117 원문이 신규
+   26종에 포함시켰지만, 코드를 먼저 읽어보니 이미 목록에 있었다(#103/#104가 채광
+   포인트를 추가할 때 이 상시 규칙을 이미 지켜서 미리 채워둔 것으로 보임) — 중복
+   추가하지 않고 그대로 뒀다.
+2) 추가 전 `ITEM_LABELS`/`ITEM_CATEGORIES`(96/150번째 줄 부근)에 26개 키가 전부 이미
+   등록돼 있는지 grep으로 먼저 확인(오타/미등록 키를 상자에 채워 넣는 실수를 막기 위해)
+   — 전부 이미 있었다(각 항목을 만든 바퀴가 이미 등록해둠).
+3) 목록 위 설명 주석을 "재료 15종" → "41종"으로 갱신하고, "새 아이템이 추가되면 그
+   바퀴가 직접 이 목록에도 채워 넣어야 한다"는 상시 규칙(INBOX #117, DESIGN.md
+   "테스트용 저장 상자 자동 보급" 절)을 코드 주석에도 명시해뒀다(다음에 새 아이템을
+   추가하는 바퀴가 이 파일을 열었을 때 바로 보이도록).
+4) **검증**: 새 QA 스크립트 `game/qa/inbox117_check.gd`(커밋, 재사용 가능,
+   `unlimited_chest_check.gd`와 같은 패턴)를 작성해 `project.godot [autoload]`에
+   임시 등록하고 `godot --path .`(실제 렌더러)로 실행. (a) `DEBUG_STARTER_CHEST_ITEMS`
+   크기가 41인지, (b) 상자의 실제 슬롯에 41종 전부가 999개씩 들어있는지(하나씩 이름/
+   수량 대조), (c) INBOX #117 원문이 나열한 26개 이름을 별도로도 다시 대조, 세 가지
+   전부 `QA_INBOX117_CHECK_PASS`로 통과. 상자를 실제로 열어 스크린샷
+   (`/tmp/qa117/01_chest_open.png`)을 Read 도구로 직접 확인 — 스크롤 가능한 목록에
+   "벼 씨앗 x999", "철광석 x999" 등이 정상적으로 표시됨. 검증 후 `project.godot`의
+   임시 autoload 등록을 원상복구하고(`diff /tmp/project.godot.bak117 project.godot`로
+   완전히 동일함을 확인), 테스트 중 생성된 세이브 파일(`characters.save`/
+   `inventory.save`)도 삭제했다.
+5) `docs/feedback/INBOX.md`의 `#117`을 `[x]`로 갱신. **BUILD/DESIGN 완료 카운터**:
+   `#116`(BUILD) 완료 시점에 5 도달로 리셋되고 `#118 [QA] 전체 스윕`이 이미 큐에
+   등록돼 있었다 — 이번 `#117`(BUILD)로 카운터는 **1**이 됐다(5 도달까지 4개 남음).
+
+**다음에 할 것**: INBOX.md에 남은 항목은 `#118 [QA] 전체 스윕`(테스트 상자 용량
+무제한 변경(#116)과 아이템 41종 채우기(#117) 이후 회귀 여부 확인이 목적) 하나뿐이다
+— `[BUILD]` 미완료 항목이 없으므로 다음 `[BUILD]` 세션은 INBOX.md에 새 `[BUILD]`
+항목이 추가될 때까지 처리할 게 없다(loop.sh가 이 경우 세션을 새로 열지 않고 스스로
+종료한다).
+
+## 지난 바퀴 기록 (바퀴 169, 그대로 보존)
+
 바퀴 169 / 2026-09-05 ([BUILD] **INBOX #116 완료 — 테스트용 저장 상자를 용량 무제한으로
 바꿨다(슬롯 개수가 아이템 종류 수만큼 자동으로 늘어남).**)
 1) `scenes/storage_chest/storage_chest.gd`에 `unlimited: bool = false`(기본값) 변수를
