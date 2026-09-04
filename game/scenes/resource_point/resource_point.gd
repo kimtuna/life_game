@@ -1,5 +1,8 @@
 extends Node2D
+class_name ResourcePoint
 ## 채집 포인트/채광 포인트 공용 스크립트 (INBOX #10).
+## class_name은 INBOX #129에서 world.gd가 건축 겹침 검사 때 `is` 연산자로 이 타입의
+## 인스턴스를 식별하기 위해 추가됐다(기존엔 필요 없어서 없었음).
 ## INBOX #23부터는 F키 대신, `required_tool`로 지정된 도구를 손에 든 채로 좌클릭해야
 ## 동작한다. INBOX #25부터는 채집/채광 둘 다 곡괭이낫(pickaxe) 하나로 통일됐다
 ## (한때 채집=낫/채광=곡괭이로 나눴던 것을 다시 합침 — DESIGN.md 참고).

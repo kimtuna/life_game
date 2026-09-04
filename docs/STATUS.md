@@ -5,6 +5,64 @@
 
 ## 마지막 갱신
 
+바퀴 182 / 2026-09-05 ([BUILD] **INBOX #129 완료 — 건축 배치 겹침 검사를 벽/문
+전용 `_grid_occupancy`에서 밭/채집·채광 포인트/목장/상자/제작대류(가공대/제련로/
+조리대/조리용 화로)와 플레이어가 서 있는 칸까지 확장.**)
+1) 원인 확인: `world.gd`의 `_try_place_structure()`/`_update_build_ghost()`가 모두
+   `_grid_occupancy.has(cell)`(벽/문 전용 딕셔너리)만 확인해서, 같은 칸에 이미 다른
+   종류의 오브젝트가 있거나 플레이어가 서 있어도 벽/문을 겹쳐 설치할 수 있었다
+   (INBOX #129 원문이 실제로 확인한 버그).
+2) 새 함수 3개를 추가했다: `_is_cell_build_blocked(cell)`(기존 `_grid_occupancy`
+   확인 + 플레이어가 서 있는 칸 + 아래 2)이 찾은 다른 오브젝트들과의 겹침을 모두
+   확인), `_occupancy_footprint(node)`(오브젝트 종류별 절반 크기를 반환 —
+   `RanchZone`은 `ZONE_RADIUS+FENCE_THICKNESS/2`, `FarmPlot`/`ResourcePoint`/
+   `CraftingStation`은 각각 `Soil`/`Sprite`/`Sprite` 자식의 실제 텍스처 크기×scale,
+   `StorageChest`는 `Placeholder`(ColorRect) 크기 — 값을 새로 하드코딩하지 않고
+   이미 있는 시각 자산 크기를 그대로 재사용), `_rect_overlaps_cell(center,
+   half_extent, cell)`(AABB 겹침 판정). `_try_place_structure()`/
+   `_update_build_ghost()`의 `_grid_occupancy.has(cell)` 조건을
+   `_is_cell_build_blocked(cell)` 호출로 교체했다 — INBOX #129 원문이 요구한 대로
+   고스트 미리보기의 기존 빨간색 표시(`_build_ghost.modulate`)를 그대로 재사용한다.
+2-1) `resource_point.gd`에는 `class_name`이 아예 없어서(`FarmPlot`/`RanchZone`/
+   `StorageChest`/`CraftingStation`은 이미 있었음) `is ResourcePoint` 타입 검사가
+   불가능했다 — `class_name ResourcePoint`를 새로 추가했다. 새 class_name을 추가한
+   뒤에는 바로 실행하면 "Could not find type" 파싱 에러가 난다는 기존 결정 로그의
+   경고대로, `godot --headless --editor --quit-after 30`을 먼저 한 번 돌려 전역
+   클래스 캐시를 갱신하고 나서 실제 검증을 진행했다.
+3) 새 QA 스크립트 `game/qa/inbox129_check.gd`로 검증: 격리된 좌표(500000,500000
+   근방)에서 상자 하나(`StorageChestScene`)와 밭 하나(`FarmPlotScene`)를 직접
+   `instantiate()`해 특정 격자 칸에 놓고, `wood_wall`을 든 채 마우스 고정 오프셋
+   트릭(#119~#121/#128과 동일)으로 (a) 플레이어가 서 있는 칸, (b) 상자가 있는 칸,
+   (c) 밭이 있는 칸 각각에 실제 좌클릭을 시도해 셋 다 `_grid_occupancy`에 벽이
+   생기지 않고 인벤토리도 소모되지 않음을 확인했다. 대조군으로 (d) 아무것도 없는
+   먼 칸에는 여전히 정상적으로 벽이 설치되고 `wood_wall`이 정확히 1개 소모됨을
+   확인해 회귀가 없음을 검증했다. `project.godot`의 `[autoload]`에
+   `QAInbox129Check`를 임시 등록 → `godot --path .`(실제 렌더러)로 실행 →
+   `QA_INBOX129_CHECK_PASS`까지 4단계 전부 통과 → `project.godot` 원상복구(diff
+   없음 확인). 스크린샷 두 장(`/tmp/qa129/00_chest_blocked_ghost.png`,
+   `01_empty_cell_placed.png`)을 Read 도구로 직접 열어 확인 — 상자 칸 위 고스트가
+   작은 빨간 격자 아이콘으로 보이고(코드의 `modulate` 빨간색 경고와 일치), 빈 칸에는
+   벽이 정상적으로 작게(격자 16px 기준, #125 축소 결과 그대로) 놓임을 눈으로
+   재확인했다.
+4) 회귀 확인: 수정한 `_try_place_structure()`/`_update_build_ghost()`가 #128
+   (건설 해제 모드)과 상호작용하는 코드라서, `game/qa/inbox128_check.gd`를 다시
+   등록해 재실행 — 9개 체크 전부 그대로 통과함을 확인했다(방 재계산 포함).
+5) 이번 항목은 새 아이템 종류를 추가하지 않았으므로(순수 로직 수정) 테스트 상자
+   갱신은 필요 없다. `docs/feedback/INBOX.md`의 `#129`를 `[x]`로 갱신,
+   `game/qa/inbox129_check.gd`와 그 짝 `.uid`, 그리고 이전 바퀴가 커밋을 놓쳤던
+   `game/qa/inbox128_check.gd.uid`(#128 검증 때는 아직 생성되지 않았다가 이번에
+   전역 클래스 캐시 갱신 겸 재실행하면서 새로 생김)도 함께 커밋에 포함시켰다.
+   **BUILD/DESIGN 완료 카운터**: 직전 전체 스윕(`#124`) 이후 `#125`=1→`#126`=2→
+   `#127`=3→`#128`=4 → 이번 `#129`로 **5**에 도달했다 — ③ 규칙대로 전체 스윕
+   `[QA]` 항목(`#131`)을 새로 큐 끝에 추가하고 카운터를 0으로 리셋했다.
+
+**다음에 할 것**: 다음 미완료 항목은 `#130`([BUILD], #128 건설 해제 모드를 상자·
+제작대류·밭·목장까지 확장 — 상태가 있는 오브젝트라 각각 철거 가능 조건이 다름).
+그 뒤로 `#131`([QA] 전체 스윕, 이번 바퀴에 새로 추가됨)이 큐에 대기 중이다.
+BUILD/DESIGN 완료 카운터는 0(방금 리셋됨, `#131` 처리 후 다시 세기 시작).
+
+## 지난 바퀴 기록 (바퀴 181, 그대로 보존)
+
 바퀴 181 / 2026-09-05 ([BUILD] **INBOX #128 완료 — 건설 해제 모드(X 토글 + 빨간
 하이라이트 + 좌클릭 철거).**)
 1) **시작할 때 이전 바퀴가 이미 이 항목 대부분을 코드로 다 짜놓고 커밋 전에 죽어있는

@@ -844,7 +844,9 @@ func _create_build_ghost() -> void:
 
 
 ## 지금 손에 든 아이템이 설치 가능한 건축물이면, 마우스 아래 가장 가까운 격자 칸에
-## 반투명 미리보기를 표시한다. 이미 다른 건축물이 있는 칸이면 붉은색으로 경고한다.
+## 반투명 미리보기를 표시한다. 이미 다른 건축물/오브젝트가 있거나 플레이어가 서 있는
+## 칸이면 붉은색으로 경고한다(INBOX #129 — _is_cell_build_blocked()가 벽/문뿐 아니라
+## 밭/채집채광포인트/목장/상자/제작대류/플레이어 칸까지 함께 확인).
 func _update_build_ghost() -> void:
 	var item := get_held_item()
 	if _deconstruct_mode or _build_placement_cancelled or not BUILDABLE_STRUCTURES.has(item):
@@ -858,8 +860,68 @@ func _update_build_ghost() -> void:
 		_build_ghost.scale = Vector2(BUILD_GRID_SIZE, BUILD_GRID_SIZE) / tex_size
 	var cell := _world_to_grid(get_global_mouse_position())
 	_build_ghost.global_position = _grid_to_world_center(cell)
-	_build_ghost.modulate = Color(1.0, 0.35, 0.35, 0.55) if _grid_occupancy.has(cell) else Color(1.0, 1.0, 1.0, 0.55)
+	_build_ghost.modulate = Color(1.0, 0.35, 0.35, 0.55) if _is_cell_build_blocked(cell) else Color(1.0, 1.0, 1.0, 0.55)
 	_build_ghost.visible = true
+
+
+## 격자 칸 하나가 이미 다른 무언가로 점유돼 있는지 확인한다(INBOX #129). 기존
+## _grid_occupancy(벽/문 전용)뿐 아니라 (1) 플레이어가 지금 서 있는 칸, (2) 밭/채집·
+## 채광 포인트/목장/상자/제작대류(가공대/제련로/조리대/조리용 화로)까지 함께 본다.
+## 이 오브젝트들은 격자에 정확히 맞춰 배치돼 있지 않을 수 있으므로, 실제 시각적 크기
+## (스프라이트 텍스처 크기 × scale, 없으면 사각형 UI 크기)로 사각형 범위를 잡아서 그
+## 범위가 대상 칸과 조금이라도 겹치면 점유로 처리한다.
+func _is_cell_build_blocked(cell: Vector2i) -> bool:
+	if _grid_occupancy.has(cell):
+		return true
+	if _rect_overlaps_cell(player_sprite.global_position, Vector2(PLAYER_COLLISION_RADIUS, PLAYER_COLLISION_RADIUS), cell):
+		return true
+	for child in get_children():
+		var half_extent := _occupancy_footprint(child)
+		if half_extent == Vector2.ZERO:
+			continue
+		if _rect_overlaps_cell(child.global_position, half_extent, cell):
+			return true
+	return false
+
+
+## 위 _is_cell_build_blocked()가 확인할 오브젝트 종류별 절반 크기(월드 단위)를 반환한다.
+## 해당 종류가 아니거나 크기를 알 수 없으면 Vector2.ZERO(점유 판정 대상 아님).
+func _occupancy_footprint(node: Node) -> Vector2:
+	if node is RanchZone:
+		var r: float = RanchZone.ZONE_RADIUS + RanchZone.FENCE_THICKNESS / 2.0
+		return Vector2(r, r)
+	if node is FarmPlot:
+		return _node_visual_half_extent(node.get_node_or_null("Soil"))
+	if node is ResourcePoint:
+		return _node_visual_half_extent(node.get_node_or_null("Sprite"))
+	if node is StorageChest:
+		return _node_visual_half_extent(node.get_node_or_null("Placeholder"))
+	if node is CraftingStation:
+		return _node_visual_half_extent(node.get_node_or_null("Sprite"))
+	return Vector2.ZERO
+
+
+## Sprite2D(텍스처 크기 × scale)나 ColorRect(size)의 실제 화면 절반 크기를 구한다 —
+## 값을 새로 하드코딩하지 않고 이미 있는 시각 자산 크기를 그대로 재사용한다.
+func _node_visual_half_extent(visual: Node) -> Vector2:
+	if visual == null:
+		return Vector2.ZERO
+	if visual is Sprite2D and visual.texture != null:
+		return (visual.texture.get_size() * visual.scale) / 2.0
+	if visual is ColorRect:
+		return visual.size / 2.0
+	return Vector2.ZERO
+
+
+## 오브젝트(center를 중심으로 half_extent만큼 뻗은 사각형)가 격자 칸 하나와 겹치는지
+## 확인한다(INBOX #129) — AABB 겹침 판정.
+func _rect_overlaps_cell(center: Vector2, half_extent: Vector2, cell: Vector2i) -> bool:
+	var cell_min := Vector2(cell.x, cell.y) * BUILD_GRID_SIZE
+	var cell_max := cell_min + Vector2(BUILD_GRID_SIZE, BUILD_GRID_SIZE)
+	var obj_min := center - half_extent
+	var obj_max := center + half_extent
+	return obj_min.x < cell_max.x and obj_max.x > cell_min.x \
+			and obj_min.y < cell_max.y and obj_max.y > cell_min.y
 
 
 ## 지금 배치 모드 중인지(손에 설치 가능한 건축물 아이템을 들었고 취소되지 않았는지)를
@@ -878,13 +940,15 @@ func is_deconstruct_mode_active() -> bool:
 
 
 ## 좌클릭으로 배치 모드를 확정한다(INBOX #119) — 마우스 아래 격자 칸이 비어 있으면
-## 인벤토리에서 1개를 소모하고 실제 충돌체(StaticBody2D)를 설치한다.
+## 인벤토리에서 1개를 소모하고 실제 충돌체(StaticBody2D)를 설치한다. INBOX #129부터는
+## 벽/문끼리의 겹침뿐 아니라 _is_cell_build_blocked()로 다른 점유 오브젝트/플레이어
+## 칸까지 함께 확인한다.
 func _try_place_structure() -> void:
 	var item := get_held_item()
 	if not BUILDABLE_STRUCTURES.has(item):
 		return
 	var cell := _world_to_grid(get_global_mouse_position())
-	if _grid_occupancy.has(cell):
+	if _is_cell_build_blocked(cell):
 		return
 	if not InventoryData.remove_item(item, 1):
 		return
