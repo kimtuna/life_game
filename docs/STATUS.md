@@ -5,6 +5,47 @@
 
 ## 마지막 갱신
 
+바퀴 180 / 2026-09-05 ([BUILD] **INBOX #127 완료 — 왼쪽 위 HUD 정리(AmmoPanel을
+총을 들었을 때만 표시, InventoryPanel 완전 제거).**)
+1) `game/scenes/world/world.tscn`의 `UI/HUD/InventoryPanel`(및 자식 `InventoryLabel`)
+   노드를 통째로 삭제했다 — 플레이어는 이미 E키 인벤토리 창(#21)이 있어서 상시 HUD
+   요약이 불필요하다는 사용자 판단(INBOX #127 원문)을 그대로 반영. `AmmoPanel`은
+   `visible = false`를 기본값으로 주고, `world.gd`에 `ammo_panel`(`PanelContainer`)
+   `@onready` 참조를 새로 추가했다.
+2) `world.gd`의 `_select_hotbar(index)`(숫자키로 핫바를 고르거나, 인벤토리 변경으로
+   `_revalidate_held_hotbar_slot()`이 재호출될 때마다 실행되는 단일 경로 — #32가 이미
+   이 함수를 "손에 든 도구"의 유일한 진실 공급원으로 만들어뒀음)에 `ammo_panel.visible
+   = _held_tool == "gun"` 한 줄만 추가해서, 총을 들 때만 보이고 다른 도구/빈손이면
+   자동으로 숨겨지게 했다. 별도의 새 신호 연결이 필요 없었다 — 기존에 "손에 든 도구가
+   바뀌는 모든 경로"가 이미 이 함수 하나로 수렴해 있었기 때문(좋은 기존 설계 재사용).
+3) `_update_inventory_label()` 함수와 `inventory_label` `@onready` 참조, `_ready()`의
+   `InventoryData.changed.connect(_update_inventory_label)` / 최초 호출을 전부 삭제했다.
+   `ITEM_LABELS` 상수는 다른 곳(제작 창/상자 창 등)에서 여전히 쓰이므로 그대로 남겨뒀다
+   (grep으로 사전 확인).
+4) 새 QA 스크립트 `game/qa/inbox127_check.gd`(inbox126_check.gd와 같은 부팅 패턴)로
+   검증: `project.godot`의 `[autoload]`에 임시 등록 → `godot --path .`(실제 렌더러,
+   기존 결정 로그가 경고한 대로 `--headless` 아님)로 실행 → 콘솔에
+   `QA_INBOX127_CHECK_PASS` 확인 → `project.godot` 원상복구(diff 없음 확인) → `/tmp/
+   qa127/`에 저장된 스크린샷 4장을 Read 도구로 직접 열어 눈으로 확인. (a) 월드 진입
+   직후(시작 시 총이 자동 지급/선택됨, #22) 좌상단에 "탄약: 기본탄 8/8" 패널이 정상
+   표시됨. (b) 핫바 2번(도끼)로 바꾸면 그 패널이 완전히 사라지고 그 자리에 빈 공간만
+   남을 뿐 다른 요소와 겹치거나 어색한 빈 칸이 생기지 않음(원래 `InventoryPanel`이
+   있던 자리는 애초에 `AmmoPanel` 아래 별도 위치였고 그 아래엔 아무것도 없어서, 둘 다
+   없어져도 다른 HUD 요소 레이아웃에 영향 없음). (c) 빈손(핫바 9번, 빈 슬롯)에서도
+   동일하게 숨겨짐. (d) 다시 총을 들면 재표시됨. 우상단 TimePanel/NetPanel(숨김 상태)/
+   RoomOverlayToggle/하단 HotbarBar는 전부 기존 위치 그대로였다 — 회귀 없음.
+5) 이번 항목은 새 아이템 종류를 추가하지 않았으므로 테스트 상자 갱신은 필요 없다.
+   `docs/feedback/INBOX.md`의 `#127`을 `[x]`로 갱신. **BUILD/DESIGN 완료 카운터**:
+   직전 전체 스윕(`#124`) 이후 `#125`(BUILD)=1 → `#126`(BUILD)=2 → 이번 `#127`(BUILD)로
+   **3**이 됐다 — 5 도달까지 2개 남음.
+
+**다음에 할 것**: 다음 미완료 항목은 `#128`([BUILD], 건설 해제 모드 — X 토글 + 빨간
+하이라이트 + 좌클릭 철거). 그 뒤로 `#129`(건축 겹침 검사 확장)/`#130`(#128을 상자·
+제작대류·밭·목장까지 확장)이 큐에 대기 중이다. BUILD/DESIGN 완료 카운터는
+3(전체 스윕까지 2개 남음).
+
+## 지난 바퀴 기록 (바퀴 179, 그대로 보존)
+
 바퀴 179 / 2026-09-05 ([BUILD] **INBOX #126 완료 — 방(Room) 오버레이 UI(산소미포함
 스타일 반투명 격자 색칠 토글).**)
 1) 새 스크립트 `game/scripts/room_overlay.gd`(`class_name RoomOverlay`, `Node2D`

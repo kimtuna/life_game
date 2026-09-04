@@ -75,6 +75,7 @@ theme = ExtResource("2_theme")
 mouse_filter = 2
 
 [node name="AmmoPanel" type="PanelContainer" parent="UI/HUD"]
+visible = false
 layout_mode = 1
 offset_left = 16.0
 offset_top = 16.0
@@ -86,19 +87,6 @@ theme_override_styles/panel = SubResource("StyleBoxFlat_hud_panel")
 layout_mode = 2
 theme_override_font_sizes/font_size = 20
 text = "탄약: 기본탄"
-
-[node name="InventoryPanel" type="PanelContainer" parent="UI/HUD"]
-layout_mode = 1
-offset_left = 16.0
-offset_top = 62.0
-offset_right = 280.0
-offset_bottom = 100.0
-theme_override_styles/panel = SubResource("StyleBoxFlat_hud_panel")
-
-[node name="InventoryLabel" type="Label" parent="UI/HUD/InventoryPanel"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 20
-text = "인벤토리: (비어 있음)"
 
 [node name="TimePanel" type="PanelContainer" parent="UI/HUD"]
 layout_mode = 1

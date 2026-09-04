@@ -294,8 +294,8 @@ const STATE_BROADCAST_INTERVAL := 0.1
 @onready var remote_players_root: Node2D = $RemotePlayers
 @onready var camera: Camera2D = $Camera2D
 @onready var pause_menu: Control = $UI/PauseMenu
+@onready var ammo_panel: PanelContainer = $UI/HUD/AmmoPanel
 @onready var ammo_label: Label = $UI/HUD/AmmoPanel/AmmoLabel
-@onready var inventory_label: Label = $UI/HUD/InventoryPanel/InventoryLabel
 @onready var time_label: Label = $UI/HUD/TimePanel/TimeLabel
 @onready var net_panel: PanelContainer = $UI/HUD/NetPanel
 @onready var net_label: Label = $UI/HUD/NetPanel/NetLabel
@@ -402,11 +402,9 @@ func _ready() -> void:
 	_build_hotbar()
 	_build_crafting_window()
 	_build_storage_window()
-	InventoryData.changed.connect(_update_inventory_label)
 	InventoryData.changed.connect(_refresh_inventory_window)
 	InventoryData.changed.connect(_refresh_hotbar)
 	InventoryData.changed.connect(_revalidate_held_hotbar_slot)
-	_update_inventory_label()
 	_select_hotbar(0)
 	TimeData.phase_changed.connect(_on_time_phase_changed)
 	TimeData.day_changed.connect(_on_time_day_changed)
@@ -1186,6 +1184,8 @@ func _select_hotbar(index: int) -> void:
 	var general_slots := InventoryData.get_general_slots()
 	var slot = general_slots[index] if index < general_slots.size() else null
 	_held_tool = slot["item"] if slot != null and TOOL_ICONS.has(slot["item"]) else ""
+	## 총을 들었을 때만 탄약 패널을 보여준다 (INBOX #127 — 다른 도구/빈손이면 숨김).
+	ammo_panel.visible = _held_tool == "gun"
 	## 핫바를 다시 고르면(숫자키를 새로 누르거나 인벤토리 변경으로 재검증되면) 건축
 	## 배치 모드 취소 상태를 초기화한다(INBOX #119 — "도구를 바꾸면 배치 모드를 취소").
 	_build_placement_cancelled = false
@@ -1653,19 +1653,6 @@ func _on_storage_slot_pressed(index: int) -> void:
 		_storage_message_label.text = "인벤토리에 공간이 없습니다"
 		_storage_message_label.visible = true
 		_storage_message_timer = 1.5
-
-
-func _update_inventory_label() -> void:
-	var counts := InventoryData.all_counts()
-	if counts.is_empty():
-		inventory_label.text = "인벤토리: (비어 있음)"
-		return
-	var parts: Array[String] = []
-	for item_key in ITEM_LABELS.keys():
-		var count: int = counts.get(item_key, 0)
-		if count > 0:
-			parts.append("%s x%d" % [ITEM_LABELS[item_key], count])
-	inventory_label.text = "인벤토리: " + (", ".join(parts) if not parts.is_empty() else "(비어 있음)")
 
 
 func _on_time_phase_changed(_is_day: bool) -> void:
