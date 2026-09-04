@@ -27,19 +27,19 @@
 </head>
 <body>
   <h1>auto-loop 진행 상황</h1>
-  <p class="updated">마지막 갱신: 2026-09-04 18:15:19</p>
+  <p class="updated">마지막 갱신: 2026-09-05 01:06:01</p>
   
   <div class="row">
-    <div class="card"><div class="label">남은 항목</div><div class="num">0</div></div>
+    <div class="card"><div class="label">남은 항목</div><div class="num">2</div></div>
     <div class="card"><div class="label">완료된 항목</div><div class="num">114</div></div>
   </div>
   <div class="card">
     <div class="label">지금 처리 중 / 다음으로 처리할 항목</div>
-    <div>(없음 — 큐 비어있음)</div>
+    <div>#116 [BUILD] (사용자 지시, 2026-09-05) 테스트용 저장 상자(#96/#97)를 **용량 무제한**으로 바꾼다. 지금 `storage_chest.gd`는 슬롯 하나의 수량은 99 제한 없이 크게 저장할 수 있지만(#96 원문), **슬롯 개수 자체는 고정된 크기**(#96 완료 당시 "최소 20칸 이상"으로 만들어짐)라 아이템 종류가 계속 늘어나는 지금(현재 약 40종) 한 종류당 한 슬롯씩 다 채우기엔 부족할 수 있다. `storage_chest.gd`에 `unlimited: bool`(또는 유사한) 옵션을 추가해서, 이 옵션이 켜진 인스턴스는 **슬롯 배열이 아이템 종류 수만큼 자동으로 늘어나게**(고정 크기 배열 대신 필요할 때마다 새 슬롯을 추가) 만든다. 이 옵션은 **테스트용 상자에만** 켜고, 나중에 실제 게임 플레이용 상자(플레이어가 짓는 진짜 창고 등)를 만들 때는 끈 채로(고정 슬롯 수) 쓸 수 있게 일반 저장 상자 코드 자체는 그대로 재사용 가능해야 한다(옵션으로 분기, 별도 스크립트로 복제하지 않음). 상자 UI가 슬롯이 많아져도(현재 40개 이상, 앞으로 계속 늘어남) 스크롤 등으로 다 보이게 되는지 확인한다. 테스트 상자를 열어서 실제로 새 아이템 종류를 계속 추가해도(코드로 시뮬레이션해서) 슬롯이 부족해서 못 들어가는 일이 없는지 확인한다.</div>
   </div>
   <div class="card">
     <div class="label">마지막 작업 커밋</div>
-    <div><code>ad90620 [INBOX #115] 겹쳐 스폰된 리소스 포인트 좌클릭 한 번에 동시 채집되는 버그 수정</code></div>
+    <div><code>e38f47f 테스트용 상자를 무제한 용량으로 + 신규 아이템 자동 보급을 상시 규칙으로 (INBOX #116/#117)</code></div>
   </div>
   <div class="card">
     <div class="label">디자인 개선 후보 (확인 후 지우기를 누르면 이 브라우저에서 안 보입니다)</div>
