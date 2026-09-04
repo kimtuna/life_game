@@ -25,6 +25,10 @@ const ITEM_ICONS := {
 	"ammo": preload("res://assets/sprites/items/ammo.png"),
 	"cooked_rice": preload("res://assets/sprites/items/cooked_rice.png"),
 	"cooked_meat": preload("res://assets/sprites/items/cooked_meat.png"),
+	# 나무벽/나무문/석제벽(INBOX #100 레시피, #101 아이콘) — 파이썬 절차적 생성.
+	"wood_wall": preload("res://assets/sprites/items/wood_wall.png"),
+	"wood_door": preload("res://assets/sprites/items/wood_door.png"),
+	"stone_wall": preload("res://assets/sprites/items/stone_wall.png"),
 	# 도구도 인벤토리 버리기(INBOX #31)로 바닥에 떨어질 수 있어서 함께 추가했다 —
 	# world.gd의 TOOL_ICONS와 같은 텍스처를 재사용한다.
 	"gun": preload("res://assets/sprites/tools/gun.png"),
