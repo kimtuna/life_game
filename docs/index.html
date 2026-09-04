@@ -27,19 +27,19 @@
 </head>
 <body>
   <h1>auto-loop 진행 상황</h1>
-  <p class="updated">마지막 갱신: 2026-09-04 17:34:59</p>
+  <p class="updated">마지막 갱신: 2026-09-04 17:44:45</p>
   
   <div class="row">
-    <div class="card"><div class="label">남은 항목</div><div class="num">3</div></div>
-    <div class="card"><div class="label">완료된 항목</div><div class="num">110</div></div>
+    <div class="card"><div class="label">남은 항목</div><div class="num">2</div></div>
+    <div class="card"><div class="label">완료된 항목</div><div class="num">111</div></div>
   </div>
   <div class="card">
     <div class="label">지금 처리 중 / 다음으로 처리할 항목</div>
-    <div>#111 [DESIGN] (사용자 지시, 2026-09-04) #108~#110에서 추가된 11개 완성품(강철곡괭이낫/강철도끼/강철낚싯대/강철벽/강철문/강철 상자/창문/강철 갑옷/배터리/조명/발전기)과 가공식품 1개(사료)의 인벤토리 아이템 아이콘을 파이썬 절차적 생성(Pillow)으로 일괄 제작한다(급수 장치는 #106에서 만든 구리선/강철 조합이라 별도 그림 없이 두 아이콘을 조합해서 보여줘도 되고, 새로 하나 만들어도 됨 — 재량). **AI 생성 도구 크레딧을 쓰지 않는다.** 강철 도구 3종은 기존 도구 아이콘과 같은 구도에 은회색 톤만 다르게, 강철벽/강철문/강철 상자/창문은 #101에서 만든 나무벽/나무문/석제벽과 나란히 놓아도 어색하지 않은 톤으로, 배터리/조명/발전기는 작은 기계 부품 느낌으로 서로 구별되게 만든다. DESIGN.md 크기 표준 지키고 배경 투명 필수. `dropped_item.gd`의 `ITEM_ICONS`에 연결하고 스크린샷으로 확인한다.</div>
+    <div>#113 [QA] (자동 등록, 2026-09-04, BUILD/DESIGN 5개 완료 트리거) 전체 스윕: 메인 메뉴부터 모든 시스템을 실제로 플레이해보며 문제를 찾는다. `game/qa/full_sweep.gd`(바퀴 155가 저장 상자/가공대/제련로/조리대/조리용 화로 5개 창을 여는 스텝까지 추가해둔 버전)를 재사용하고, INBOX #103이 새로 추가한 모래/구리광석 채광 포인트(임시 modulate 색 처리 상태)도 스윕 경로에서 실제로 한 번 캐보는 스텝을 추가해서 확인한다.</div>
   </div>
   <div class="card">
     <div class="label">마지막 작업 커밋</div>
-    <div><code>8550ffc [INBOX #110] 가공대에 전기 계열 완성품(배터리/조명/발전기)+사료+급수 장치 레시피 추가</code></div>
+    <div><code>78bfbe6 [INBOX #111] 강철/전기 계열 완성품 11종 + 사료 인벤토리 아이콘 파이썬 절차적 생성</code></div>
   </div>
   <div class="card">
     <div class="label">디자인 개선 후보 (확인 후 지우기를 누르면 이 브라우저에서 안 보입니다)</div>
