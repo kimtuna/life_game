@@ -27,19 +27,19 @@
 </head>
 <body>
   <h1>auto-loop 진행 상황</h1>
-  <p class="updated">마지막 갱신: 2026-09-04 16:46:36</p>
+  <p class="updated">마지막 갱신: 2026-09-04 16:56:21</p>
   
   <div class="row">
-    <div class="card"><div class="label">남은 항목</div><div class="num">9</div></div>
-    <div class="card"><div class="label">완료된 항목</div><div class="num">103</div></div>
+    <div class="card"><div class="label">남은 항목</div><div class="num">8</div></div>
+    <div class="card"><div class="label">완료된 항목</div><div class="num">104</div></div>
   </div>
   <div class="card">
     <div class="label">지금 처리 중 / 다음으로 처리할 항목</div>
-    <div>#104 [DESIGN] (사용자 지시, 2026-09-04) #103에서 추가된 모래/구리광석의 아이템 아이콘과 채광 포인트 월드 그림을 파이썬 절차적 생성(Pillow)으로 만든다. **AI 생성 도구 크레딧을 쓰지 않는다** — #86/#91과 같은 기법 재사용. 모래는 연한 베이지색 알갱이 질감, 구리광석은 붉은빛이 도는 광택 있는 결정형으로 — 기존 돌(회색)/철광석/유황광석(노란빛)과 실루엣·색이 확실히 구별되게 만든다. DESIGN.md 크기 표준을 지키고 배경 투명 필수. `dropped_item.gd`의 `ITEM_ICONS`/두 채광 포인트 씬의 `texture_path`에 연결하고 스크린샷으로 확인한다.</div>
+    <div>#105 [BUILD] (사용자 지시, 2026-09-04) 제련로에 강철/유리/구리 레시피를 추가한다(#88이 만든 제련로의 `RECIPES`만 확장, 새 오브젝트 아님). **레시피 재료는 항상 1개만 쓴다**(DESIGN.md "생산 라인" 2026-09-04 규칙 — 재료 종류를 얕게 유지): `iron_ore`→`iron`은 이미 있음, 이번엔 **철 2개 → 강철(`steel`) 1개**, **모래(`sand`) 2개 → 유리(`glass`) 1개**, **구리광석(`copper_ore`) 2개 → 구리(`copper`) 1개**. 새 가공물 아이템 3종을 `ITEM_LABELS`/`ITEM_CATEGORIES`("가공물")에 추가한다. #99가 만든 수량 지정+타이머+수동 수령 방식이 그대로 적용된다(새로 만들 것 없음). 제련로에서 세 레시피 모두 실제로 동작하는지 확인한다.</div>
   </div>
   <div class="card">
     <div class="label">마지막 작업 커밋</div>
-    <div><code>924bd8b [INBOX #103] 필드 채광 포인트에 모래/구리광석 추가 (5종 가중치 스폰으로 확장)</code></div>
+    <div><code>a0749d8 [INBOX #104] 모래/구리광석 전용 아이템 아이콘 + 채광 포인트 월드 그림 제작</code></div>
   </div>
   <div class="card">
     <div class="label">디자인 개선 후보 (확인 후 지우기를 누르면 이 브라우저에서 안 보입니다)</div>
