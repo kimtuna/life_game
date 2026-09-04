@@ -96,10 +96,13 @@ const STORAGE_CHEST_ORIGIN := Vector2(0.0, 850.0)
 ## 확정대로, 기존 잔디 바닥 타일(grass_tile.png, 64x64)과 크기를 맞춘다.
 const BUILD_GRID_SIZE := 64.0
 
-## 격자에 설치 가능한 아이템(INBOX #119는 나무벽만 검증, 나머지는 #120/#121에서 확장).
-## 아이콘은 이미 있는 아이템 아이콘(INBOX #101)을 격자 칸 크기로 확대해서 재사용한다.
+## 격자에 설치 가능한 아이템(INBOX #119는 나무벽만 검증, #120이 나무문 추가, 나머지는
+## #121에서 확장). 아이콘은 이미 있는 아이템 아이콘(INBOX #101)을 격자 칸 크기로
+## 확대해서 재사용한다. `is_door: true`면 `_spawn_structure()`가 door.gd(Door)를 붙여서
+## 여닫을 수 있는 구조물로 만든다(그 외에는 항상 막힌 벽).
 const BUILDABLE_STRUCTURES := {
 	"wood_wall": {"texture": preload("res://assets/sprites/items/wood_wall.png")},
+	"wood_door": {"texture": preload("res://assets/sprites/items/wood_door.png"), "is_door": true},
 }
 
 ## 플레이어는 물리 바디(CharacterBody2D)가 아니라 위치를 직접 더하는 방식으로 움직여서
@@ -797,6 +800,14 @@ func _update_build_ghost() -> void:
 	_build_ghost.visible = true
 
 
+## 지금 배치 모드 중인지(손에 설치 가능한 건축물 아이템을 들었고 취소되지 않았는지)를
+## 밖에서 읽을 수 있게 하는 공개 접근자(INBOX #120). door.gd가 "배치 모드가 아닐 때만
+## 열림/닫힘 토글" 조건을 판정할 때 이걸로 조회한다(resource_point.gd의
+## get_held_tool() 패턴과 같음).
+func is_build_placement_active() -> bool:
+	return not _build_placement_cancelled and BUILDABLE_STRUCTURES.has(get_held_item())
+
+
 ## 좌클릭으로 배치 모드를 확정한다(INBOX #119) — 마우스 아래 격자 칸이 비어 있으면
 ## 인벤토리에서 1개를 소모하고 실제 충돌체(StaticBody2D)를 설치한다.
 func _try_place_structure() -> void:
@@ -815,9 +826,12 @@ func _try_place_structure() -> void:
 ## (ranch_zone.gd의 담장 생성 패턴 참고 — deer.gd 같은 CharacterBody2D는 이 충돌체와
 ## move_and_slide()로 자연스럽게 막힌다). 플레이어 자체는 물리 바디가 아니라서
 ## _move_player_with_grid_collision()이 _grid_occupancy를 직접 조회해 따로 막는다.
+## `is_door`가 켜진 아이템(INBOX #120)은 평범한 StaticBody2D 대신 door.gd(Door)를 붙여서
+## "근처에서 좌클릭 → 열림/닫힘 토글"이 가능하게 만든다.
 func _spawn_structure(item: String, cell: Vector2i) -> Node2D:
 	var data: Dictionary = BUILDABLE_STRUCTURES[item]
-	var body := StaticBody2D.new()
+	var is_door: bool = data.get("is_door", false)
+	var body: StaticBody2D = Door.new() if is_door else StaticBody2D.new()
 	body.name = "Structure_%s_%d_%d" % [item, cell.x, cell.y]
 	body.position = _grid_to_world_center(cell)
 	var shape := RectangleShape2D.new()
@@ -833,6 +847,11 @@ func _spawn_structure(item: String, cell: Vector2i) -> Node2D:
 		sprite.scale = Vector2(BUILD_GRID_SIZE, BUILD_GRID_SIZE) / tex_size
 	body.add_child(sprite)
 	add_child(body)
+	if is_door:
+		var door := body as Door
+		door.setup(col, sprite, BUILD_GRID_SIZE)
+		door.player_ref = player_sprite
+		door.world_ref = self
 	return body
 
 
@@ -851,14 +870,21 @@ func _move_player_with_grid_collision(motion: Vector2) -> void:
 
 
 ## pos를 중심으로 한 작은 사각형(플레이어 폭 근사)의 네 모서리 중 하나라도 건축물이
-## 설치된 격자 칸에 들어가면 막힌 것으로 본다.
+## 설치된 격자 칸에 들어가면 막힌 것으로 본다. 열린 문(INBOX #120)이 있는 칸은 예외 —
+## `_grid_occupancy`에는 여전히 문 노드가 남아있지만(방 감지가 "문이 있다"는 사실 자체를
+## 볼 수 있어야 하므로) 지나갈 수는 있어야 한다.
 func _is_position_blocked(pos: Vector2) -> bool:
 	if _grid_occupancy.is_empty():
 		return false
 	var r := PLAYER_COLLISION_RADIUS
 	for offset in [Vector2(-r, -r), Vector2(r, -r), Vector2(-r, r), Vector2(r, r)]:
-		if _grid_occupancy.has(_world_to_grid(pos + offset)):
-			return true
+		var cell := _world_to_grid(pos + offset)
+		if not _grid_occupancy.has(cell):
+			continue
+		var node = _grid_occupancy[cell]
+		if node is Door and node.is_open:
+			continue
+		return true
 	return false
 
 
