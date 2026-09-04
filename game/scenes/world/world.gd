@@ -695,6 +695,7 @@ func _spawn_storage_chest() -> void:
 	chest.global_position = player_sprite.position + STORAGE_CHEST_ORIGIN
 	chest.player_ref = player_sprite
 	chest.world_ref = self
+	chest.unlimited = true  # 테스트용 상자 전용 (INBOX #116) — 일반 상자는 기본값 false로 고정 슬롯 유지
 	add_child(chest)
 	for item_name in DEBUG_STARTER_CHEST_ITEMS:
 		chest.add_item(item_name, DEBUG_STARTER_CHEST_AMOUNT)

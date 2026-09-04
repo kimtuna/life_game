@@ -5,6 +5,46 @@
 
 ## 마지막 갱신
 
+바퀴 169 / 2026-09-05 ([BUILD] **INBOX #116 완료 — 테스트용 저장 상자를 용량 무제한으로
+바꿨다(슬롯 개수가 아이템 종류 수만큼 자동으로 늘어남).**)
+1) `scenes/storage_chest/storage_chest.gd`에 `unlimited: bool = false`(기본값) 변수를
+   추가. `_ready()`가 `unlimited`가 꺼져 있을 때만 `_slots.resize(SLOT_COUNT)`(고정
+   20칸)를 하고, 켜져 있으면 빈 배열로 시작해 이후 `add_item()`이 채워나간다.
+   `add_item()`이 기존 아이템 슬롯도 빈 슬롯도 못 찾으면(꽉 참) `unlimited`일 때만
+   `_slots.append({...})`로 슬롯을 새로 만들어 담는다(꺼져 있으면 예전과 동일하게
+   조용히 못 넣음 — 일반 게임용 고정 상자 동작은 그대로 유지).
+2) `scenes/world/world.gd`의 `_spawn_storage_chest()`(테스트용 상자를 스폰하는 곳,
+   INBOX #96/#97)에서 `add_child(chest)` 전에 `chest.unlimited = true`를 설정 — 이
+   테스트 상자만 무제한이고, 나중에 플레이어가 실제로 짓는 상자는 옵션을 끈 채(기본값
+   false) 같은 스크립트를 그대로 재사용할 수 있다.
+3) 상자 UI(`_build_storage_window()`)는 이미 `ScrollContainer`(높이 320 고정)로
+   슬롯 목록을 감싸고 있어서 슬롯이 아무리 늘어나도 코드 변경 없이 스크롤로 다 보인다
+   — 스크린샷으로 실제 스크롤바가 나타나는 것까지 확인했다(아래 4번).
+4) **검증**: 새 QA 스크립트 `game/qa/unlimited_chest_check.gd`(커밋, 재사용 가능)를
+   작성해 `project.godot [autoload]`에 임시 등록하고 `godot --path .`(실제 렌더러)로
+   실행. (a) 월드가 스폰한 테스트 상자의 `unlimited == true` 확인. (b) 가상 아이템
+   60종(`qa116_fake_item_*`)을 상자에 추가해서 기존 17종(현재 스폰 시점 채워진 개수)
+   + 60종 = 77개 슬롯까지 전부 정상적으로 담기는 것을 확인(`SLOT_COUNT`=20을 훨씬
+   넘어감, 유실 없음). (c) 상자를 열어 스크린샷(`/tmp/qa116/01_chest_open_many_slots.png`)
+   으로 스크롤바가 나타나고 슬롯 목록이 정상적으로 보이는지 Read 도구로 직접 확인.
+   (d) 회귀 검증: `unlimited=false`(기본값)인 별도 상자 인스턴스는 21번째 새 아이템
+   종류를 여전히 못 받고 슬롯 배열이 20으로 고정돼 있는지 확인 — 일반 상자 동작이
+   깨지지 않았음을 확인. 4가지 전부 `QA_UNLIMITED_CHEST_CHECK_PASS`로 통과. 검증 후
+   `project.godot`의 임시 autoload 등록을 원상복구하고(`diff /tmp/project.godot.bak116
+   project.godot`로 완전히 동일함을 확인), 테스트 중 생성된 세이브 파일
+   (`characters.save`/`inventory.save`)도 삭제했다.
+5) `docs/feedback/INBOX.md`의 `#116`을 `[x]`로 갱신. **BUILD/DESIGN 완료 카운터**:
+   `#115`(BUILD) 완료 시점 4(5 도달까지 1개 남음)에서 이번 `#116`(BUILD)으로 **5에
+   도달** — 규칙(PROMPT_BUILD.md ③)대로 `#118 [QA] 전체 스윕`을 INBOX 큐 끝에
+   새로 추가하고 카운터를 0으로 리셋했다.
+
+**다음에 할 것**: INBOX.md에 미완료 `[BUILD]` 항목으로 `#117`(테스트 상자에 신규
+아이템 26종 채워 넣기, `#116` 완료 후 진행 가능하다고 명시돼 있었으므로 다음 바퀴가
+바로 처리 가능)이 남아있다. 그 뒤에 `#118 [QA] 전체 스윕`(이번 바퀴가 새로 등록,
+테스트 상자 용량 무제한 변경 이후 회귀 여부를 확인하는 게 목적)이 대기 중이다.
+
+## 지난 바퀴 기록 (바퀴 168, 그대로 보존)
+
 바퀴 168 / 2026-09-04 ([BUILD] **INBOX #115 완료 — 리소스 포인트(채집/채광/벌목)가
 서로 겹쳐 스폰되고 좌클릭 한 번에 겹친 포인트 전부가 동시에 채집되던 버그를 고쳤다.**)
 1) `world.gd`에 `RESOURCE_MIN_DISTANCE_BETWEEN_POINTS := 220.0`(resource_point.gd의
@@ -36,12 +76,6 @@
    `#111`(DESIGN) 완료 시점 3(5 도달까지 2개 남음)에서 이번 `#115`(BUILD)로 **4**가
    됐다(5 도달까지 1개 남음 — 다음 BUILD/DESIGN 항목 하나가 더 끝나면 QA 전체 스윕
    신규 등록).
-
-**다음에 할 것**: INBOX.md에 남은 미완료 항목이 없다(`#115`까지 전부 `[x]`). 새 지시가
-추가되지 않으면 `loop.sh`가 세션을 새로 열지 않고 스스로 종료한다. 다음에 새
-`[BUILD]`/`[DESIGN]` 항목이 하나 더 추가되고 완료되면 BUILD/DESIGN 완료 카운터가
-5에 도달하므로, 그 항목을 처리하는 세션이 규칙(PROMPT_BUILD.md ③)대로 `[QA] 전체
-스윕` 항목을 큐 끝에 추가하고 카운터를 0으로 리셋해야 한다.
 
 ## 지난 바퀴 기록 (바퀴 167, 그대로 보존)
 

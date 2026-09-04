@@ -15,6 +15,12 @@ const INTERACT_RADIUS := 90.0
 const CHEST_TITLE := "저장 상자"
 const SLOT_COUNT := 20
 
+## true면 슬롯 배열이 고정 SLOT_COUNT가 아니라 아이템 종류 수만큼 자동으로 늘어난다
+## (INBOX #116). world.gd의 테스트용 상자(_spawn_storage_chest())만 이 옵션을 켠다 —
+## 나중에 플레이어가 실제로 짓는 저장 상자는 이 옵션을 끈 채(기본값 false) 그대로
+## 고정 슬롯 수로 재사용할 수 있다.
+var unlimited: bool = false
+
 ## 한 번 클릭으로 상자 슬롯에서 플레이어 인벤토리로 옮기는 최대 수량. 상자는 스택 제한이
 ## 없어 한 슬롯에 999개가 있을 수 있는데, 한 번에 다 옮기려 하면 플레이어 인벤토리 공간이
 ## 거의 항상 모자라 실패할 것이므로, 플레이어 쪽 스택 크기(InventoryData.STACK_MAX)만큼씩
@@ -36,7 +42,8 @@ var world_ref: Node2D = null
 
 
 func _ready() -> void:
-	_slots.resize(SLOT_COUNT)
+	if not unlimited:
+		_slots.resize(SLOT_COUNT)
 	prompt.visible = false
 
 
@@ -73,6 +80,11 @@ func add_item(item_name: String, amount: int) -> void:
 			_slots[i] = {"item": item_name, "count": amount}
 			changed.emit()
 			return
+	# 빈 슬롯이 없을 때: unlimited면 슬롯을 새로 늘려서 담고(INBOX #116), 아니면(일반
+	# 게임용 고정 슬롯 상자) 예전과 같이 조용히 못 넣는다(용량 초과 처리는 범위 밖).
+	if unlimited:
+		_slots.append({"item": item_name, "count": amount})
+		changed.emit()
 
 
 ## 상자 슬롯 하나에서 플레이어 인벤토리로 최대 TRANSFER_AMOUNT개를 옮기려 시도한다.
