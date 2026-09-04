@@ -40,6 +40,21 @@ func _boot_to_world() -> void:
 	await get_tree().process_frame
 
 
+func _chest_item_count(chest: Node, item: String) -> int:
+	for s in chest.get_slots():
+		if s != null and s.get("item") == item:
+			return int(s["count"])
+	return 0
+
+
+func _chest_find_item_index(chest: Node, item: String) -> int:
+	var slots: Array = chest.get_slots()
+	for i in range(slots.size()):
+		if slots[i] != null and slots[i].get("item") == item:
+			return i
+	return -1
+
+
 func _run_checks() -> void:
 	var world := get_tree().current_scene
 	var ok := true
@@ -73,42 +88,43 @@ func _run_checks() -> void:
 	var img_empty := get_tree().root.get_texture().get_image()
 	img_empty.save_png(OUT_DIR + "/01_window_open_empty.png")
 
-	# 3) 코드로 상자에 테스트 아이템을 채운다(#97의 999개 채우기와는 별개 — 이 항목은
-	# "꺼내는 것"만 검증하면 되므로 작은 수치로 채운다). 상자는 스택 제한이 없어야 하므로
-	# 99를 넘는 값(120)으로 채워 STACK_MAX를 실제로 넘는지도 함께 확인한다.
+	# 3) 코드로 상자에 테스트 아이템을 추가로 더 채운다. (2026-09-05, INBOX #118 —
+	# #116/#117 이후 이 테스트 상자는 이미 41종을 999개씩 채워 스폰되므로, 이 스크립트가
+	# 예전처럼 "채운 뒤의 절대 수량"을 기대하면 그 사전 채움과 합산돼 항상 어긋난다.
+	# 상자에 원래 뭐가 얼마나 있었든 항상 성립하는 "채우기 전/후 차이(델타)"로 검증하도록
+	# 바꿨다 — 그래야 앞으로 테스트 상자 사전 채움 목록이 더 늘어나도 이 스크립트가
+	# 계속 유효하다. 상자는 스택 제한이 없어야 하므로 99를 넘는 값(120)을 추가로 더해
+	# STACK_MAX를 실제로 넘는지도 함께 확인한다.
+	var wood_before_fill := _chest_item_count(chest, "wood")
+	var stone_before_fill := _chest_item_count(chest, "stone")
 	chest.add_item("wood", 120)
 	chest.add_item("stone", 5)
 	await get_tree().process_frame
 	await get_tree().process_frame
-	var slots_after_fill: Array = chest.get_slots()
-	var wood_slot = null
-	for s in slots_after_fill:
-		if s != null and s.get("item") == "wood":
-			wood_slot = s
-			break
-	if wood_slot == null or int(wood_slot["count"]) != 120:
-		print("FAIL: chest slot did not store 120 wood (no 99 stack cap expected), got: ", wood_slot)
+	var wood_after_fill := _chest_item_count(chest, "wood")
+	if wood_after_fill != wood_before_fill + 120:
+		print("FAIL: chest wood count did not increase by 120 (no 99 stack cap expected), before=",
+				wood_before_fill, " after=", wood_after_fill)
 		ok = false
 	else:
-		print("chest wood slot holds 120 (no stack cap) OK")
+		print("chest wood slot increased by 120 (no stack cap) OK (now ", wood_after_fill, ")")
 	var img_filled := get_tree().root.get_texture().get_image()
 	img_filled.save_png(OUT_DIR + "/02_window_open_filled.png")
 
-	# 4) 상자 슬롯(목재 120)에서 플레이어 인벤토리로 꺼낸다 — 클릭 한 번에 최대
-	# TRANSFER_AMOUNT(99)만 옮겨져야 하고, 상자에는 21개가 남아야 한다.
-	var wood_index := slots_after_fill.find(wood_slot)
+	# 4) 상자 슬롯(목재)에서 플레이어 인벤토리로 꺼낸다 — 클릭 한 번에 최대
+	# TRANSFER_AMOUNT(99)만 옮겨져야 하고, 상자에는 99개만큼 줄어야 한다(절대값이 아니라
+	# 델타로 확인 — 위 3번 근거와 같음).
+	var wood_index := _chest_find_item_index(chest, "wood")
 	var player_wood_before: int = InventoryData.get_count("wood")
 	var transferred: bool = chest.try_transfer_to_player(wood_index)
 	await get_tree().process_frame
 	await get_tree().process_frame
 	var player_wood_after: int = InventoryData.get_count("wood")
-	var chest_wood_after := 0
-	for s in chest.get_slots():
-		if s != null and s.get("item") == "wood":
-			chest_wood_after = int(s["count"])
+	var chest_wood_after := _chest_item_count(chest, "wood")
 	print("transfer wood: player ", player_wood_before, " -> ", player_wood_after,
-			" (expect +99), chest wood -> ", chest_wood_after, " (expect 21), transferred=", transferred)
-	if not transferred or player_wood_after != player_wood_before + 99 or chest_wood_after != 21:
+			" (expect +99), chest wood ", wood_after_fill, " -> ", chest_wood_after,
+			" (expect -99), transferred=", transferred)
+	if not transferred or player_wood_after != player_wood_before + 99 or chest_wood_after != wood_after_fill - 99:
 		print("FAIL: try_transfer_to_player did not move 99 wood correctly")
 		ok = false
 	var img_after_transfer := get_tree().root.get_texture().get_image()
@@ -132,24 +148,18 @@ func _run_checks() -> void:
 		print("FAIL: setup did not fill inventory to capacity, test invalid")
 		ok = false
 	else:
-		var stone_index := -1
-		var chest_slots: Array = chest.get_slots()
-		for i in range(chest_slots.size()):
-			if chest_slots[i] != null and chest_slots[i].get("item") == "stone":
-				stone_index = i
-				break
+		var stone_index := _chest_find_item_index(chest, "stone")
+		var stone_chest_before := _chest_item_count(chest, "stone")
 		var stone_before: int = InventoryData.get_count("stone")
 		var result: bool = chest.try_transfer_to_player(stone_index)
 		await get_tree().process_frame
 		await get_tree().process_frame
 		var stone_after: int = InventoryData.get_count("stone")
-		var chest_stone_after := 0
-		for s in chest.get_slots():
-			if s != null and s.get("item") == "stone":
-				chest_stone_after = int(s["count"])
+		var chest_stone_after := _chest_item_count(chest, "stone")
 		print("full-inventory transfer attempt: result=", result, " stone player ", stone_before,
-				" -> ", stone_after, " (expect unchanged), chest stone -> ", chest_stone_after, " (expect 5)")
-		if result or stone_after != stone_before or chest_stone_after != 5:
+				" -> ", stone_after, " (expect unchanged), chest stone ", stone_chest_before,
+				" -> ", chest_stone_after, " (expect unchanged)")
+		if result or stone_after != stone_before or chest_stone_after != stone_chest_before:
 			print("FAIL: transfer should have failed and left chest/inventory untouched when inventory is full")
 			ok = false
 		# UI에도 실패 메시지가 표시되는지(버튼을 눌렀을 때와 같은 코드 경로).
