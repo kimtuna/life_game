@@ -52,6 +52,21 @@ const ITEM_ICONS := {
 	"gear": preload("res://assets/sprites/items/gear.png"),
 	"copper_wire": preload("res://assets/sprites/items/copper_wire.png"),
 	"glass_bottle": preload("res://assets/sprites/items/glass_bottle.png"),
+	# 강철 건축/도구/전기 계열 완성품 + 사료(INBOX #108~#110 레시피, INBOX #111 전용 그림) —
+	# 파이썬 절차적 생성. 강철 도구 3종은 기존 도구 아이콘과 같은 구도를 재도색한 것.
+	"steel_pickaxe": preload("res://assets/sprites/tools/steel_pickaxe.png"),
+	"steel_axe": preload("res://assets/sprites/tools/steel_axe.png"),
+	"steel_fishing_rod": preload("res://assets/sprites/tools/steel_fishing_rod.png"),
+	"steel_wall": preload("res://assets/sprites/items/steel_wall.png"),
+	"steel_door": preload("res://assets/sprites/items/steel_door.png"),
+	"steel_chest": preload("res://assets/sprites/items/steel_chest.png"),
+	"window": preload("res://assets/sprites/items/window.png"),
+	"steel_armor": preload("res://assets/sprites/items/steel_armor.png"),
+	"battery": preload("res://assets/sprites/items/battery.png"),
+	"lamp": preload("res://assets/sprites/items/lamp.png"),
+	"generator": preload("res://assets/sprites/items/generator.png"),
+	"feed": preload("res://assets/sprites/items/feed.png"),
+	"water_pump": preload("res://assets/sprites/items/water_pump.png"),
 }
 
 ## tree.png처럼 원본 아이콘 자체가 32px 규격이 아닌 경우에만 스프라이트 스케일을
