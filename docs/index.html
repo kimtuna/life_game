@@ -27,19 +27,19 @@
 </head>
 <body>
   <h1>auto-loop 진행 상황</h1>
-  <p class="updated">마지막 갱신: 2026-09-04 16:34:35</p>
+  <p class="updated">마지막 갱신: 2026-09-04 16:40:43</p>
   
   <div class="row">
-    <div class="card"><div class="label">남은 항목</div><div class="num">10</div></div>
-    <div class="card"><div class="label">완료된 항목</div><div class="num">101</div></div>
+    <div class="card"><div class="label">남은 항목</div><div class="num">9</div></div>
+    <div class="card"><div class="label">완료된 항목</div><div class="num">102</div></div>
   </div>
   <div class="card">
     <div class="label">지금 처리 중 / 다음으로 처리할 항목</div>
-    <div>#112 [BUILD] (버그 리포트, #102 QA 전체 스윕에서 발견) 저장 상자/가공대/제련로/조리대/조리용 화로 — 5개 상호작용 창을 열면 전부 플레이어 캐릭터(그리고 근처의 다른 월드 오브젝트, 예: 사슴·상자의 임시 ColorRect 그림)가 창 뒤가 아니라 **창 패널 위에 그대로(반투명 딤 처리도 안 된 채 또렷하게)** 겹쳐 그려진다. 재현: 어느 상자/작업대든 근처에서 좌클릭해 창을 열면(카메라는 항상 플레이어를 따라가 화면 중앙 근처에 있고, 창도 `CenterContainer`로 화면 중앙에 뜨므로 이 상태는 실제 플레이에서 거의 매번 발생한다), 플레이어 스프라이트가 창의 반투명 딤 오버레이(`Color(0,0,0,0.55)`)와 불투명해 보이는 `PanelContainer` 배경 위로 완전한 색상/디테일로 노출된다 — 딤 처리로 어두워지는 것도 아니고 패널에 가려 안 보이는 것도 아니라, 마치 UI보다 위 레이어에 그려지는 것처럼 보인다. `scenes/world/world.gd`의 `_build_crafting_window()`(847번째 줄 부근)와 `_build_storage_window()`(1049번째 줄 부근)가 둘 다 만든 창을 `ui_layer.add_child(window)`(`ui_layer`는 `layer=10`으로 이미 명시된 `UI` CanvasLayer, INBOX #68에서 이 값을 고정한 바로 그 문제와 같은 종류로 보임)에 붙이는데도 이 현상이 나온다 — INBOX #68/#75(바퀴 120/127) 때 조사했던 "이 프로젝트의 GL Compatibility 렌더러에서 CanvasLayer 순서가 문서와 다르게 동작할 수 있다"는 그 계열의 문제가 재발했거나, 아직 못 찾은 별도 원인(예: Player/AnimatedSprite2D 쪽의 z_index나 top_level 설정)일 수 있다 — 원인을 직접 조사해서 고친다. **증거**: 이번 스윕이 새로 커밋한 `game/qa/full_sweep.gd`의 `storage_chest_open`/`processing_table_open`/`smelting_furnace_open`/`cooking_table_open`/`cooking_stove_open` 5개 스텝 스크린샷 전부에서 재현됨 — 그리고 이미 커밋돼 있던 예전 스크린샷(`/tmp/qa96/02_window_open_filled.png`, INBOX #96/바퀴 149)에도 같은 현상이 이미 찍혀 있었다(그때는 아무도 지적하지 않고 넘어간 것으로 보인다). 고친 뒤 5개 창 전부(플레이어를 창 화면 좌표와 겹치게 배치한 상태)를 스크린샷으로 재확인할 것.</div>
+    <div>#103 [BUILD] (사용자 지시, 2026-09-04) 필드 채광 포인트에 모래/구리광석을 추가한다(#84가 만든 돌/철광석/유황광석 3종 가중치 랜덤 스폰 목록을 5종으로 확장). 새 원재료 아이템 `sand`(모래)/`copper_ore`(구리광석)를 `ITEM_LABELS`/`ITEM_CATEGORIES`(둘 다 "원재료")에 추가한다. `mining_point_stone.tscn`/`mining_point_sulfur.tscn`(#84)과 같은 방식으로 `mining_point_sand.tscn`/`mining_point_copper.tscn`을 만들고, `world.gd`의 `_spawn_resource_points()`의 가중치 목록에 추가(비중은 재량 — 강철/전기 테크의 기반 재료라 유황광석과 비슷하거나 약간 흔한 정도를 제안). 텍스처는 범위 밖(후속 [DESIGN] #104, 그때까지 기존 광물 그림 재사용/modulate 임시 처리). 실행해서 5종 채광 포인트가 섞여 스폰되고 각각 올바른 아이템을 드롭하는지 확인한다.</div>
   </div>
   <div class="card">
     <div class="label">마지막 작업 커밋</div>
-    <div><code>06254d0 [INBOX #102] QA: 전체 스윕(저장 상자·가공/조리 라인 신규 포함) — 결함 1건 발견</code></div>
+    <div><code>cc3dcde [INBOX #112] 저장 상자/가공대/제련로/조리대/조리용 화로 창 배경 불투명 처리</code></div>
   </div>
   <div class="card">
     <div class="label">디자인 개선 후보 (확인 후 지우기를 누르면 이 브라우저에서 안 보입니다)</div>
