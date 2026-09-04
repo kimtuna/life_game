@@ -45,6 +45,15 @@ const RECIPES := [
 	{"inputs": {"steel": 4, "nail": 2}, "output": "steel_chest", "amount": 1},
 	{"inputs": {"glass": 2, "nail": 1}, "output": "window", "amount": 1},
 	{"inputs": {"steel": 5}, "output": "steel_armor", "amount": 1},
+	## 전기 계열 완성품 3종 + 사료 + 급수 장치 (INBOX #110). 재료는 최대 2종
+	## (DESIGN.md "생산 라인" 규칙). 아이템으로 만들 수 있게만 한다 — 조명이 어둠을
+	## 밝히거나 발전기가 전력을 생산하는 등 실제 효과는 범위 밖(DESIGN.md "새 테크 라인"
+	## "전기/기계"는 아직 방향만 잡힘).
+	{"inputs": {"copper": 2, "sulfur_ore": 1}, "output": "battery", "amount": 1},
+	{"inputs": {"copper_wire": 1, "glass": 1}, "output": "lamp", "amount": 1},
+	{"inputs": {"gear": 2, "copper_wire": 3}, "output": "generator", "amount": 1},
+	{"inputs": {"rice": 3}, "output": "feed", "amount": 2},
+	{"inputs": {"copper_wire": 1, "steel": 1}, "output": "water_pump", "amount": 1},
 ]
 
 

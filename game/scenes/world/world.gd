@@ -131,6 +131,11 @@ const ITEM_LABELS := {
 	"steel_chest": "강철 상자",
 	"window": "창문",
 	"steel_armor": "강철 갑옷",
+	"battery": "배터리",
+	"lamp": "조명",
+	"generator": "발전기",
+	"feed": "사료",
+	"water_pump": "급수 장치",
 }
 
 ## 아이템 키 -> 카테고리 (INBOX #83, DESIGN.md "아이템 카테고리 / 제작 테크" 절 참고).
@@ -180,6 +185,11 @@ const ITEM_CATEGORIES := {
 	"steel_chest": "완성품",
 	"window": "완성품",
 	"steel_armor": "완성품",
+	"battery": "완성품",
+	"lamp": "완성품",
+	"generator": "완성품",
+	"feed": "가공식품",
+	"water_pump": "완성품",
 }
 
 ## 도구 아이템(INBOX #22). 순서대로 핫바 시작 슬롯(1~4번 키)에 지급된다.
@@ -943,9 +953,17 @@ func _build_crafting_window() -> void:
 	_crafting_title_label.add_theme_font_size_override("font_size", 22)
 	vbox.add_child(_crafting_title_label)
 
+	## INBOX #110: 레시피 수가 20개까지 늘어나면서 스크롤 없이는 화면(720px) 밖으로
+	## 넘쳐 아래쪽 레시피(가공대의 전기 계열/사료/급수 장치 등)를 클릭할 수 없었다 —
+	## storage_list(#96)와 같은 패턴으로 ScrollContainer로 감싼다.
+	var crafting_scroll := ScrollContainer.new()
+	crafting_scroll.custom_minimum_size = Vector2(0, 420)
+	vbox.add_child(crafting_scroll)
+
 	_crafting_list = VBoxContainer.new()
 	_crafting_list.add_theme_constant_override("separation", 6)
-	vbox.add_child(_crafting_list)
+	_crafting_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	crafting_scroll.add_child(_crafting_list)
 
 	_crafting_message_label = Label.new()
 	_crafting_message_label.visible = false
