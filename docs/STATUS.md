@@ -5,6 +5,67 @@
 
 ## 마지막 갱신
 
+바퀴 172 / 2026-09-05 ([BUILD] **INBOX #119 완료 — 건축 격자 배치 시스템의 기반을
+나무벽(`wood_wall`) 하나로 검증했다.**)
+1) `scenes/world/world.gd`에 `BUILD_GRID_SIZE := 64.0`(기존 잔디 타일과 동일)과
+   `BUILDABLE_STRUCTURES`(지금은 `wood_wall`만) 상수, 격자 좌표 변환
+   (`_world_to_grid`/`_grid_to_world_center`), 배치 미리보기 고스트(`_build_ghost`,
+   `_create_build_ghost`/`_update_build_ghost`), 설치(`_try_place_structure`/
+   `_spawn_structure` — `StaticBody2D`+`CollisionShape2D`+`Sprite2D`), 격자 점유
+   추적(`_grid_occupancy: Dictionary[Vector2i, Node]`)을 추가했다. 손에 `wood_wall`을
+   들면 마우스 아래 가장 가까운 격자 칸에 반투명 고스트가 뜨고(이미 점유된 칸이면
+   붉게), 좌클릭하면 인벤토리에서 1개를 소모하고 실제로 설치된다. 우클릭 또는 핫바를
+   다시 고르면(`_select_hotbar`에서 `_build_placement_cancelled` 리셋) 배치 모드가
+   취소된다. 이미 점유된 칸은 `_grid_occupancy.has(cell)`로 막는다.
+2) **스스로 판단해서 고친 부분**: INBOX #119 원문은 ranch_zone.gd의 담장 패턴(실제
+   충돌체를 만들면 플레이어가 못 지나감)을 그대로 참고하라고 했지만, 조사해보니
+   로컬 플레이어(`world.tscn`의 `Player`)는 애초에 물리 바디가 아니라
+   `player_sprite.position += ...`로 위치를 직접 더하는 방식이었다(ranch_zone 담장이
+   막는 건 `CharacterBody2D`인 사슴뿐, 플레이어는 그 어떤 오브젝트와도 충돌한 적이
+   없었음). `StaticBody2D`만 만들면 요구사항("플레이어가 못 지나가는지 확인")을
+   충족 못 해서, `_move_player_with_grid_collision()`을 추가해 플레이어 이동을
+   `_grid_occupancy`를 직접 조회하는 축 분리 충돌 검사로 바꿨다(대각선 이동 시 벽을
+   따라 미끄러지도록 X/Y를 따로 검사). `StaticBody2D`/`CollisionShape2D` 자체는
+   원문대로 만들어서 나중에 사슴 등 실제 물리 바디와는 정상 충돌한다.
+3) **검증**: `game/qa/inbox119_check.gd`(커밋, 재사용 가능)를 `project.godot
+   [autoload]`에 임시 등록하고 `godot --path .`(실제 렌더러)로 실행. 헤드리스와
+   달리 이 환경은 `get_viewport().warp_mouse()`가 `get_global_mouse_position()`에
+   반영되지 않는다는 기존 기록(STATUS.md 바퀴 129 근방)을 재확인했고, 대신 카메라
+   위치와 마우스 월드 좌표의 고정 오프셋을 한 번 측정해서 그 오프셋을 거꾸로 이용해
+   원하는 격자 칸을 "가리키게" 만드는 방식으로 좌클릭 배치 플로우 전체를 실제로
+   구동해 확인했다: (a) 고스트가 목표 칸 중심에 정확히 스냅, (b) 좌클릭 설치 시
+   인벤토리 정확히 1개 감소 + `_grid_occupancy` 등록 + `StaticBody2D` 자식 노드
+   확인, (c) 같은 칸 재설치 시도 시 소모 없음, (d) 플레이어가 벽 칸을 넘어가지
+   못함(`_move_player_with_grid_collision`), (e) 우클릭 취소 후 고스트 숨김, 핫바
+   재선택 시 취소 해제. 전부 `QA_INBOX119_CHECK_PASS`로 통과. 스크린샷
+   (`/tmp/qa119/00_ghost_preview.png`, `01_placed.png`, `02_wall_row_with_grass.png`)을
+   Read 도구로 직접 확인 — 잔디 배경 위에 나무벽 3개를 이어붙인 모습이 격자에
+   깔끔히 정렬되고(64px 정사각형, 빈틈 없음) 플레이어 크기와 비율도 어색하지 않았다.
+   검증 후 `project.godot`의 임시 autoload 등록을 원상복구(diff 없음 확인)하고 세이브
+   파일을 삭제했다.
+4) `docs/feedback/INBOX.md`의 `#119`를 `[x]`로 갱신. **BUILD/DESIGN 완료 카운터**:
+   `#118`(QA) 완료 시 0으로 리셋됐고, 이번 `#119`(BUILD)로 **1**이 됐다(5 도달까지
+   4개 남음). 다음은 `#120`([BUILD], 나무문 — 여닫기 상태 추가).
+
+**다음에 할 것**: 다음 `[BUILD]` 세션은 `#120`(나무문, 여닫기 상태 — 이번에 만든
+`BUILD_GRID_SIZE`/`_world_to_grid`/`_grid_to_world_center`/`_grid_occupancy`/
+`_try_place_structure`/`_spawn_structure` 프레임워크를 그대로 재사용하되, 문은
+열림/닫힘에 따라 `CollisionShape2D.disabled`만 토글하고 `_grid_occupancy`에는
+"문이 있다"는 사실 자체가 계속 남아있게 할 것 — DESIGN.md "건축/방(Room) 시스템"
+2026-09-05 확정 "문은 열려있든 닫혀있든 방 경계 역할" 참고). 참고할 것: (1)
+`_move_player_with_grid_collision()`/`PLAYER_COLLISION_RADIUS`는 플레이어가 물리
+바디가 아니라서 만든 임시방편이다 — 나중에 플레이어를 `CharacterBody2D`로 바꾸는
+지시가 오면 이 수동 충돌 검사를 지우고 실제 물리 충돌로 통합할 것(지금은 범위 밖).
+(2) `game/qa/inbox119_check.gd`의 "마우스 고정 오프셋 측정" 트릭(카메라 위치와
+`get_global_mouse_position()`의 차이를 한 번 재서 거꾸로 이용)은 마우스 좌표에
+의존하는 다른 기능(조준 등)을 헤드리스 유사 환경에서 검증할 때도 재사용 가능하다 —
+단, 카메라를 옮긴 뒤 `get_global_mouse_position()`을 읽기 전에 반드시
+`await get_tree().process_frame`을 한 번 넣을 것(Camera2D의 뷰포트 변환이 다음
+프레임에야 반영돼서, 안 넣으면 이전 카메라 위치 기준으로 계산된 값을 읽게 된다 —
+실제로 이 실수로 엉뚱한 칸에 벽이 설치되는 걸 겪었다).
+
+## 지난 바퀴 기록 (바퀴 171, 그대로 보존)
+
 바퀴 171 / 2026-09-05 ([QA] **INBOX #118 완료 — 전체 스윕(#116/#117 이후 회귀 확인에
 집중), 결함 0건.** 범위: 43스텝 표준 전체 흐름(`full_sweep.gd`) + 저장 상자가 용량
 무제한(#116)·41종 999개 사전 채움(#117)으로 바뀐 뒤에도 기존 상자 상호작용(슬롯

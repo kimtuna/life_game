@@ -92,6 +92,35 @@ const COOKING_STOVE_ORIGIN := Vector2(-650.0, 650.0)
 ## 999개씩 채워 넣는 건 INBOX #97의 몫이다(DESIGN.md 결정 로그 참고).
 const STORAGE_CHEST_ORIGIN := Vector2(0.0, 850.0)
 
+## 건축 격자 배치 시스템 (INBOX #119). DESIGN.md "건축/방(Room) 시스템" 2026-09-05
+## 확정대로, 기존 잔디 바닥 타일(grass_tile.png, 64x64)과 크기를 맞춘다.
+const BUILD_GRID_SIZE := 64.0
+
+## 격자에 설치 가능한 아이템(INBOX #119는 나무벽만 검증, 나머지는 #120/#121에서 확장).
+## 아이콘은 이미 있는 아이템 아이콘(INBOX #101)을 격자 칸 크기로 확대해서 재사용한다.
+const BUILDABLE_STRUCTURES := {
+	"wood_wall": {"texture": preload("res://assets/sprites/items/wood_wall.png")},
+}
+
+## 플레이어는 물리 바디(CharacterBody2D)가 아니라 위치를 직접 더하는 방식으로 움직여서
+## (아래 _physics_process 참고), StaticBody2D 충돌체만으로는 플레이어를 막을 수 없다 —
+## deer.gd는 CharacterBody2D라 ranch_zone.gd의 담장(StaticBody2D)에 move_and_slide()로
+## 자연스럽게 막히지만 플레이어는 그 경로를 안 탄다. 그래서 건축물은 (1) ranch_zone.gd와
+## 같은 패턴의 실제 StaticBody2D+CollisionShape2D를 만들어 다른 물리 바디(사슴 등)와는
+## 정상적으로 충돌하게 하고, (2) 플레이어 이동은 아래 _grid_occupancy를 직접 조회해
+## 막는 방식을 함께 쓴다(스스로 판단해서 추가 — 근거는 이 상수 설명 참고).
+const PLAYER_COLLISION_RADIUS := 16.0
+
+## 격자 좌표(Vector2i) -> 그 칸에 설치된 건축물 Node. 벽/문 위치를 추적해서 겹침 검사와
+## (나중에 #122) 방 감지가 참조할 수 있게 한다.
+var _grid_occupancy: Dictionary = {}
+## 배치 모드 미리보기(반투명 고스트) 스프라이트.
+var _build_ghost: Sprite2D = null
+## 배치 모드 중 우클릭하면 true가 되어 고스트/설치를 잠깐 끈다. 핫바를 다시 고르면
+## (_select_hotbar가 호출되면) 초기화된다 — "우클릭 또는 도구를 바꾸면 배치 모드를
+## 취소한다" 요구사항.
+var _build_placement_cancelled: bool = false
+
 ## InventoryData가 저장하는 아이템 키(내부 이름) -> 화면 표시 이름.
 const ITEM_LABELS := {
 	"rice_seed": "벼 씨앗",
@@ -327,6 +356,7 @@ func _ready() -> void:
 	_spawn_cooking_stove()
 	_spawn_storage_chest()
 	_ensure_starting_tools()
+	_create_build_ghost()
 	_build_inventory_slots()
 	_build_hotbar()
 	_build_crafting_window()
@@ -349,6 +379,15 @@ func _process(delta: float) -> void:
 	var t := TimeData.phase_progress()
 	day_night_modulate.color = DAY_COLOR.lerp(NIGHT_COLOR, t) if TimeData.is_day \
 		else NIGHT_COLOR.lerp(DAY_COLOR, t)
+	## 건축 배치 고스트(INBOX #119)는 물리 프레임이 아니라 렌더 프레임마다 갱신한다 —
+	## `_physics_process`는 QA 스크립트가 카메라를 직접 조작할 때 꺼두는 경우가 있어서
+	## (물리 처리를 끄면 마우스 추종도 함께 멈추는 기존 패턴), 여기 두면 그런 상황에도
+	## 고스트가 마우스를 계속 따라간다.
+	if _build_ghost != null:
+		if _paused or _inventory_open or _crafting_open or _storage_open:
+			_build_ghost.visible = false
+		else:
+			_update_build_ghost()
 	if _storage_message_timer > 0.0:
 		_storage_message_timer -= delta
 		if _storage_message_timer <= 0.0:
@@ -402,6 +441,17 @@ func _unhandled_input(event: InputEvent) -> void:
 		## 낚싯대는 INBOX #45부터 옆 아이콘이 아니라 캐릭터 애니메이션 프레임 자체
 		## (fishing_rod_fishing_*)로 낚시하는 모션을 보여준다 (도끼(#43)와 같은 패턴).
 		_tool_use_flash_timer = AXE_CHOP_FLASH_DURATION
+	elif event is InputEventMouseButton and event.pressed and not _paused and not _inventory_open \
+			and not _crafting_open and not _storage_open and event.button_index == MOUSE_BUTTON_LEFT \
+			and not _build_placement_cancelled and BUILDABLE_STRUCTURES.has(get_held_item()):
+		## 건축 배치 모드(INBOX #119) — 격자에 스냅된 칸에 좌클릭으로 설치 확정.
+		_try_place_structure()
+	elif event is InputEventMouseButton and event.pressed and not _paused and not _inventory_open \
+			and not _crafting_open and not _storage_open and event.button_index == MOUSE_BUTTON_RIGHT \
+			and BUILDABLE_STRUCTURES.has(get_held_item()):
+		## 우클릭으로 배치 모드 취소(INBOX #119) — 도구를 바꾸면 자동으로 취소되는 것과
+		## 별개로, 같은 아이템을 손에 든 채로도 취소할 수 있어야 한다.
+		_build_placement_cancelled = true
 
 
 func _physics_process(delta: float) -> void:
@@ -420,7 +470,7 @@ func _physics_process(delta: float) -> void:
 	_is_moving = input_dir.length() > 0.0
 	if _is_moving:
 		input_dir = input_dir.normalized()
-	player_sprite.position += input_dir * MOVE_SPEED * delta
+	_move_player_with_grid_collision(input_dir * MOVE_SPEED * delta)
 
 	var to_mouse := get_global_mouse_position() - player_sprite.global_position
 	if to_mouse.length() > 1.0:
@@ -709,6 +759,109 @@ func _spawn_storage_chest() -> void:
 		chest.add_item(item_name, DEBUG_STARTER_CHEST_AMOUNT)
 
 
+## 월드 좌표를 격자 칸 좌표(Vector2i)로 변환한다 (INBOX #119).
+func _world_to_grid(pos: Vector2) -> Vector2i:
+	return Vector2i(floori(pos.x / BUILD_GRID_SIZE), floori(pos.y / BUILD_GRID_SIZE))
+
+
+## 격자 칸 좌표를 그 칸의 중심 월드 좌표로 변환한다(설치/미리보기 위치를 여기로 스냅).
+func _grid_to_world_center(cell: Vector2i) -> Vector2:
+	return Vector2((cell.x + 0.5) * BUILD_GRID_SIZE, (cell.y + 0.5) * BUILD_GRID_SIZE)
+
+
+## 배치 모드 미리보기 고스트 스프라이트를 한 번만 만들어둔다(반투명, 처음엔 숨김).
+func _create_build_ghost() -> void:
+	_build_ghost = Sprite2D.new()
+	_build_ghost.name = "BuildGhost"
+	_build_ghost.visible = false
+	_build_ghost.z_index = 5
+	add_child(_build_ghost)
+
+
+## 지금 손에 든 아이템이 설치 가능한 건축물이면, 마우스 아래 가장 가까운 격자 칸에
+## 반투명 미리보기를 표시한다. 이미 다른 건축물이 있는 칸이면 붉은색으로 경고한다.
+func _update_build_ghost() -> void:
+	var item := get_held_item()
+	if _build_placement_cancelled or not BUILDABLE_STRUCTURES.has(item):
+		_build_ghost.visible = false
+		return
+	var data: Dictionary = BUILDABLE_STRUCTURES[item]
+	var texture: Texture2D = data["texture"]
+	_build_ghost.texture = texture
+	var tex_size := texture.get_size()
+	if tex_size.x > 0.0 and tex_size.y > 0.0:
+		_build_ghost.scale = Vector2(BUILD_GRID_SIZE, BUILD_GRID_SIZE) / tex_size
+	var cell := _world_to_grid(get_global_mouse_position())
+	_build_ghost.global_position = _grid_to_world_center(cell)
+	_build_ghost.modulate = Color(1.0, 0.35, 0.35, 0.55) if _grid_occupancy.has(cell) else Color(1.0, 1.0, 1.0, 0.55)
+	_build_ghost.visible = true
+
+
+## 좌클릭으로 배치 모드를 확정한다(INBOX #119) — 마우스 아래 격자 칸이 비어 있으면
+## 인벤토리에서 1개를 소모하고 실제 충돌체(StaticBody2D)를 설치한다.
+func _try_place_structure() -> void:
+	var item := get_held_item()
+	if not BUILDABLE_STRUCTURES.has(item):
+		return
+	var cell := _world_to_grid(get_global_mouse_position())
+	if _grid_occupancy.has(cell):
+		return
+	if not InventoryData.remove_item(item, 1):
+		return
+	_grid_occupancy[cell] = _spawn_structure(item, cell)
+
+
+## 격자 칸 중심에 실제 충돌체(StaticBody2D+CollisionShape2D)와 그림을 만든다
+## (ranch_zone.gd의 담장 생성 패턴 참고 — deer.gd 같은 CharacterBody2D는 이 충돌체와
+## move_and_slide()로 자연스럽게 막힌다). 플레이어 자체는 물리 바디가 아니라서
+## _move_player_with_grid_collision()이 _grid_occupancy를 직접 조회해 따로 막는다.
+func _spawn_structure(item: String, cell: Vector2i) -> Node2D:
+	var data: Dictionary = BUILDABLE_STRUCTURES[item]
+	var body := StaticBody2D.new()
+	body.name = "Structure_%s_%d_%d" % [item, cell.x, cell.y]
+	body.position = _grid_to_world_center(cell)
+	var shape := RectangleShape2D.new()
+	shape.size = Vector2(BUILD_GRID_SIZE, BUILD_GRID_SIZE)
+	var col := CollisionShape2D.new()
+	col.shape = shape
+	body.add_child(col)
+	var sprite := Sprite2D.new()
+	var texture: Texture2D = data["texture"]
+	sprite.texture = texture
+	var tex_size := texture.get_size()
+	if tex_size.x > 0.0 and tex_size.y > 0.0:
+		sprite.scale = Vector2(BUILD_GRID_SIZE, BUILD_GRID_SIZE) / tex_size
+	body.add_child(sprite)
+	add_child(body)
+	return body
+
+
+## 플레이어 이동에 건축물 격자 충돌을 적용한다(INBOX #119, 위 PLAYER_COLLISION_RADIUS
+## 설명 참고). 축을 분리해서 확인해야 벽을 따라 미끄러지듯 이동할 수 있다(한 번에 XY를
+## 같이 검사하면 대각선으로 다가갈 때 아예 못 움직이는 것처럼 느껴진다).
+func _move_player_with_grid_collision(motion: Vector2) -> void:
+	var pos := player_sprite.position
+	var try_x := pos + Vector2(motion.x, 0.0)
+	if not _is_position_blocked(try_x):
+		pos = try_x
+	var try_y := pos + Vector2(0.0, motion.y)
+	if not _is_position_blocked(try_y):
+		pos = try_y
+	player_sprite.position = pos
+
+
+## pos를 중심으로 한 작은 사각형(플레이어 폭 근사)의 네 모서리 중 하나라도 건축물이
+## 설치된 격자 칸에 들어가면 막힌 것으로 본다.
+func _is_position_blocked(pos: Vector2) -> bool:
+	if _grid_occupancy.is_empty():
+		return false
+	var r := PLAYER_COLLISION_RADIUS
+	for offset in [Vector2(-r, -r), Vector2(r, -r), Vector2(-r, r), Vector2(r, r)]:
+		if _grid_occupancy.has(_world_to_grid(pos + offset)):
+			return true
+	return false
+
+
 ## 사냥/채집/채광 결과물을 바닥에 드롭 오브젝트로 스폰한다 (INBOX #24, DESIGN.md
 ## "아이템 획득 방식 — 바닥 드롭"). 드롭 오브젝트가 player_ref로 플레이어와의 거리를
 ## 직접 재서 접촉하면 스스로 인벤토리에 들어가고 사라진다.
@@ -828,6 +981,9 @@ func _select_hotbar(index: int) -> void:
 	var general_slots := InventoryData.get_general_slots()
 	var slot = general_slots[index] if index < general_slots.size() else null
 	_held_tool = slot["item"] if slot != null and TOOL_ICONS.has(slot["item"]) else ""
+	## 핫바를 다시 고르면(숫자키를 새로 누르거나 인벤토리 변경으로 재검증되면) 건축
+	## 배치 모드 취소 상태를 초기화한다(INBOX #119 — "도구를 바꾸면 배치 모드를 취소").
+	_build_placement_cancelled = false
 	_refresh_hotbar()
 	_update_player_animation()
 
