@@ -27,19 +27,19 @@
 </head>
 <body>
   <h1>auto-loop 진행 상황</h1>
-  <p class="updated">마지막 갱신: 2026-09-04 16:40:43</p>
+  <p class="updated">마지막 갱신: 2026-09-04 16:46:36</p>
   
   <div class="row">
     <div class="card"><div class="label">남은 항목</div><div class="num">9</div></div>
-    <div class="card"><div class="label">완료된 항목</div><div class="num">102</div></div>
+    <div class="card"><div class="label">완료된 항목</div><div class="num">103</div></div>
   </div>
   <div class="card">
     <div class="label">지금 처리 중 / 다음으로 처리할 항목</div>
-    <div>#103 [BUILD] (사용자 지시, 2026-09-04) 필드 채광 포인트에 모래/구리광석을 추가한다(#84가 만든 돌/철광석/유황광석 3종 가중치 랜덤 스폰 목록을 5종으로 확장). 새 원재료 아이템 `sand`(모래)/`copper_ore`(구리광석)를 `ITEM_LABELS`/`ITEM_CATEGORIES`(둘 다 "원재료")에 추가한다. `mining_point_stone.tscn`/`mining_point_sulfur.tscn`(#84)과 같은 방식으로 `mining_point_sand.tscn`/`mining_point_copper.tscn`을 만들고, `world.gd`의 `_spawn_resource_points()`의 가중치 목록에 추가(비중은 재량 — 강철/전기 테크의 기반 재료라 유황광석과 비슷하거나 약간 흔한 정도를 제안). 텍스처는 범위 밖(후속 [DESIGN] #104, 그때까지 기존 광물 그림 재사용/modulate 임시 처리). 실행해서 5종 채광 포인트가 섞여 스폰되고 각각 올바른 아이템을 드롭하는지 확인한다.</div>
+    <div>#104 [DESIGN] (사용자 지시, 2026-09-04) #103에서 추가된 모래/구리광석의 아이템 아이콘과 채광 포인트 월드 그림을 파이썬 절차적 생성(Pillow)으로 만든다. **AI 생성 도구 크레딧을 쓰지 않는다** — #86/#91과 같은 기법 재사용. 모래는 연한 베이지색 알갱이 질감, 구리광석은 붉은빛이 도는 광택 있는 결정형으로 — 기존 돌(회색)/철광석/유황광석(노란빛)과 실루엣·색이 확실히 구별되게 만든다. DESIGN.md 크기 표준을 지키고 배경 투명 필수. `dropped_item.gd`의 `ITEM_ICONS`/두 채광 포인트 씬의 `texture_path`에 연결하고 스크린샷으로 확인한다.</div>
   </div>
   <div class="card">
     <div class="label">마지막 작업 커밋</div>
-    <div><code>cc3dcde [INBOX #112] 저장 상자/가공대/제련로/조리대/조리용 화로 창 배경 불투명 처리</code></div>
+    <div><code>924bd8b [INBOX #103] 필드 채광 포인트에 모래/구리광석 추가 (5종 가중치 스폰으로 확장)</code></div>
   </div>
   <div class="card">
     <div class="label">디자인 개선 후보 (확인 후 지우기를 누르면 이 브라우저에서 안 보입니다)</div>
