@@ -27,19 +27,19 @@
 </head>
 <body>
   <h1>auto-loop 진행 상황</h1>
-  <p class="updated">마지막 갱신: 2026-09-05 01:28:35</p>
+  <p class="updated">마지막 갱신: 2026-09-05 02:08:06</p>
   
   <div class="row">
-    <div class="card"><div class="label">남은 항목</div><div class="num">0</div></div>
+    <div class="card"><div class="label">남은 항목</div><div class="num">5</div></div>
     <div class="card"><div class="label">완료된 항목</div><div class="num">117</div></div>
   </div>
   <div class="card">
     <div class="label">지금 처리 중 / 다음으로 처리할 항목</div>
-    <div>(없음 — 큐 비어있음)</div>
+    <div>#119 [BUILD] (사용자 지시, 2026-09-05) 건축물 격자 배치 시스템의 기반을 만든다 — **나무벽(`wood_wall`) 하나로만 검증**한다(다른 벽/문 종류는 #121에서 확장). DESIGN.md "건축/방(Room) 시스템" 절(2026-09-05 격자 확정)을 먼저 읽는다. `world.gd`에 `BUILD_GRID_SIZE := 64.0`(기존 잔디 타일 크기와 맞춤) 상수를 추가하고, 월드 좌표를 격자 중심 좌표로 스냅하는 유틸리티 함수를 만든다. 플레이어가 핫바에서 `wood_wall`을 손에 들면 "배치 모드"로 들어간다: 마우스 커서 아래 가장 가까운 격자 칸에 반투명 미리보기(고스트) 스프라이트를 표시하고(`get_global_mouse_position()` 사용, 기존 조준 로직과 같은 패턴), **좌클릭하면 그 칸에 실제로 설치**(인벤토리에서 `wood_wall` 1개 소모, `StaticBody2D`+`CollisionShape2D`로 실제 충돌체를 만들어 플레이어가 통과 못 하게 함 — `ranch_zone.gd`의 담장 생성 패턴 참고), **우클릭 또는 도구를 바꾸면 배치 모드를 취소**한다. 이미 다른 건축물/오브젝트가 있는 칸에는 설치할 수 없게(겹침 검사) 막는다. 설치된 벽의 위치는 나중에(#122) 방 감지가 참조할 수 있도록 격자 좌표 기준으로 추적 가능한 자료구조(예: `Dictionary[Vector2i, Node]`)에 기록해둔다. 벽 그림은 이미 있는 아이템 아이콘(#101)을 재사용해도 되고 확대해서 써도 된다(새 그림 필요 없음). 실제로 나무벽 여러 개를 이어붙여서 플레이어가 못 지나가는지, 인벤토리 개수가 정확히 줄어드는지, 이미 벽이 있는 칸에 다시 설치가 안 되는지 확인한다.</div>
   </div>
   <div class="card">
     <div class="label">마지막 작업 커밋</div>
-    <div><code>13aa9ee [INBOX #118] QA: 전체 스윕(#116/#117 이후 상자 회귀 확인) — 결함 0건 발견</code></div>
+    <div><code>1366fc2 건축 격자 배치 + 방 감지 + 방-상자 자동 연동 시스템 큐 등록 (INBOX #119~#123)</code></div>
   </div>
   <div class="card">
     <div class="label">디자인 개선 후보 (확인 후 지우기를 누르면 이 브라우저에서 안 보입니다)</div>
