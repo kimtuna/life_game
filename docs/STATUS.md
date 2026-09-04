@@ -5,6 +5,73 @@
 
 ## 마지막 갱신
 
+바퀴 174 / 2026-09-05 ([BUILD] **INBOX #121 완료 — #119/#120 격자 배치 프레임워크에
+나머지 벽/문 4종(`stone_wall`/`steel_wall`/`steel_door`/`window`)을 아이템 키만
+추가해서 연결했다.**)
+1) `scenes/world/world.gd`의 `BUILDABLE_STRUCTURES`에 4개 항목을 추가했다 —
+   `stone_wall`/`steel_wall`/`window`은 벽류(추가 옵션 없음, 기존 `wood_wall`과
+   동일한 취급), `steel_door`는 문류(`"is_door": true`, 기존 `wood_door`와 동일한
+   취급). **새 코드는 전혀 작성하지 않았다** — `_spawn_structure()`/`_try_place_structure()`/
+   `_update_build_ghost()`/`is_build_placement_active()`/`Door`(`scripts/door.gd`)
+   전부 아이템 키에 무관한 범용 로직이라 그대로 재사용됨. 텍스처는 이미 있는 아이템
+   아이콘(`assets/sprites/items/stone_wall.png`/`steel_wall.png`/`steel_door.png`/
+   `window.png`, INBOX #100/#109가 이미 만들어둔 것)을 그대로 preload했다.
+2) **새 아이템 종류를 추가한 게 아니므로**(이미 #100/#109에서 가공대 레시피로 만든
+   기존 완성품 5종에 "격자 설치"라는 새 용도만 연결한 것) 테스트 상자(999개 자동
+   보급) 갱신은 필요 없었다 — 확인해보니 `DEBUG_STARTER_CHEST_ITEMS`에 5종
+   (`wood_wall`/`wood_door`/`stone_wall`/`steel_wall`/`steel_door`/`window`)이 이미
+   전부 999개씩 들어있었다(INBOX #97/#109 때 이미 채워짐).
+3) **검증**: 새 QA 스크립트 `game/qa/inbox121_check.gd`(커밋, 재사용 가능)를
+   `project.godot [autoload]`에 임시 등록하고, `godot --headless --editor
+   --quit-after 30`을 먼저 한 번 돌려 `Door` 전역 클래스를 인식시킨 뒤(#120이 남긴
+   교훈, 안 하면 파싱 에러) `godot --path .`(실제 렌더러)로 실행. 벽류 4종
+   (`wood_wall` 회귀 재확인 포함)과 문류 2종(`wood_door` 회귀 재확인 + `steel_door`
+   신규)을 서로 다른 격자 행에 순서대로 설치하며 각각 확인: (a) 좌클릭 설치 시
+   인벤토리 정확히 1개 감소 + `_grid_occupancy` 등록, (b) 벽류는 `StaticBody2D`(Door
+   아님)로 생성되고 플레이어가 통과 못 함(`_move_player_with_grid_collision()`을
+   8유닛씩 80회 나눠 호출 — #120이 남긴 "한 번에 큰 이동량 넘기지 말 것" 함정 재사용
+   회피), (c) 이미 점유된 칸에 재설치 시도 시 소모 없음, (d) 문류는 `Door` 노드로
+   생성되고 기본 상태(닫힘)에서 플레이어를 막음, (e) 빈손으로 근처 좌클릭(실제 엔진
+   입력 경로, `Input.parse_input_event()`)하면 열려서 플레이어가 통과 가능해지고,
+   다시 좌클릭하면 닫혀서 다시 막힘. 전부 `QA_INBOX121_CHECK_PASS`로 통과. 스크린샷
+   (`/tmp/qa121/03_overview.png` — 석제벽/강철벽/창문이 격자에 깔끔히 정렬된 모습,
+   `01_steel_door_open.png`/`02_steel_door_closed.png` — 강철문이 `wood_door`와
+   같은 패턴(닫힘=불투명, 열림=반투명+오른쪽으로 밀림)으로 정상 동작)을 Read 도구로
+   직접 확인 — 4종 전부 64px 격자에 빈틈없이 스냅되고 플레이어 크기와 비율도
+   어색하지 않았다. 검증 중 처음엔 각 아이템마다 인벤토리를 다시 채울 때 이전 아이템이
+   슬롯 0을 이미 차지하고 있어서 새 아이템이 다른 슬롯에 들어가 핫바 선택이 어긋나는
+   실패가 있었다 — 매 아이템 테스트 시작 시 `InventoryData._general_slots.fill(null)`로
+   슬롯을 비우고 시작하도록 고쳐서 해결(원인: 아이템 종류가 다르면 같은 슬롯에
+   스택되지 않고 새 빈 슬롯을 찾아 들어감). 검증 후 `project.godot`의 임시 autoload
+   등록을 원상복구(diff 없음 확인)하고, 테스트 중 생성된 세이브 파일
+   (`app_userdata/life_game/{characters,inventory}.save`)을 삭제했다.
+4) `docs/feedback/INBOX.md`의 `#121`을 `[x]`로 갱신. **BUILD/DESIGN 완료 카운터**:
+   `#120`(BUILD) 완료 시 2였음 → 이번 `#121`(BUILD)으로 **3**이 됐다(5 도달까지 2개
+   남음). 다음은 `#122`([BUILD], 방(Room) 감지 시스템 — flood-fill 기반).
+
+**다음에 할 것**: 다음 `[BUILD]` 세션은 `#122`(방(Room) 감지 시스템 — DESIGN.md
+"건축/방(Room) 시스템" 절의 2026-09-05 확정 규칙표를 반드시 먼저 읽을 것). 참고할
+것: (1) 이번 바퀴로 격자 배치 시스템(#119~#121)이 완전히 끝났다 — `_grid_occupancy:
+Dictionary[Vector2i, Node]`가 벽/문 위치의 유일한 출처이고, 문은 열림/닫힘과
+무관하게 항상 이 딕셔너리에 남아있는다(닫힘 여부는 `node.is_open`으로 따로 확인,
+`node is Door`로 문/벽을 구분). #122의 flood-fill은 이 자료구조를 그대로 순회하면
+된다. (2) `_world_to_grid()`/`_grid_to_world_center()`로 격자 좌표 변환, `BUILD_GRID_SIZE
+= 64.0`. (3) 방에 속한 "핵심 오브젝트"(가공대/제련로/조리대/조리용 화로/farm_plot/
+ranch_zone)는 전부 `world.gd`가 `add_child()`로 스폰한 노드라 `get_children()`이나
+그룹으로 찾을 수 있을 것 — 각 오브젝트의 정확한 클래스/스폰 함수명은 `world.gd`에서
+`_spawn_` 접두사로 검색해서 확인할 것(예: `_spawn_processing_table()`,
+`_spawn_smelter()` 등 이름은 실제 코드를 확인 후 정확히 쓸 것, 이 메모에서 추측한
+이름을 그대로 믿지 말 것). (4) QA 스크립트에서 플레이어 이동/충돌 검증 시
+`_move_player_with_grid_collision()`을 8유닛씩 여러 번 나눠 호출하는 패턴
+(`inbox121_check.gd` 참고)을 계속 재사용할 것 — 한 번에 큰 값을 넘기면 거짓
+통과가 난다(#120/#121에서 반복 확인됨). (5) 인벤토리에 아이템을 채워 QA할 때는
+매번 `InventoryData._general_slots.fill(null)`로 슬롯을 먼저 비울 것(이번 바퀴
+겪은 함정, 바로 위 3번 항목 참고). (6) `#122` 완료 후 BUILD/DESIGN 카운터는 4가
+되어 5 도달까지 1개 남는다 — `#123`(방-상자 자동 연동)까지 끝나면 카운터가 5에
+도달해 전체 QA 스윕 항목이 큐에 자동으로 추가되어야 한다(잊지 말 것).
+
+## 지난 바퀴 기록 (바퀴 173, 그대로 보존)
+
 바퀴 173 / 2026-09-05 ([BUILD] **INBOX #120 완료 — #119의 격자 배치 프레임워크를
 나무문(`wood_door`)에 적용하고, 문에 한해 여닫을 수 있게(충돌 토글) 만들었다.**)
 1) `scenes/world/world.gd`의 `BUILDABLE_STRUCTURES`에 `"wood_door": {"texture": ...,

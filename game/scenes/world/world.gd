@@ -96,13 +96,19 @@ const STORAGE_CHEST_ORIGIN := Vector2(0.0, 850.0)
 ## 확정대로, 기존 잔디 바닥 타일(grass_tile.png, 64x64)과 크기를 맞춘다.
 const BUILD_GRID_SIZE := 64.0
 
-## 격자에 설치 가능한 아이템(INBOX #119는 나무벽만 검증, #120이 나무문 추가, 나머지는
-## #121에서 확장). 아이콘은 이미 있는 아이템 아이콘(INBOX #101)을 격자 칸 크기로
-## 확대해서 재사용한다. `is_door: true`면 `_spawn_structure()`가 door.gd(Door)를 붙여서
-## 여닫을 수 있는 구조물로 만든다(그 외에는 항상 막힌 벽).
+## 격자에 설치 가능한 아이템(INBOX #119가 나무벽, #120이 나무문으로 프레임워크를 검증,
+## #121이 나머지 5종 — 석제벽/강철벽/강철문/창문 — 을 아이템 키만 추가해 연결). 아이콘은
+## 이미 있는 아이템 아이콘(INBOX #101/#109)을 격자 칸 크기로 확대해서 재사용한다.
+## `is_door: true`면 `_spawn_structure()`가 door.gd(Door)를 붙여서 여닫을 수 있는
+## 구조물로 만든다(그 외에는 항상 막힌 벽 — `window`도 지금은 벽처럼 막히기만 한다,
+## DESIGN.md에 "안이 보이는 벽" 취급은 나중 과제로 명시됨).
 const BUILDABLE_STRUCTURES := {
 	"wood_wall": {"texture": preload("res://assets/sprites/items/wood_wall.png")},
 	"wood_door": {"texture": preload("res://assets/sprites/items/wood_door.png"), "is_door": true},
+	"stone_wall": {"texture": preload("res://assets/sprites/items/stone_wall.png")},
+	"steel_wall": {"texture": preload("res://assets/sprites/items/steel_wall.png")},
+	"steel_door": {"texture": preload("res://assets/sprites/items/steel_door.png"), "is_door": true},
+	"window": {"texture": preload("res://assets/sprites/items/window.png")},
 }
 
 ## 플레이어는 물리 바디(CharacterBody2D)가 아니라 위치를 직접 더하는 방식으로 움직여서
