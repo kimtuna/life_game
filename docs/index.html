@@ -27,19 +27,19 @@
 </head>
 <body>
   <h1>auto-loop 진행 상황</h1>
-  <p class="updated">마지막 갱신: 2026-09-05 08:48:05</p>
+  <p class="updated">마지막 갱신: 2026-09-05 08:58:36</p>
   
   <div class="row">
-    <div class="card"><div class="label">남은 항목</div><div class="num">1</div></div>
-    <div class="card"><div class="label">완료된 항목</div><div class="num">133</div></div>
+    <div class="card"><div class="label">남은 항목</div><div class="num">0</div></div>
+    <div class="card"><div class="label">완료된 항목</div><div class="num">134</div></div>
   </div>
   <div class="card">
     <div class="label">지금 처리 중 / 다음으로 처리할 항목</div>
-    <div>#135 [BUILD] (사용자 지시 2026-09-05, #133 이후 진행 권장 — 정확한 벽 경계가 있어야 가림 판정이 정확함) 시야/전장의 안개(Fog of War) 시스템을 만든다. DESIGN.md "시야 / 전장의 안개(Fog of War, 코어키퍼 참고, 2026-09-05 확정)" 절을 먼저 전체 읽는다(방향/모양/가림/표현/범위/멀티플레이 규칙이 전부 그 절에 있다). 요약: 플레이어 위치를 꼭짓점으로, 기존 마우스 조준 방향을 중심으로 한 부채꼴(콘) 안에서만 보이게 하고, 콘 안이라도 벽/닫힌 문에 가로막힌 지점은 안 보이게 한다(직선 가로막힘 판정). 안 보이는 영역은 완전한 검은색(불투명)으로 덮는다 — #126의 반투명 방 오버레이(토글식)와는 별개의, 항상 켜져 있는 렌더링 레이어다. 콘 각도/반경은 DESIGN.md 지침대로 임의로 정하고 실제 플레이로 조정한다. 이동 충돌/방 감지/총알 물리는 건드리지 않는다(렌더링만). 멀티플레이에서는 각 클라이언트가 자기 플레이어 기준으로만 계산한다(다른 플레이어 화면에 영향 주지 않음). 실제로 벽으로 작은 방을 짓고 그 안팎을 오가며, 그리고 고개(마우스 방향)를 돌려가며 시야가 그에 맞게 바뀌고 벽 뒤가 안 보이는지 스크린샷으로 확인한다. 멀티플레이 환경(호스트+참가자 2개 클라이언트)에서 서로의 안개가 독립적으로 계산되는지도 확인한다.</div>
+    <div>(없음 — 큐 비어있음)</div>
   </div>
   <div class="card">
     <div class="label">마지막 작업 커밋</div>
-    <div><code>bc9d115 [INBOX #134] 벽/문/창문을 절차적 생성으로 "서 있는 벽"처럼 다시 그림</code></div>
+    <div><code>1c8295b [INBOX #135] 시야/전장의 안개(Fog of War) 시스템 추가</code></div>
   </div>
   <div class="card">
     <div class="label">디자인 개선 후보 (확인 후 지우기를 누르면 이 브라우저에서 안 보입니다)</div>
