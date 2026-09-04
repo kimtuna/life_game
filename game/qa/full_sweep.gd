@@ -50,6 +50,13 @@ func _ready() -> void:
 		"tool_fishing_rod_use",
 		"tool_fishing_rod_walk",
 		"inventory_open",
+		"storage_chest_open",
+		"storage_chest_transfer",
+		"processing_table_open",
+		"processing_table_batch_collect",
+		"smelting_furnace_open",
+		"cooking_table_open",
+		"cooking_stove_open",
 		"farm_empty",
 		"farm_growing",
 		"farm_ready",
@@ -106,6 +113,13 @@ func _run_step(name: String) -> void:
 		"tool_fishing_rod_use": _step_tool_fishing_rod_use()
 		"tool_fishing_rod_walk": _step_tool_walk()
 		"inventory_open": _step_inventory_open()
+		"storage_chest_open": _step_storage_chest_open()
+		"storage_chest_transfer": _step_storage_chest_transfer()
+		"processing_table_open": _step_processing_table_open()
+		"processing_table_batch_collect": _step_processing_table_batch_collect()
+		"smelting_furnace_open": _step_smelting_furnace_open()
+		"cooking_table_open": _step_cooking_table_open()
+		"cooking_stove_open": _step_cooking_stove_open()
 		"farm_empty": _step_farm_empty()
 		"farm_growing": _step_farm_growing()
 		"farm_ready": _step_farm_ready()
@@ -245,6 +259,80 @@ func _step_inventory_open() -> void:
 	_world._set_inventory_open(true)
 
 
+# ---- 저장 상자 / 가공·조리 라인 (INBOX #102 — 이전 전체 스윕(#56/#84까지)에는 없던
+# 스텝. #96~#101에서 저장 상자와 가공대/제련로/조리대/조리용 화로가 추가됐는데도 그동안
+# full_sweep.gd가 이 오브젝트들을 한 번도 실제로 열어본 적이 없었다 — #102가 명시적으로
+# "저장 상자·가공/조리 라인 전체가 여전히 정상 동작하는지" 확인하라고 요구해서 이번에
+# 처음 스윕 경로에 추가한다.)
+
+func _find_station(script_path: String) -> Node:
+	return _find_first_child_of_type(_world, script_path)
+
+
+func _step_storage_chest_open() -> void:
+	_world._set_inventory_open(false)
+	var chest := _find_station("res://scenes/storage_chest/storage_chest.gd")
+	_player.position = chest.global_position + Vector2(0, 90)
+	_world.camera.global_position = _player.position
+	_world.open_storage_window(chest.CHEST_TITLE, chest)
+
+
+## 상자에 채워진 첫 슬롯 하나를 실제로 플레이어 인벤토리로 이전해본다(INBOX #96/#98
+## 안전 패턴이 정상 경로에서도 실제로 아이템을 옮기는지 — 실패만 검증하는
+## inventory_safety_check.gd와 달리 이건 "정상적으로 성공하는 길"을 스크린샷으로 본다).
+func _step_storage_chest_transfer() -> void:
+	var chest := _find_station("res://scenes/storage_chest/storage_chest.gd")
+	var slots: Array = chest.get_slots()
+	for i in range(slots.size()):
+		if slots[i] != null:
+			chest.try_transfer_to_player(i)
+			break
+
+
+func _step_processing_table_open() -> void:
+	_world.close_storage_window()
+	var table := _find_station("res://scenes/processing_table/processing_table.gd")
+	_player.position = table.global_position + Vector2(0, 90)
+	_world.camera.global_position = _player.position
+	_world.open_crafting_window(table.get_title(), table.get_recipes(), table)
+
+
+## 배치 제작(수량 지정 -> 재료 선소모 -> 타이머 -> 출력 버퍼 -> 수동 수령, INBOX #99)이
+## 실제로 끝까지 도는지 확인한다. 5초 타이머를 실제로 기다리지 않고 `_process()`를 한 번에
+## 크게 진행시켜(batch_crafting_check.gd와 같은 방법) 즉시 완성시킨 뒤 수령 버튼 콜백을
+## 직접 호출한다.
+func _step_processing_table_batch_collect() -> void:
+	var table := _find_station("res://scenes/processing_table/processing_table.gd")
+	InventoryData.add_item("wood", 2)
+	table.start_batch({"inputs": {"wood": 2}, "output": "plank", "amount": 1}, 1)
+	table._process(CraftingStation.CRAFT_SECONDS_PER_UNIT + 1.0)
+	_world._on_collect_pressed()
+
+
+func _step_smelting_furnace_open() -> void:
+	_world.close_crafting_window()
+	var furnace := _find_station("res://scenes/smelting_furnace/smelting_furnace.gd")
+	_player.position = furnace.global_position + Vector2(0, 90)
+	_world.camera.global_position = _player.position
+	_world.open_crafting_window(furnace.get_title(), furnace.get_recipes(), furnace)
+
+
+func _step_cooking_table_open() -> void:
+	_world.close_crafting_window()
+	var table := _find_station("res://scenes/cooking_table/cooking_table.gd")
+	_player.position = table.global_position + Vector2(0, 90)
+	_world.camera.global_position = _player.position
+	_world.open_crafting_window(table.get_title(), table.get_recipes(), table)
+
+
+func _step_cooking_stove_open() -> void:
+	_world.close_crafting_window()
+	var stove := _find_station("res://scenes/cooking_stove/cooking_stove.gd")
+	_player.position = stove.global_position + Vector2(0, 90)
+	_world.camera.global_position = _player.position
+	_world.open_crafting_window(stove.get_title(), stove.get_recipes(), stove)
+
+
 # ---- 농사 ----
 
 var _farm_plot: Node2D = null
@@ -260,6 +348,7 @@ func _find_first_child_of_type(root: Node, script_path: String) -> Node:
 
 func _step_farm_empty() -> void:
 	_world._set_inventory_open(false)
+	_world.close_crafting_window()
 	_farm_plot = _find_first_child_of_type(_world, "res://scenes/farm_plot/farm_plot.gd")
 	_player.position = _farm_plot.global_position + Vector2(0, 90)
 	_world.camera.global_position = _player.position
