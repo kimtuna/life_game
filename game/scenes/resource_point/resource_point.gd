@@ -52,6 +52,10 @@ func _process(delta: float) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if _cooldown > 0.0 or not prompt.visible:
 		return
+	## 건설 해제 모드(INBOX #128)에서는 좌클릭이 항상 철거로만 동작해야 하므로, 이 모드가
+	## 켜져 있는 동안은 손에 든 도구가 맞아도 채집/채광을 하지 않는다(door.gd와 같은 패턴).
+	if world_ref != null and world_ref.is_deconstruct_mode_active():
+		return
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT \
 			and world_ref != null and world_ref.get_held_tool() == required_tool:
 		_harvest()

@@ -64,6 +64,10 @@ func _process(delta: float) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if not prompt.visible or world_ref == null:
 		return
+	## 건설 해제 모드(INBOX #128)에서는 좌클릭이 항상 철거로만 동작해야 하므로, 이 모드가
+	## 켜져 있는 동안은 제작 창을 열지 않는다(door.gd와 같은 패턴).
+	if world_ref.is_deconstruct_mode_active():
+		return
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		world_ref.open_crafting_window(get_title(), get_recipes(), self)
 

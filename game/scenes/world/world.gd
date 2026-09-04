@@ -160,6 +160,15 @@ var _build_ghost: Sprite2D = null
 ## 취소한다" 요구사항.
 var _build_placement_cancelled: bool = false
 
+## 건설 해제 모드(INBOX #128) — X키로 토글. 배치 모드와 동시에 켜질 수 없으므로,
+## `is_build_placement_active()`가 이 값을 확인해서 켜져 있는 동안은 배치 관련 동작
+## (고스트 표시/설치 확정)을 전부 비활성화한다.
+var _deconstruct_mode: bool = false
+## 지금 마우스 아래 격자 칸에 있어서 반투명 빨간색으로 덧칠된 구조물 노드(없으면 null).
+## 마우스가 다른 칸으로 옮겨가거나 모드가 꺼지면 원래 색으로 되돌리는 데 쓴다.
+var _deconstruct_highlighted_node: Node = null
+const DECONSTRUCT_TINT := Color(1.0, 0.35, 0.35, 1.0)
+
 ## InventoryData가 저장하는 아이템 키(내부 이름) -> 화면 표시 이름.
 const ITEM_LABELS := {
 	"rice_seed": "벼 씨앗",
@@ -300,6 +309,7 @@ const STATE_BROADCAST_INTERVAL := 0.1
 @onready var net_panel: PanelContainer = $UI/HUD/NetPanel
 @onready var net_label: Label = $UI/HUD/NetPanel/NetLabel
 @onready var room_overlay_toggle: Button = $UI/HUD/RoomOverlayToggle
+@onready var deconstruct_mode_panel: PanelContainer = $UI/HUD/DeconstructModePanel
 @onready var room_overlay: RoomOverlay = $RoomOverlay
 @onready var day_night_modulate: CanvasModulate = $DayNightModulate
 @onready var rain_overlay: ColorRect = $UI/RainOverlay
@@ -429,6 +439,8 @@ func _process(delta: float) -> void:
 			_build_ghost.visible = false
 		else:
 			_update_build_ghost()
+	## 건설 해제 하이라이트(INBOX #128)도 같은 이유로 렌더 프레임마다 갱신한다.
+	_update_deconstruct_highlight()
 	if _storage_message_timer > 0.0:
 		_storage_message_timer -= delta
 		if _storage_message_timer <= 0.0:
@@ -458,10 +470,22 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event is InputEventKey and event.pressed and not event.echo and not _paused and not _inventory_open \
 			and not _crafting_open and not _storage_open and event.keycode == KEY_R and _held_tool == "gun":
 		_start_reload()
+	elif event is InputEventKey and event.pressed and not event.echo and not _paused and not _inventory_open \
+			and not _crafting_open and not _storage_open and event.keycode == KEY_X:
+		## 건설 해제 모드 토글(INBOX #128). 배치 모드(BUILDABLE_STRUCTURES를 손에 든 상태)와
+		## 동시에 켜질 수 없다 — `is_build_placement_active()`가 `_deconstruct_mode`를
+		## 확인하므로, 여기서 켜는 순간 배치 모드의 고스트/설치 확정은 자동으로 비활성화된다.
+		_deconstruct_mode = not _deconstruct_mode
+		deconstruct_mode_panel.visible = _deconstruct_mode
 	elif event is InputEventMouseButton and event.pressed and not _paused and not _inventory_open \
 			and not _crafting_open and not _storage_open and event.button_index == MOUSE_BUTTON_RIGHT and _held_tool == "gun":
 		_ammo_type = "tranq" if _ammo_type == "normal" else "normal"
 		_update_ammo_label()
+	elif event is InputEventMouseButton and event.pressed and not _paused and not _inventory_open \
+			and not _crafting_open and not _storage_open and event.button_index == MOUSE_BUTTON_LEFT and _deconstruct_mode:
+		## 건설 해제 모드 좌클릭(INBOX #128) — 다른 도구 사용/배치 확정보다 먼저 처리해서
+		## 이 모드가 켜져 있는 동안은 손에 무엇을 들었든 좌클릭이 항상 철거로만 동작한다.
+		_try_deconstruct_structure()
 	elif event is InputEventMouseButton and event.pressed and not _paused and not _inventory_open \
 			and not _crafting_open and not _storage_open and event.button_index == MOUSE_BUTTON_LEFT and _held_tool == "axe":
 		## 도끼는 INBOX #43부터 옆 아이콘이 아니라 캐릭터 애니메이션 프레임 자체
@@ -484,7 +508,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		_tool_use_flash_timer = AXE_CHOP_FLASH_DURATION
 	elif event is InputEventMouseButton and event.pressed and not _paused and not _inventory_open \
 			and not _crafting_open and not _storage_open and event.button_index == MOUSE_BUTTON_LEFT \
-			and not _build_placement_cancelled and BUILDABLE_STRUCTURES.has(get_held_item()):
+			and not _deconstruct_mode and not _build_placement_cancelled and BUILDABLE_STRUCTURES.has(get_held_item()):
 		## 건축 배치 모드(INBOX #119) — 격자에 스냅된 칸에 좌클릭으로 설치 확정.
 		_try_place_structure()
 	elif event is InputEventMouseButton and event.pressed and not _paused and not _inventory_open \
@@ -534,8 +558,8 @@ func _physics_process(delta: float) -> void:
 			_is_reloading = false
 			_ammo_in_magazine[_reloading_ammo_type] = GUN_MAGAZINE_SIZE
 			_update_ammo_label()
-	if _held_tool == "gun" and Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT) and _fire_cooldown <= 0.0 \
-			and not _is_reloading and _ammo_in_magazine[_ammo_type] > 0:
+	if _held_tool == "gun" and not _deconstruct_mode and Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT) \
+			and _fire_cooldown <= 0.0 and not _is_reloading and _ammo_in_magazine[_ammo_type] > 0:
 		_fire()
 
 	if NetworkSession.is_active():
@@ -823,7 +847,7 @@ func _create_build_ghost() -> void:
 ## 반투명 미리보기를 표시한다. 이미 다른 건축물이 있는 칸이면 붉은색으로 경고한다.
 func _update_build_ghost() -> void:
 	var item := get_held_item()
-	if _build_placement_cancelled or not BUILDABLE_STRUCTURES.has(item):
+	if _deconstruct_mode or _build_placement_cancelled or not BUILDABLE_STRUCTURES.has(item):
 		_build_ghost.visible = false
 		return
 	var data: Dictionary = BUILDABLE_STRUCTURES[item]
@@ -843,7 +867,14 @@ func _update_build_ghost() -> void:
 ## 열림/닫힘 토글" 조건을 판정할 때 이걸로 조회한다(resource_point.gd의
 ## get_held_tool() 패턴과 같음).
 func is_build_placement_active() -> bool:
-	return not _build_placement_cancelled and BUILDABLE_STRUCTURES.has(get_held_item())
+	return not _deconstruct_mode and not _build_placement_cancelled and BUILDABLE_STRUCTURES.has(get_held_item())
+
+
+## 지금 건설 해제 모드 중인지를 밖에서 읽을 수 있게 하는 공개 접근자(INBOX #128,
+## is_build_placement_active()와 같은 위상). door.gd가 이 모드 중에는 좌클릭을 자기
+## 열림/닫힘 토글로 소비하지 않고 그대로 흘려보내서 world.gd의 철거 처리가 받게 한다.
+func is_deconstruct_mode_active() -> bool:
+	return _deconstruct_mode
 
 
 ## 좌클릭으로 배치 모드를 확정한다(INBOX #119) — 마우스 아래 격자 칸이 비어 있으면
@@ -873,6 +904,9 @@ func _spawn_structure(item: String, cell: Vector2i) -> Node2D:
 	var body: StaticBody2D = Door.new() if is_door else StaticBody2D.new()
 	body.name = "Structure_%s_%d_%d" % [item, cell.x, cell.y]
 	body.position = _grid_to_world_center(cell)
+	## 건설 해제(INBOX #128)가 어떤 아이템을 환급해야 하는지 알 수 있도록 아이템 키를
+	## 메타데이터로 남겨둔다 — _grid_occupancy는 노드만 들고 있어서 역참조할 방법이 없었음.
+	body.set_meta("structure_item", item)
 	var shape := RectangleShape2D.new()
 	shape.size = Vector2(BUILD_GRID_SIZE, BUILD_GRID_SIZE)
 	var col := CollisionShape2D.new()
@@ -892,6 +926,66 @@ func _spawn_structure(item: String, cell: Vector2i) -> Node2D:
 		door.player_ref = player_sprite
 		door.world_ref = self
 	return body
+
+
+## 구조물 노드(StaticBody2D 또는 Door)에서 그림을 담당하는 Sprite2D 자식을 찾는다
+## (INBOX #128). Door의 `_sprite`는 밖에서 직접 접근하지 않고 이렇게 공통 방식으로 찾아서
+## 벽(StaticBody2D)/문(Door) 어느 쪽이든 같은 코드로 반투명 빨간색 하이라이트를 씌운다.
+func _get_structure_sprite(node: Node) -> Sprite2D:
+	for child in node.get_children():
+		if child is Sprite2D:
+			return child
+	return null
+
+
+## 하이라이트를 걷어낼 때 되돌려야 할 "평소" modulate. 문은 열려 있으면 반투명(door.gd의
+## _toggle()이 alpha=0.35로 표현)이므로, 하이라이트를 벗겨도 그 반투명함은 유지해야 한다.
+func _structure_normal_modulate(node: Node) -> Color:
+	if node is Door and node.is_open:
+		return Color(1.0, 1.0, 1.0, 0.35)
+	return Color(1.0, 1.0, 1.0, 1.0)
+
+
+## 건설 해제 모드(INBOX #128)일 때 매 프레임 마우스 아래 격자 칸을 확인해서, 철거 가능한
+## 구조물이 있으면 그 스프라이트를 반투명 빨간색으로 덧칠한다. 모드가 꺼지거나 마우스가
+## 빈 칸/다른 칸으로 옮겨가면 이전에 칠했던 노드를 평소 색으로 되돌린다.
+func _update_deconstruct_highlight() -> void:
+	var target_node: Node = null
+	if _deconstruct_mode and not _paused and not _inventory_open and not _crafting_open and not _storage_open:
+		var cell := _world_to_grid(get_global_mouse_position())
+		if _grid_occupancy.has(cell):
+			target_node = _grid_occupancy[cell]
+	if target_node == _deconstruct_highlighted_node:
+		return
+	if _deconstruct_highlighted_node != null and is_instance_valid(_deconstruct_highlighted_node):
+		var old_sprite := _get_structure_sprite(_deconstruct_highlighted_node)
+		if old_sprite != null:
+			old_sprite.modulate = _structure_normal_modulate(_deconstruct_highlighted_node)
+	_deconstruct_highlighted_node = target_node
+	if _deconstruct_highlighted_node != null:
+		var new_sprite := _get_structure_sprite(_deconstruct_highlighted_node)
+		if new_sprite != null:
+			var base := _structure_normal_modulate(_deconstruct_highlighted_node)
+			new_sprite.modulate = Color(DECONSTRUCT_TINT.r, DECONSTRUCT_TINT.g, DECONSTRUCT_TINT.b, base.a)
+
+
+## 건설 해제 모드에서 좌클릭했을 때 실행된다(INBOX #128) — 마우스 아래 격자 칸에 벽/문이
+## 있으면 철거하고, 설치 때 소모했던 아이템을 100% 환급한다(문은 열려있든 닫혀있든 철거
+## 가능 — DESIGN.md/INBOX #128 원문). 인벤토리가 가득 차 있으면 #24의 바닥 드롭 패턴으로
+## 대체해서 손실이 없게 한다.
+func _try_deconstruct_structure() -> void:
+	var cell := _world_to_grid(get_global_mouse_position())
+	if not _grid_occupancy.has(cell):
+		return
+	var node: Node = _grid_occupancy[cell]
+	var item: String = node.get_meta("structure_item", "")
+	_grid_occupancy.erase(cell)
+	if _deconstruct_highlighted_node == node:
+		_deconstruct_highlighted_node = null
+	node.queue_free()
+	if item != "" and InventoryData.add_item(item, 1) < 1:
+		spawn_dropped_item(item, 1, _grid_to_world_center(cell))
+	_recompute_rooms()
 
 
 ## 플레이어 이동에 건축물 격자 충돌을 적용한다(INBOX #119, 위 PLAYER_COLLISION_RADIUS

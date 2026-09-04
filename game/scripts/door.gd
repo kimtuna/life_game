@@ -36,6 +36,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if world_ref.is_build_placement_active():
 		return
+	if world_ref.is_deconstruct_mode_active():
+		## 건설 해제 모드(INBOX #128)에서는 좌클릭이 문 열림/닫힘 토글이 아니라 철거로
+		## 소비돼야 하므로, 여기서 입력을 handled 처리하지 않고 그대로 흘려보내
+		## world.gd의 _unhandled_input이 대신 받게 한다.
+		return
 	_toggle()
 	get_viewport().set_input_as_handled()
 
