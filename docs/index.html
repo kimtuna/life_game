@@ -27,19 +27,19 @@
 </head>
 <body>
   <h1>auto-loop 진행 상황</h1>
-  <p class="updated">마지막 갱신: 2026-09-05 05:36:05</p>
+  <p class="updated">마지막 갱신: 2026-09-05 05:50:06</p>
   
   <div class="row">
-    <div class="card"><div class="label">남은 항목</div><div class="num">1</div></div>
-    <div class="card"><div class="label">완료된 항목</div><div class="num">130</div></div>
+    <div class="card"><div class="label">남은 항목</div><div class="num">0</div></div>
+    <div class="card"><div class="label">완료된 항목</div><div class="num">131</div></div>
   </div>
   <div class="card">
     <div class="label">지금 처리 중 / 다음으로 처리할 항목</div>
-    <div>#132 [BUILD] (버그 리포트, #131 QA 전체 스윕에서 발견, 스크린샷으로 확인) `BUILD_GRID_SIZE`(#125가 64→16으로 축소한 값)에 건축물(벽/문/창문) 스프라이트 크기가 그대로 1:1로 묶여 있어서, 실제 게임 화면에서 벽/문이 **16×16px밖에 안 되는 작은 점처럼** 보인다. `world.gd:984`(`_spawn_structure()`의 `sprite.scale = Vector2(BUILD_GRID_SIZE, BUILD_GRID_SIZE) / tex_size`)와 `world.gd:860`(고스트 미리보기도 같은 공식)이 원인 — 캐릭터 키(약 102px, DESIGN.md "아이템/오브젝트 크기 표준" 기준점)와 비교하면 벽이 캐릭터 발 크기만도 못해서 거의 안 보이고, DESIGN.md가 정한 **최소 32px** 기준에도 못 미친다(벽/건축물은 "커도 되는" 카테고리로 명시돼 있을 뿐 이렇게 작아도 된다는 예외는 없음). 실제로 나무벽/나무문을 설치해서 스크린샷으로 확인(`game/qa/full_sweep.gd`의 `build_wall_ghost`/`build_wall_placed`/`build_door_ghost`/`deconstruct_wall_highlight` 스텝, `/tmp/qa67/40~44`, `50_deconstruct_wall_highlight.png` 참고 — 캐릭터 옆에 손톱만 한 갈색 사각형 하나만 겨우 보임)했고, `room_with_table` 스텝(45번 캡처)에서는 방을 이루는 벽 4개가 가공대 스프라이트(벽보다 훨씬 큼)에 완전히 가려져 화면에서 아예 안 보이는 것도 확인했다. **주의**: 이 문제는 새 그림이 필요한 게 아니라(기존 벽/문 텍스처는 정상) 격자(충돌/방 감지) 크기와 시각적 스프라이트 크기가 지금 하나의 상수로 묶여 있는 게 원인이므로 [BUILD]로 분류한다 — `_grid_occupancy`/방 감지(#122)가 쓰는 16 단위 격자 해상도는 그대로 유지한 채, 벽/문/창문 스프라이트의 **시각적** scale만 최소 32px 이상(가능하면 캐릭터와 비교해 자연스러운 비율)으로 키우는 방식을 검토할 것(예: 별도 시각 배율 상수를 도입하거나, 격자보다 조금 크게 그려지도록 스프라이트만 확대 — 충돌 `CollisionShape2D`의 `shape.size`는 건드리지 않아 방 감지/이동 충돌 판정에는 영향이 없어야 함). 고스트 미리보기(`_update_build_ghost()`)도 실제 설치물과 같은 시각 크기로 맞춰서 미리보기와 실제 결과가 다르게 보이지 않게 한다. 고친 뒤 벽/문을 설치해서 스크린샷으로 캐릭터 대비 비율이 자연스러운지 재확인한다.</div>
+    <div>(없음 — 큐 비어있음)</div>
   </div>
   <div class="card">
     <div class="label">마지막 작업 커밋</div>
-    <div><code>f1c44dd [INBOX #131] QA: 전체 스윕(#125~#130 구간) — 결함 1건 발견</code></div>
+    <div><code>da0e2a2 [INBOX #132] 벽/문/창문 스프라이트 시각 크기를 격자(충돌) 해상도에서 분리해 32px로 복구</code></div>
   </div>
   <div class="card">
     <div class="label">디자인 개선 후보 (확인 후 지우기를 누르면 이 브라우저에서 안 보입니다)</div>
