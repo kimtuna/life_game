@@ -1,4 +1,5 @@
 extends Node2D
+class_name RanchZone
 ## 목장 구역 (INBOX #12). deer.gd에서 마취탄으로 포획하면 InventoryData의
 ## captured_deer 개수가 늘어난다(포획된 사슴이 즉시 필드에 나타나지 않고 "재고"로
 ## 쌓이는 방식 — farm_plot의 씨앗/작물처럼 InventoryData를 경유). INBOX #23부터는

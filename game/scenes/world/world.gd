@@ -123,6 +123,30 @@ const PLAYER_COLLISION_RADIUS := 16.0
 ## 격자 좌표(Vector2i) -> 그 칸에 설치된 건축물 Node. 벽/문 위치를 추적해서 겹침 검사와
 ## (나중에 #122) 방 감지가 참조할 수 있게 한다.
 var _grid_occupancy: Dictionary = {}
+
+## 방(Room) 감지 (INBOX #122, DESIGN.md "건축/방(Room) 시스템" 2026-09-05 확정).
+## 벽/문이 설치되거나 제거될 때(매 프레임이 아니라 변경 시점에만) _recompute_rooms()가
+## 다시 계산한다. 탐색 상한(한 방이 가질 수 있는 최대 칸 수) — 이 안에서 flood-fill이
+## 스스로 끝나면 "막힌 공간"(방), 상한을 넘기면 바깥 들판으로 새는 것으로 보고 방 아님.
+const ROOM_FLOOD_CELL_CAP := 400
+const ROOM_DIRS := [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
+
+## CraftingStation.get_title() 문자열 -> 방 카테고리. "주방"은 조리대/조리용 화로 둘 다
+## 이 카테고리로 묶이지만, 실제 "주방" 판정에는 둘 다 있어야 한다(아래 _classify_room 참고).
+const ROOM_CATEGORY_BY_STATION_TITLE := {
+	"가공대": "제작소",
+	"제련로": "대장간",
+	"조리대": "주방",
+	"조리용 화로": "주방",
+}
+
+## 방 ID -> {"cells": Array[Vector2i], "category": String}. 카테고리는 "잡실"이면 방
+## 혜택이 없는 방(둘러싸인 야외 취급, DESIGN.md 2026-09-05 확정)이다.
+var _rooms: Dictionary = {}
+## 격자 좌표(Vector2i) -> 방 ID. 방으로 인식되지 않은 칸(트인 들판, 벽/문이 놓인 칸
+## 자신)은 이 딕셔너리에 없다.
+var _cell_to_room: Dictionary = {}
+var _next_room_id: int = 1
 ## 배치 모드 미리보기(반투명 고스트) 스프라이트.
 var _build_ghost: Sprite2D = null
 ## 배치 모드 중 우클릭하면 true가 되어 고스트/설치를 잠깐 끈다. 핫바를 다시 고르면
@@ -826,6 +850,7 @@ func _try_place_structure() -> void:
 	if not InventoryData.remove_item(item, 1):
 		return
 	_grid_occupancy[cell] = _spawn_structure(item, cell)
+	_recompute_rooms()
 
 
 ## 격자 칸 중심에 실제 충돌체(StaticBody2D+CollisionShape2D)와 그림을 만든다
@@ -892,6 +917,119 @@ func _is_position_blocked(pos: Vector2) -> bool:
 			continue
 		return true
 	return false
+
+
+## 벽/문이 새로 설치되거나 제거될 때 호출한다(INBOX #122). _grid_occupancy를 기준으로
+## 막힌(둘러싸인) 공간을 전부 다시 찾아서 _rooms/_cell_to_room을 새로 만든다 — 매 프레임
+## 도는 게 아니라 변경 시점에만 호출되므로 매번 전부 다시 계산해도 비용이 크지 않다.
+func _recompute_rooms() -> void:
+	_rooms.clear()
+	_cell_to_room.clear()
+	## 벽/문에 바로 붙어있는 열린 칸만 시작점 후보로 삼는다 — 방은 항상 벽에 둘러싸여야
+	## 하므로, 벽과 전혀 안 닿은 트인 들판 한복판에서부터 굳이 flood-fill을 시작할
+	## 필요가 없다(불필요한 탐색을 줄임).
+	var candidates: Dictionary = {}
+	for cell in _grid_occupancy.keys():
+		for dir in ROOM_DIRS:
+			var neighbor: Vector2i = cell + dir
+			if not _grid_occupancy.has(neighbor):
+				candidates[neighbor] = true
+	var confirmed_open: Dictionary = {}
+	for seed_cell in candidates.keys():
+		if _cell_to_room.has(seed_cell) or confirmed_open.has(seed_cell):
+			continue
+		var result := _flood_fill_room(seed_cell)
+		if result["bounded"]:
+			var room_id := _next_room_id
+			_next_room_id += 1
+			var cells: Array = result["cells"]
+			_rooms[room_id] = {"cells": cells, "category": ""}
+			for cell in cells:
+				_cell_to_room[cell] = room_id
+		else:
+			for cell in result["cells"]:
+				confirmed_open[cell] = true
+	for room_id in _rooms.keys():
+		_rooms[room_id]["category"] = _classify_room(_rooms[room_id]["cells"])
+	if not _rooms.is_empty():
+		for room_id in _rooms.keys():
+			print("[Room] #%d: %d칸, 판정: %s" % [room_id, _rooms[room_id]["cells"].size(), _rooms[room_id]["category"]])
+
+
+## seed_cell에서 시작해 점유되지 않은(벽/문이 없는) 칸들을 BFS로 퍼뜨린다. 방문한 칸
+## 수가 ROOM_FLOOD_CELL_CAP을 넘기기 전에 스스로 더 못 퍼져나가면(막힌 공간) bounded
+## true, 상한을 넘기면(바깥 들판으로 샘) false를 반환한다.
+func _flood_fill_room(seed_cell: Vector2i) -> Dictionary:
+	var visited: Dictionary = {seed_cell: true}
+	var queue: Array = [seed_cell]
+	var bounded := true
+	var head := 0
+	while head < queue.size():
+		var current: Vector2i = queue[head]
+		head += 1
+		for dir in ROOM_DIRS:
+			var neighbor: Vector2i = current + dir
+			if visited.has(neighbor) or _grid_occupancy.has(neighbor):
+				continue
+			visited[neighbor] = true
+			if visited.size() > ROOM_FLOOD_CELL_CAP:
+				bounded = false
+				break
+			queue.append(neighbor)
+		if not bounded:
+			break
+	return {"bounded": bounded, "cells": visited.keys()}
+
+
+## 방 칸 목록 안에 있는 "핵심 오브젝트"를 스캔해서 DESIGN.md 규칙표대로 방 이름을
+## 판정한다. 카테고리가 정확히 1종류고 요구 수량을 채우면 그 이름, 아니면(0개 또는
+## 2개 이상 섞임) "잡실". 저장 상자 등은 어느 카테고리에도 속하지 않아 스캔에서
+## 무시된다(DESIGN.md "저장 상자는 중립").
+func _classify_room(cells: Array) -> String:
+	var cell_set: Dictionary = {}
+	for cell in cells:
+		cell_set[cell] = true
+	var categories: Dictionary = {}
+	var has_cooking_table := false
+	var has_cooking_stove := false
+	for node in get_children():
+		if not (node is Node2D) or not node.is_inside_tree():
+			continue
+		var cell := _world_to_grid(node.global_position)
+		if not cell_set.has(cell):
+			continue
+		if node is CraftingStation:
+			var title: String = node.get_title()
+			if not ROOM_CATEGORY_BY_STATION_TITLE.has(title):
+				continue
+			categories[ROOM_CATEGORY_BY_STATION_TITLE[title]] = true
+			if title == "조리대":
+				has_cooking_table = true
+			elif title == "조리용 화로":
+				has_cooking_stove = true
+		elif node is FarmPlot:
+			categories["농장"] = true
+		elif node is RanchZone:
+			categories["목장"] = true
+	if categories.size() != 1:
+		return "잡실"
+	var only_category: String = categories.keys()[0]
+	if only_category == "주방" and not (has_cooking_table and has_cooking_stove):
+		return "잡실"
+	return only_category
+
+
+## world_pos가 속한 방의 ID를 반환한다. 방이 없거나(트인 들판, 아직 인식 안 됨) 그
+## 칸이 벽/문 자신이면 -1을 반환한다(#123이 사용할 공개 API).
+func get_room_id_at(world_pos: Vector2) -> int:
+	return _cell_to_room.get(_world_to_grid(world_pos), -1)
+
+
+## room_id의 판정된 카테고리("잡실" 포함)를 반환한다. 존재하지 않는 방 ID면 빈 문자열.
+func get_room_category(room_id: int) -> String:
+	if not _rooms.has(room_id):
+		return ""
+	return _rooms[room_id]["category"]
 
 
 ## 사냥/채집/채광 결과물을 바닥에 드롭 오브젝트로 스폰한다 (INBOX #24, DESIGN.md

@@ -5,6 +5,88 @@
 
 ## 마지막 갱신
 
+바퀴 175 / 2026-09-05 ([BUILD] **INBOX #122 완료 — 방(Room) 감지 시스템(flood-fill
+기반)을 만들었다.**)
+1) `scenes/world/world.gd`에 방 감지 코드를 추가했다: `ROOM_FLOOD_CELL_CAP := 400`,
+   `ROOM_DIRS`(4방향), `ROOM_CATEGORY_BY_STATION_TITLE`(CraftingStation의
+   `get_title()` 문자열 → 방 카테고리 — "가공대"→"제작소", "제련로"→"대장간",
+   "조리대"/"조리용 화로"→"주방"), `_rooms: Dictionary`(방 ID → `{cells, category}`),
+   `_cell_to_room: Dictionary`(격자 좌표 → 방 ID). `_try_place_structure()`가 벽/문을
+   `_grid_occupancy`에 등록한 직후 `_recompute_rooms()`를 호출한다(제거 경로는 아직
+   게임에 없어 훅을 걸 자리가 없음 — 아래 "스스로 판단해서 고친 부분" 참고).
+2) `_recompute_rooms()`: `_grid_occupancy`에 인접한(4방향) 비점유 칸만 flood-fill
+   시작점 후보로 삼아(트인 들판 한복판에서부터 낭비되는 탐색을 줄임), 각 후보에서
+   `_flood_fill_room()`(BFS, 방문 칸이 `ROOM_FLOOD_CELL_CAP`=400을 넘기기 전에
+   스스로 못 퍼져나가면 bounded=true → 방으로 등록, 넘기면 바깥 들판으로 판단해
+   버림)을 돌린다. 방으로 확정된 칸 집합마다 새 방 ID를 부여하고 `_classify_room()`
+   으로 카테고리를 매긴 뒤, 방이 하나라도 있으면 `print("[Room] #%d: ...")`로 디버그
+   로그를 찍는다(INBOX 원문의 "로그나 디버그 출력으로 확인" 요구 충족).
+3) `_classify_room(cells)`: `get_children()`을 순회해 `Node2D`이고 위치가 그 방의
+   칸 집합 안에 있는 노드만 본다. `node is CraftingStation`이면 `get_title()`로
+   카테고리를 매핑하고(조리대/조리용 화로 각각의 존재 여부를 별도 플래그로 기록),
+   `node is FarmPlot`이면 "농장", `node is RanchZone`이면 "목장" 카테고리를 추가한다
+   (저장 상자 등 그 외 타입은 무시 — DESIGN.md "저장 상자는 중립"). 모인 카테고리
+   집합 크기가 1이 아니면(0개 또는 2개 이상) "잡실". 정확히 1개면, "주방"인 경우
+   조리대와 조리용 화로가 **둘 다** 있어야만 "주방"으로 확정하고 아니면 "잡실"(요구
+   수량 미달), 나머지는 그 카테고리 이름을 그대로 방 이름으로 쓴다.
+4) `get_room_id_at(world_pos)`/`get_room_category(room_id)` 공개 API를 추가했다 —
+   #123(방-상자 자동 연동)이 "이 오브젝트가 속한 방 ID가 서로 같고 잡실이 아닌가"를
+   판정할 때 이 두 함수를 그대로 쓰면 된다.
+5) `scenes/farm_plot/farm_plot.gd`/`scenes/ranch_zone/ranch_zone.gd`에 각각
+   `class_name FarmPlot`/`class_name RanchZone`을 추가했다(원래 없었음, 방 감지가
+   `node is FarmPlot`/`node is RanchZone`으로 타입 판정을 하려면 전역 클래스 이름이
+   필요해서 스스로 판단해 추가 — 아래 "스스로 판단해서 고친 부분" 참고).
+6) **검증**: 새 QA 스크립트 `game/qa/inbox122_check.gd`(커밋, 재사용 가능)를
+   `project.godot [autoload]`에 임시 등록하고(`godot --headless --editor
+   --quit-after 30`을 먼저 돌려 `FarmPlot`/`RanchZone` 전역 클래스를 인식시킨 뒤,
+   #120/#121이 남긴 교훈), `godot --path .`로 실행. 플레이어를 격리된 좌표로 옮긴 뒤
+   빈 칸 하나를 나무벽 4개(동서남북)로 완전히 둘러싸서: (1) 핵심 오브젝트가 없으면
+   "잡실"로 판정됨, (2) 그 칸에 가공대(`ProcessingTableScene`)를 코드로 직접
+   `add_child`해서 넣고 `_recompute_rooms()`를 다시 부르면 "제작소"로 바뀜, (3)
+   조리대(`CookingTableScene`)를 추가로 넣으면(카테고리 2종 혼합) 다시 "잡실"로
+   바뀜, (4) 벽 하나를 `queue_free()`+`_grid_occupancy.erase()`로 제거를
+   시뮬레이션하고 재계산하면 방 자체가 인식 안 됨(`get_room_id_at() == -1`) — 4개
+   전부 `QA_INBOX122_CHECK_PASS`로 통과. 콘솔 로그로 `[Room] #1: 1칸, 판정: 잡실` →
+   `#2: 1칸, 판정: 제작소` → `#3: 1칸, 판정: 잡실` 순으로 실제 판정이 바뀌는 것도
+   직접 확인했다. 검증 후 `project.godot`의 임시 autoload 등록을 원상복구(diff 없음
+   확인)하고, 테스트 중 생성된 세이브 파일(`app_userdata/life_game/
+   {characters,inventory}.save`)을 삭제했다. 이번 항목은 새 아이템/오브젝트를 만들지
+   않았으므로 테스트 상자 갱신은 필요 없다.
+7) `docs/feedback/INBOX.md`의 `#122`를 `[x]`로 갱신. **BUILD/DESIGN 완료 카운터**:
+   `#121`(BUILD) 완료 시 3이었음 → 이번 `#122`(BUILD)로 **4**가 됐다(5 도달까지 1개
+   남음). 다음은 `#123`([BUILD], 방-상자 자동 연동) — 이게 끝나면 카운터가 5에
+   도달해 전체 QA 스윕 항목을 큐에 추가해야 한다(잊지 말 것).
+
+**다음에 할 것**: 다음 `[BUILD]` 세션은 `#123`(방-상자 자동 연동 — DESIGN.md
+"건축/방(Room) 시스템"의 "방-상자 자동 연동" 절을 먼저 읽을 것). 참고할 것: (1)
+`world.get_room_id_at(global_position) -> int`(방 없으면 -1)와
+`world.get_room_category(room_id) -> String`("잡실" 포함, 없으면 "")를 그대로 쓸 것
+— 제작대류(가공대/제련로/조리대/조리용 화로, 전부 `CraftingStation` 서브클래스)와
+저장 상자(`storage_chest.gd`)가 "같은 방 ID이고 그 방이 잡실이 아닌가"를 판정하면
+된다. (2) 방 ID는 벽/문이 바뀔 때마다(`_recompute_rooms()` 재호출) **완전히 다시
+부여된다**(안정적인 ID가 아님) — #123이 방 ID를 캐싱해서 나중에 재사용하면 안 되고,
+재료를 확인/소모하는 그 순간 `get_room_id_at()`을 다시 호출해서 즉석에서 비교할 것.
+(3) 지금은 벽/문 "제거" 경로 자체가 게임에 없다(설치만 가능) — `_recompute_rooms()`는
+`_try_place_structure()`(설치 시)에서만 불린다. 나중에 철거 기능이 생기면 그 경로
+에서도 반드시 `_recompute_rooms()`를 호출해야 한다는 걸 잊지 말 것. (4) 제작대류가
+재료를 확인/소모하는 지점은 `scripts/crafting_station.gd`의 배치 시작 로직
+(`_batch_recipe`/`_batch_remaining`을 채우는 함수, `CRAFT_SECONDS_PER_UNIT` 근처)일
+가능성이 크다 — 정확한 함수명은 실제 코드를 열어서 확인할 것(추측하지 말 것). 지금
+그 로직은 `InventoryData.get_count()`/`remove_item()`만 보고 있을 텐데, 이걸 확장해서
+같은 방의 `storage_chest`도 재료로 인식하게 해야 한다. `storage_chest.gd`에 이미
+있는 슬롯 조회/차감 API(정확한 이름은 파일을 열어 확인)를 재사용하거나 필요한 만큼
+새 메서드를 추가할 것. (5) 회귀 검사 필수: 방이 없는 곳(잡실 포함)에서는 지금처럼
+상자 재료가 자동으로 안 쓰이고 손으로 옮겨야 하는 동작이 그대로 유지되는지 확인.
+(6) `#123` 완료 시 BUILD/DESIGN 카운터가 5에 도달한다 —
+`docs/feedback/INBOX.md`에 `[QA] 전체 스윕: 메인 메뉴부터 모든 시스템을 실제로
+플레이해보며 문제를 찾는다` 형식의 새 항목을 추가하고 카운터를 0으로 리셋할 것
+(`loop/PROMPT_BUILD.md` ③ 규칙). 이번 스윕에서 특히 확인할 것: 격자 배치 시스템
+전체(#119~#121)와 방 감지(#122)가 실제 플레이에서 자연스럽게 동작하는지(벽 4개로
+작은 방을 지어보고 판정이 맞는지 등), 방-상자 자동 연동(#123)이 실제로 재료 없이도
+제작이 되는지.
+
+## 지난 바퀴 기록 (바퀴 174, 그대로 보존)
+
 바퀴 174 / 2026-09-05 ([BUILD] **INBOX #121 완료 — #119/#120 격자 배치 프레임워크에
 나머지 벽/문 4종(`stone_wall`/`steel_wall`/`steel_door`/`window`)을 아이템 키만
 추가해서 연결했다.**)

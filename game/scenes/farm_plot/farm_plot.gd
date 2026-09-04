@@ -1,4 +1,5 @@
 extends Node2D
+class_name FarmPlot
 ## 밭 한 칸 (INBOX #11). 벼 씨앗(rice_seed)을 심으면 시간이 지나 벼(rice)로 자라고
 ## 수확할 수 있다. INBOX #23부터는 F키 대신 좌클릭으로 상호작용한다. INBOX #27부터는
 ## 심기와 수확이 서로 다른 것을 손에 들어야 한다: 심기는 씨앗 아이템(rice_seed)을 손에
