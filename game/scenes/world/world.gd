@@ -96,8 +96,19 @@ const STORAGE_CHEST_ORIGIN := Vector2(0.0, 850.0)
 ## 64x64)과 크기를 맞췄으나, 벽 아이콘(32x32)이 그 크기로 2배 확대되면서 플레이어
 ## (화면 기준 약 102px)에 비해 벽이 지나치게 커 보인다는 지적을 받았다(INBOX #125,
 ## 사용자 스크린샷 기준). 캐릭터 대비 자연스러운 비율이 나오도록 1/4 수준인 16.0으로
-## 줄인다 — 잔디 타일과의 격자 정렬(64의 약수)은 유지된다.
+## 줄인다 — 잔디 타일과의 격자 정렬(64의 약수)은 유지된다. 충돌/방 감지(flood-fill)
+## 해상도로 쓰이므로 아래 BUILD_STRUCTURE_VISUAL_SIZE와는 분리해서 유지한다(INBOX #132).
 const BUILD_GRID_SIZE := 16.0
+
+## 벽/문/창문 스프라이트의 **시각적** 크기(INBOX #132, DESIGN.md "아이템/오브젝트 크기
+## 표준"의 최소 32px 기준). #125가 BUILD_GRID_SIZE를 16으로 줄이면서 스프라이트 scale이
+## 그 값에 그대로 1:1로 묶여 벽이 16×16px(캐릭터 발치도 안 됨)로 그려지는 결함이 있었다
+## (QA #131이 스크린샷으로 확인). 원본 벽/문 아이콘이 이미 32×32라서 이 값을 32.0으로
+## 두면 scale이 정확히 1.0이 되어 확대/축소 없이 원본 해상도 그대로(가장 선명하게)
+## 그려진다 — 임의의 비율을 새로 지어내는 대신 이미 검증된 아이콘 해상도를 그대로 쓴다.
+## 격자(BUILD_GRID_SIZE=16)보다 시각적으로 2배 커서 인접 칸 벽끼리 살짝 겹쳐 그려지지만,
+## 충돌/방 감지는 여전히 BUILD_GRID_SIZE 기준 칸 하나만 차지한다(이 상수는 그림에만 쓰임).
+const BUILD_STRUCTURE_VISUAL_SIZE := 32.0
 
 ## 격자에 설치 가능한 아이템(INBOX #119가 나무벽, #120이 나무문으로 프레임워크를 검증,
 ## #121이 나머지 5종 — 석제벽/강철벽/강철문/창문 — 을 아이템 키만 추가해 연결). 아이콘은
@@ -857,7 +868,7 @@ func _update_build_ghost() -> void:
 	_build_ghost.texture = texture
 	var tex_size := texture.get_size()
 	if tex_size.x > 0.0 and tex_size.y > 0.0:
-		_build_ghost.scale = Vector2(BUILD_GRID_SIZE, BUILD_GRID_SIZE) / tex_size
+		_build_ghost.scale = Vector2(BUILD_STRUCTURE_VISUAL_SIZE, BUILD_STRUCTURE_VISUAL_SIZE) / tex_size
 	var cell := _world_to_grid(get_global_mouse_position())
 	_build_ghost.global_position = _grid_to_world_center(cell)
 	_build_ghost.modulate = Color(1.0, 0.35, 0.35, 0.55) if _is_cell_build_blocked(cell) else Color(1.0, 1.0, 1.0, 0.55)
@@ -981,12 +992,12 @@ func _spawn_structure(item: String, cell: Vector2i) -> Node2D:
 	sprite.texture = texture
 	var tex_size := texture.get_size()
 	if tex_size.x > 0.0 and tex_size.y > 0.0:
-		sprite.scale = Vector2(BUILD_GRID_SIZE, BUILD_GRID_SIZE) / tex_size
+		sprite.scale = Vector2(BUILD_STRUCTURE_VISUAL_SIZE, BUILD_STRUCTURE_VISUAL_SIZE) / tex_size
 	body.add_child(sprite)
 	add_child(body)
 	if is_door:
 		var door := body as Door
-		door.setup(col, sprite, BUILD_GRID_SIZE)
+		door.setup(col, sprite, BUILD_STRUCTURE_VISUAL_SIZE)
 		door.player_ref = player_sprite
 		door.world_ref = self
 	return body

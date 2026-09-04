@@ -14,17 +14,20 @@ var is_open: bool = false
 
 var _col: CollisionShape2D = null
 var _sprite: Sprite2D = null
-var _grid_size: float = 64.0
+## (INBOX #132) 예전엔 격자 칸 크기(BUILD_GRID_SIZE)를 그대로 받아 슬라이드 거리를
+## 정했지만, 이제 벽/문의 시각적 크기(BUILD_STRUCTURE_VISUAL_SIZE)가 격자 크기와
+## 분리됐으므로 문이 실제로 보이는 크기에 비례해서 슬라이드하도록 그 값을 받는다.
+var _visual_size: float = 32.0
 
 ## 사슴 등 스폰 오브젝트와 같은 패턴(world.gd가 스폰 직후 채워줌).
 var player_ref: Node2D = null
 var world_ref: Node2D = null
 
 
-func setup(col: CollisionShape2D, sprite: Sprite2D, grid_size: float) -> void:
+func setup(col: CollisionShape2D, sprite: Sprite2D, visual_size: float) -> void:
 	_col = col
 	_sprite = sprite
-	_grid_size = grid_size
+	_visual_size = visual_size
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -52,7 +55,7 @@ func _toggle() -> void:
 	## 원문 — 반투명 + 옆으로 밀린 것처럼).
 	if is_open:
 		_sprite.modulate.a = 0.35
-		_sprite.position.x = _grid_size * 0.35
+		_sprite.position.x = _visual_size * 0.35
 	else:
 		_sprite.modulate.a = 1.0
 		_sprite.position.x = 0.0
