@@ -72,6 +72,15 @@ func get_slots() -> Array:
 	return _slots.duplicate(true)
 
 
+## 슬롯이 전부 비어있는지(INBOX #130, 건설 해제 모드에서 상자를 철거해도 되는 조건 —
+## 내용물이 하나라도 있으면 철거를 막아야 하므로 world.gd가 이걸로 확인한다).
+func is_empty() -> bool:
+	for slot in _slots:
+		if slot != null:
+			return false
+	return true
+
+
 ## 상자 자체에 아이템을 채운다(초기 채우기용, INBOX #97). 스택 제한이 없어 같은 아이템이
 ## 이미 있는 슬롯에 개수만 더한다 — 없으면 빈 슬롯에 새로 채운다.
 func add_item(item_name: String, amount: int) -> void:

@@ -75,6 +75,17 @@ func _unhandled_input(event: InputEvent) -> void:
 		_release_one()
 
 
+## 목장 안에 사육 중인 동물이 있는지(INBOX #130, 건설 해제 모드에서 목장을 철거해도
+## 되는 조건 — 동물이 있으면 철거를 막아야 하므로 world.gd가 이걸로 확인한다). 담장
+## (Fence, StaticBody2D)과 Prompt(Label)는 CharacterBody2D가 아니므로 자연스럽게
+## 제외되고, _release_one()이 add_child()로 붙인 사슴(CharacterBody2D)만 걸린다.
+func has_animal() -> bool:
+	for child in get_children():
+		if child is CharacterBody2D:
+			return true
+	return false
+
+
 func _release_one() -> void:
 	if not InventoryData.remove_item(CAPTURED_ITEM, 1):
 		return

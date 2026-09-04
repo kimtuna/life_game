@@ -1002,6 +1002,31 @@ func _get_structure_sprite(node: Node) -> Sprite2D:
 	return null
 
 
+## 상자/제작대류/밭/목장(INBOX #130, 상태를 가진 다른 설치물)에서 하이라이트를 씌울
+## 시각 노드를 반환한다. 벽/문(StaticBody2D/Door)과 달리 이 4종류는 자식 노드 이름이
+## 서로 달라서(_occupancy_footprint()가 겹침 판정에 쓰는 것과 같은 자식들) 종류별로
+## 지정해준다. 이 4종류가 아니면 null(벽/문 쪽은 계속 _get_structure_sprite()가 처리).
+func _fixture_visual(node: Node) -> CanvasItem:
+	if node is StorageChest:
+		return node.get_node_or_null("Placeholder")
+	if node is CraftingStation:
+		return node.get_node_or_null("Sprite")
+	if node is FarmPlot:
+		return node.get_node_or_null("Soil")
+	if node is RanchZone:
+		return node.get_node_or_null("Pasture")
+	return null
+
+
+## 건설 해제 하이라이트가 씌울 시각 노드를 찾는다 — 벽/문이면 _get_structure_sprite(),
+## 상자/제작대류/밭/목장(INBOX #130)이면 _fixture_visual()로 위임한다.
+func _deconstruct_visual(node: Node) -> CanvasItem:
+	var fixture := _fixture_visual(node)
+	if fixture != null:
+		return fixture
+	return _get_structure_sprite(node)
+
+
 ## 하이라이트를 걷어낼 때 되돌려야 할 "평소" modulate. 문은 열려 있으면 반투명(door.gd의
 ## _toggle()이 alpha=0.35로 표현)이므로, 하이라이트를 벗겨도 그 반투명함은 유지해야 한다.
 func _structure_normal_modulate(node: Node) -> Color:
@@ -1013,34 +1038,81 @@ func _structure_normal_modulate(node: Node) -> Color:
 ## 건설 해제 모드(INBOX #128)일 때 매 프레임 마우스 아래 격자 칸을 확인해서, 철거 가능한
 ## 구조물이 있으면 그 스프라이트를 반투명 빨간색으로 덧칠한다. 모드가 꺼지거나 마우스가
 ## 빈 칸/다른 칸으로 옮겨가면 이전에 칠했던 노드를 평소 색으로 되돌린다.
+## (INBOX #130) 벽/문(_grid_occupancy)이 없는 칸이면 상자/제작대류/밭/목장 중 하나가
+## 그 칸을 차지하는지도 확인한다 — 실제로 철거 가능한 상태인지(내용물 비었는지 등)와
+## 무관하게 하이라이트는 항상 보여준다(막힌 이유는 좌클릭했을 때 아무 일도 안 일어나는
+## 것으로만 알 수 있음, #130 원문 — "어떤 칸인지는 알 수 있게" 하이라이트 자체는 유지).
 func _update_deconstruct_highlight() -> void:
 	var target_node: Node = null
 	if _deconstruct_mode and not _paused and not _inventory_open and not _crafting_open and not _storage_open:
 		var cell := _world_to_grid(get_global_mouse_position())
 		if _grid_occupancy.has(cell):
 			target_node = _grid_occupancy[cell]
+		else:
+			target_node = _find_fixture_at_cell(cell)
 	if target_node == _deconstruct_highlighted_node:
 		return
 	if _deconstruct_highlighted_node != null and is_instance_valid(_deconstruct_highlighted_node):
-		var old_sprite := _get_structure_sprite(_deconstruct_highlighted_node)
-		if old_sprite != null:
-			old_sprite.modulate = _structure_normal_modulate(_deconstruct_highlighted_node)
+		var old_visual := _deconstruct_visual(_deconstruct_highlighted_node)
+		if old_visual != null:
+			old_visual.modulate = _structure_normal_modulate(_deconstruct_highlighted_node)
 	_deconstruct_highlighted_node = target_node
 	if _deconstruct_highlighted_node != null:
-		var new_sprite := _get_structure_sprite(_deconstruct_highlighted_node)
-		if new_sprite != null:
+		var new_visual := _deconstruct_visual(_deconstruct_highlighted_node)
+		if new_visual != null:
 			var base := _structure_normal_modulate(_deconstruct_highlighted_node)
-			new_sprite.modulate = Color(DECONSTRUCT_TINT.r, DECONSTRUCT_TINT.g, DECONSTRUCT_TINT.b, base.a)
+			new_visual.modulate = Color(DECONSTRUCT_TINT.r, DECONSTRUCT_TINT.g, DECONSTRUCT_TINT.b, base.a)
+
+
+## 마우스 아래 격자 칸에 철거 가능한 "상태 있는 설치물"(상자/제작대류/밭/목장, INBOX
+## #130)이 있는지 찾는다. #129의 _occupancy_footprint()를 재사용해 이 4종류의 실제
+## 시각적 범위가 대상 칸과 겹치는지 확인한다 — 채집/채광 포인트(ResourcePoint)는 이번
+## 항목 범위가 아니므로 제외한다(같은 footprint 함수가 반환값을 주더라도 무시).
+func _find_fixture_at_cell(cell: Vector2i) -> Node:
+	for child in get_children():
+		if not (child is StorageChest or child is CraftingStation or child is FarmPlot or child is RanchZone):
+			continue
+		var half_extent := _occupancy_footprint(child)
+		if half_extent == Vector2.ZERO:
+			continue
+		if _rect_overlaps_cell(child.global_position, half_extent, cell):
+			return child
+	return null
+
+
+## node(상자/제작대류/밭/목장)를 지금 철거해도 되는지 판정한다(INBOX #130 원문 규칙).
+## 상자=슬롯이 전부 비어있을 때만, 제작대류=진행 중인 배치가 없을 때만, 목장=사육 중인
+## 동물이 없을 때만, 밭=언제든 가능(자라는 중/수확 가능한 작물도 함께 사라짐 — 의도된
+## 단순화, 되돌려주지 않음).
+func _can_deconstruct_fixture(node: Node) -> bool:
+	if node is StorageChest:
+		return node.is_empty()
+	if node is CraftingStation:
+		return not node.is_batch_active()
+	if node is RanchZone:
+		return not node.has_animal()
+	if node is FarmPlot:
+		return true
+	return false
 
 
 ## 건설 해제 모드에서 좌클릭했을 때 실행된다(INBOX #128) — 마우스 아래 격자 칸에 벽/문이
-## 있으면 철거하고, 설치 때 소모했던 아이템을 100% 환급한다(문은 열려있든 닫혀있든 철거
-## 가능 — DESIGN.md/INBOX #128 원문). 인벤토리가 가득 차 있으면 #24의 바닥 드롭 패턴으로
-## 대체해서 손실이 없게 한다.
+## 있으면 그쪽을 철거하고, 없으면 상자/제작대류/밭/목장(INBOX #130) 중 하나가 그 칸을
+## 차지하는지 확인해서 그쪽을 철거한다.
 func _try_deconstruct_structure() -> void:
 	var cell := _world_to_grid(get_global_mouse_position())
-	if not _grid_occupancy.has(cell):
+	if _grid_occupancy.has(cell):
+		_deconstruct_wall_or_door(cell)
 		return
+	var fixture := _find_fixture_at_cell(cell)
+	if fixture != null:
+		_deconstruct_fixture(fixture)
+
+
+## 벽/문을 철거하고, 설치 때 소모했던 아이템을 100% 환급한다(문은 열려있든 닫혀있든
+## 철거 가능 — DESIGN.md/INBOX #128 원문). 인벤토리가 가득 차 있으면 #24의 바닥 드롭
+## 패턴으로 대체해서 손실이 없게 한다.
+func _deconstruct_wall_or_door(cell: Vector2i) -> void:
 	var node: Node = _grid_occupancy[cell]
 	var item: String = node.get_meta("structure_item", "")
 	_grid_occupancy.erase(cell)
@@ -1049,6 +1121,29 @@ func _try_deconstruct_structure() -> void:
 	node.queue_free()
 	if item != "" and InventoryData.add_item(item, 1) < 1:
 		spawn_dropped_item(item, 1, _grid_to_world_center(cell))
+	_recompute_rooms()
+
+
+## 상태를 가진 다른 설치물(상자/제작대류/밭/목장)을 철거한다(INBOX #130). _can_deconstruct_fixture()
+## 조건을 못 채우면 아무 일도 하지 않는다(하이라이트만 유지 — #130 원문). 이 4종류는
+## 벽/문과 달리 플레이어가 크래프팅해서 손에 들고 설치하는 아이템이 아니라 world.gd가
+## 스폰 시점에 고정 배치하는 오브젝트라(스폰 코드 참고) 대응하는 인벤토리 아이템 자체가
+## 없다 — DESIGN.md에 없는 새 아이템(예: "storage_chest" 아이템)을 이 항목에서 임의로
+## 지어내지 않기로 판단해서(PROMPT_BUILD.md ④ 규칙), 철거하면 그냥 사라지고 인벤토리로
+## 돌아오는 아이템은 없다(STATUS.md에 이 판단을 기록해둠). 방 안의 핵심 오브젝트 구성이
+## 바뀔 수 있으므로(#122) 벽 변경이 아니어도 항상 방 판정을 다시 계산한다.
+func _deconstruct_fixture(node: Node) -> void:
+	if not _can_deconstruct_fixture(node):
+		return
+	if _deconstruct_highlighted_node == node:
+		_deconstruct_highlighted_node = null
+	## queue_free()만 부르고 바로 _recompute_rooms()를 호출하면, 실제 트리 제거는 이번
+	## 프레임 끝에 지연되기 때문에 _classify_room()의 get_children() 스캔이 아직 트리에
+	## 남아있는(막 지우기로 예약된) 이 노드를 그대로 다시 세어버려 카테고리가 안 바뀌는
+	## 실제 버그가 있었다(QA 검증 중 발견 — INBOX #130). remove_child()로 먼저 트리에서
+	## 동기적으로 떼어낸 뒤 queue_free()해야 재계산이 이 노드를 안 보게 된다.
+	remove_child(node)
+	node.queue_free()
 	_recompute_rooms()
 
 
