@@ -27,19 +27,19 @@
 </head>
 <body>
   <h1>auto-loop 진행 상황</h1>
-  <p class="updated">마지막 갱신: 2026-09-05 03:13:09</p>
+  <p class="updated">마지막 갱신: 2026-09-05 03:55:21</p>
   
   <div class="row">
-    <div class="card"><div class="label">남은 항목</div><div class="num">0</div></div>
+    <div class="card"><div class="label">남은 항목</div><div class="num">5</div></div>
     <div class="card"><div class="label">완료된 항목</div><div class="num">123</div></div>
   </div>
   <div class="card">
     <div class="label">지금 처리 중 / 다음으로 처리할 항목</div>
-    <div>(없음 — 큐 비어있음)</div>
+    <div>#125 [BUILD] (버그 리포트, 사용자 지시 2026-09-05, 스크린샷 첨부됨) 건축 격자가 처음부터 너무 크게 잡혀 있어서 벽을 설치하면 캐릭터에 비해 지나치게 커 보인다(사용자가 실제로 벽을 설치해본 스크린샷 기준). 원인으로 보이는 것: `game/scenes/world/world.gd:97`의 `const BUILD_GRID_SIZE := 64.0`. 이 값을 지금의 1/4 수준(또는 실제로 스크린샷으로 확인했을 때 캐릭터 대비 자연스러운 비율이 나오는 값)으로 줄이거나, 필요하면 격자 체계 전체를 다시 조정한다. `BUILD_GRID_SIZE`를 참조하는 다른 곳(고스트/벽/문 스프라이트 스케일링, `door.gd`의 `_grid_size` 등)도 전부 같이 맞춘다. 방 감지(#122)의 flood-fill 탐색 상한(400칸)은 격자가 작아지면 같은 물리적 면적이 더 많은 칸으로 나뉘게 되므로, 기존 방 크기 기준으로 상한값을 같이 재조정할 것(DESIGN.md "건축/방(Room) 시스템" 절 참고). 기존에 설치된 벽/문 위치 데이터와의 호환은 신경쓰지 않아도 된다(정식 세이브/로드 대상 아님). DESIGN.md "아이템/오브젝트 크기 표준"(최소 32px)은 지키되 지금처럼 과도하게 크지 않게. 벽 여러 개를 실제로 설치해서 스크린샷으로 비율을 확인한다.</div>
   </div>
   <div class="card">
     <div class="label">마지막 작업 커밋</div>
-    <div><code>269edc3 [INBOX #123] 방-상자 자동 연동: 제작대류가 같은 방의 저장 상자 재료를 인식/소모하게 만든다</code></div>
+    <div><code>d1ef8aa SESSION_HANDOFF.md를 gitignore에 추가</code></div>
   </div>
   <div class="card">
     <div class="label">디자인 개선 후보 (확인 후 지우기를 누르면 이 브라우저에서 안 보입니다)</div>
