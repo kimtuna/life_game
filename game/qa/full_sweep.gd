@@ -20,6 +20,14 @@ extends Node
 ## #80이 새로 만든 벌목(나무) 흐름을 스윕에 포함시켰다 — gathering/mining과 같은
 ## resource_point.gd를 쓰지만 use_kind로는 mining과 구분되지 않으므로(둘 다 "mining"),
 ## required_tool == "axe"로 필터링한다.
+##
+## (INBOX #113) mining_point_sand_idle/mining_point_sand_harvest,
+## mining_point_copper_idle/mining_point_copper_harvest 네 스텝을 추가했다. 기존
+## "mining_point" 스텝은 필드에 무작위로 스폰된 포인트 중 처음 찾은(가중치가 낮은
+## 모래/구리광석은 뽑히지 않을 수 있음) mining 포인트 하나만 봤을 뿐, INBOX #103이 새로
+## 추가한 모래/구리광석 채광 포인트를 실제로 캐보는 경로가 스윕에 없었다 —
+## mining_variety5_check.gd(#103)와 같은 방식으로 mining_point_sand.tscn/
+## mining_point_copper.tscn을 직접 인스턴스화해서 확실히 검증한다.
 
 const OUT_DIR := "/tmp/qa67"
 
@@ -62,6 +70,10 @@ func _ready() -> void:
 		"farm_ready",
 		"gathering_point",
 		"mining_point",
+		"mining_point_sand_idle",
+		"mining_point_sand_harvest",
+		"mining_point_copper_idle",
+		"mining_point_copper_harvest",
 		"logging_point_idle",
 		"logging_point_harvest",
 		"ranch_zone",
@@ -125,6 +137,10 @@ func _run_step(name: String) -> void:
 		"farm_ready": _step_farm_ready()
 		"gathering_point": _step_gathering_point()
 		"mining_point": _step_mining_point()
+		"mining_point_sand_idle": _step_mining_point_sand_idle()
+		"mining_point_sand_harvest": _step_mining_point_sand_harvest()
+		"mining_point_copper_idle": _step_mining_point_copper_idle()
+		"mining_point_copper_harvest": _step_mining_point_copper_harvest()
 		"logging_point_idle": _step_logging_point_idle()
 		"logging_point_harvest": _step_logging_point_harvest()
 		"ranch_zone": await _step_ranch_zone()
@@ -398,6 +414,59 @@ func _step_mining_point() -> void:
 	_player.position = point.global_position + Vector2(0, 60)
 	_world.camera.global_position = _player.position
 	_force_tool("pickaxe")
+
+
+# ---- 모래/구리광석 채광 포인트 (INBOX #103이 추가, #113이 스윕에 실제 채광 경로로
+# 포함) — 필드 무작위 스폰에 의존하지 않고 직접 인스턴스화해서 확실히 검증한다
+# (mining_variety5_check.gd와 같은 패턴). ----
+
+var _mining_sand: Node2D = null
+var _mining_copper: Node2D = null
+
+
+## RESOURCE_SPAWN_RADIUS(1400)보다 훨씬 먼 좌표를 써서, 필드에 무작위로 스폰된 다른
+## 채집/채광/벌목 포인트와 절대 겹치지 않는 자리에 스폰한다. (INBOX #113 QA 도중 발견:
+## 처음엔 이전 스텝이 플레이어를 옮겨둔 위치 바로 옆에 스폰했더니, 근처에 무작위로 이미
+## 스폰돼 있던 다른 포인트와 겹쳐 두 프롬프트 텍스트가 한 화면에 포개져 렌더링되는 바람에
+## 스크린샷을 읽을 수 없었다 — 게임 결함(포인트 간 최소 거리 미보장, 별도 티켓으로 등록)과
+## 이 스크립트의 좌표 선택 문제가 뒤섞여 보이지 않도록 스크립트 쪽을 격리된 좌표로 고쳤다.)
+## world.tscn의 Ground Sprite2D는 region_rect 8000x8000(centered)라 대략
+## (-4000,-4000)~(4000,4000) 범위만 잔디 타일로 덮여 있다 — 그보다 먼 좌표는 배경이
+## 회색 빈 화면으로 찍힌다(첫 시도에서 (6000,6000)을 썼다가 발견, 게임 결함 아님, 이
+## 스크립트가 잔디 범위 밖을 골랐던 것뿐). RESOURCE_SPAWN_RADIUS(1400)+INTERACT_RADIUS(70)
+## 보다는 확실히 멀되 잔디 범위 안에 들어오는 좌표로 조정했다.
+const ISOLATED_SPAWN_POS := Vector2(2500, 2500)
+
+
+func _spawn_mining_point_isolated(scene_path: String) -> Node2D:
+	var point: Node2D = load(scene_path).instantiate()
+	point.player_ref = _player
+	point.world_ref = _world
+	_world.add_child(point)
+	point.global_position = ISOLATED_SPAWN_POS
+	return point
+
+
+func _step_mining_point_sand_idle() -> void:
+	_mining_sand = _spawn_mining_point_isolated("res://scenes/resource_point/mining_point_sand.tscn")
+	_player.position = _mining_sand.global_position + Vector2(0, 60)
+	_world.camera.global_position = _player.position
+	_force_tool("pickaxe")
+
+
+func _step_mining_point_sand_harvest() -> void:
+	_mining_sand._harvest()
+
+
+func _step_mining_point_copper_idle() -> void:
+	_mining_copper = _spawn_mining_point_isolated("res://scenes/resource_point/mining_point_copper.tscn")
+	_player.position = _mining_copper.global_position + Vector2(0, 60)
+	_world.camera.global_position = _player.position
+	_force_tool("pickaxe")
+
+
+func _step_mining_point_copper_harvest() -> void:
+	_mining_copper._harvest()
 
 
 # ---- 벌목 (INBOX #80이 새로 만든 흐름, 바퀴 134가 스윕에 추가) ----
