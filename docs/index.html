@@ -27,19 +27,19 @@
 </head>
 <body>
   <h1>auto-loop 진행 상황</h1>
-  <p class="updated">마지막 갱신: 2026-09-05 13:51:01</p>
+  <p class="updated">마지막 갱신: 2026-09-05 13:58:06</p>
   
   <div class="row">
-    <div class="card"><div class="label">남은 항목</div><div class="num">1</div></div>
-    <div class="card"><div class="label">완료된 항목</div><div class="num">137</div></div>
+    <div class="card"><div class="label">남은 항목</div><div class="num">0</div></div>
+    <div class="card"><div class="label">완료된 항목</div><div class="num">138</div></div>
   </div>
   <div class="card">
     <div class="label">지금 처리 중 / 다음으로 처리할 항목</div>
-    <div>#139 [BUILD] (버그 리포트, #137 QA 전체 스윕에서 발견, 스크린샷으로 확인) INBOX #136이 추가한 "숨은 동물 방향 힌트"(`game/scripts/noise_hint_overlay.gd`, 화면 가장자리에 뜨는 노란 삼각형)가 화면 하단 핫바 UI와 겹쳐서 뜰 수 있다. 재현: `game/qa/full_sweep.gd`의 `room_with_table` 스텝 캡처 `45_room_with_table.png` — 노란 삼각형 힌트가 핫바 9번 슬롯 자리에 정확히 겹쳐서 아이템 아이콘처럼 보인다(다른 스텝, 예: `40~44`/`48`/`49`에서도 핫바 8~9번 슬롯 경계 근처에 반복적으로 나타남). 원인: `noise_hint_overlay.gd:47-48`의 `half_w`/`half_h` 계산이 화면 크기(`size`)와 고정 여백(`EDGE_MARGIN := 48.0`)만 사용하고, 화면 하단에 항상 떠 있는 핫바(`world.tscn`의 hotbar UI, 대략 화면 하단 y 645~710, x 365~915 부근)의 실제 위치는 전혀 고려하지 않는다 — 숨은 동물이 플레이어의 남쪽(아래) 방향에 있으면 힌트가 항상 화면 하단 가장자리 어딘가에 찍히는데, 그 y좌표(약 672)가 핫바 영역과 겹치고 x좌표가 넓은 범위(핫바 폭만큼)에 걸쳐 있어 상당한 확률로 핫바 위에 그려진다. 그 결과 방향 힌트가 아이템 아이콘처럼 보이거나 핫바에 가려 잘 안 보이게 되어, 힌트의 목적("이 방향에 뭔가 있다"를 명확히 알리기)이 훼손된다. 고칠 방향: 힌트가 그려질 수 있는 화면 영역에서 핫바가 차지하는 사각형(하단 중앙 띠)을 제외하거나, 힌트를 하단 가장자리 대신 화면 좌/우/상단 가장자리로만 투영하는 방식, 또는 핫바보다 위쪽(z_index/그리기 순서상 핫바보다 나중에 그려 항상 위로 보이게)으로 처리하는 방식 중 실제로 스크린샷으로 비교해서 자연스러운 쪽을 선택한다. 고친 뒤 동물이 플레이어 남쪽에서 숨어서 움직이는 상황을 재현해 힌트가 핫바와 겹치지 않고 항상 뚜렷하게 보이는지 확인한다.</div>
+    <div>(없음 — 큐 비어있음)</div>
   </div>
   <div class="card">
     <div class="label">마지막 작업 커밋</div>
-    <div><code>af1dfe0 [INBOX #138] 방 안 오브젝트가 벽을 가리는 그리기 순서 버그 수정</code></div>
+    <div><code>eb9a54e [INBOX #139] 숨은 동물 방향 힌트가 핫바 슬롯과 겹치던 버그 수정</code></div>
   </div>
   <div class="card">
     <div class="label">디자인 개선 후보 (확인 후 지우기를 누르면 이 브라우저에서 안 보입니다)</div>
