@@ -13,7 +13,7 @@ outline_color = Color(0, 0, 0, 1)
 script = ExtResource("1_script")
 
 [node name="Sprite" type="Sprite2D" parent="."]
-z_index = -1
+
 texture_filter = 1
 texture = ExtResource("2_texture")
 

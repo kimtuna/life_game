@@ -49,12 +49,15 @@ centered = true
 region_enabled = true
 region_rect = Rect2(0, 0, 8000, 8000)
 
-[node name="Player" type="AnimatedSprite2D" parent="."]
+[node name="YSort" type="Node2D" parent="."]
+y_sort_enabled = true
+
+[node name="Player" type="AnimatedSprite2D" parent="YSort"]
 position = Vector2(640, 360)
 scale = Vector2(1.5, 1.5)
 texture_filter = 1
 
-[node name="RemotePlayers" type="Node2D" parent="."]
+[node name="RemotePlayers" type="Node2D" parent="YSort"]
 
 [node name="RoomOverlay" type="Node2D" parent="."]
 z_index = 10

@@ -105,6 +105,17 @@ const STORAGE_CHEST_ORIGIN := Vector2(0.0, 850.0)
 ## 수 없다.
 const BUILD_GRID_SIZE := 32.0
 
+## 벽/문(#138) 전용 고정 z_index. YSort 컨테이너(`ysort_layer`) 안에 있는 노드끼리는
+## z_index를 줘도 무시되고 Y좌표로만 그려진다(Godot 엔진 자체 동작 —
+## https://github.com/godotengine/godot/issues/62715, y_sort_enabled인 부모 밑에서는
+## 자식 z_index가 정렬에 반영되지 않음). 그래서 가공대 같은 "서 있는 오브젝트"(140×116px로
+## 벽 1칸(32px)보다 훨씬 큼)가 인접 벽 위에 그려지면 Y-정렬만으로는 벽을 다시 앞으로
+## 꺼낼 방법이 없었다(INBOX #138 재현 스크린샷으로 확인). 그래서 벽/문은 아예
+## `ysort_layer` 밖(월드 최상위)에 별도로 두고, YSort 브랜치(플레이어/동물/가공대류 —
+## 전부 z_index 0 기본값)보다 항상 높은 z_index를 줘서 오브젝트 크기와 무관하게 방
+## 테두리가 항상 보이도록 한다.
+const STRUCTURE_Z_INDEX := 5
+
 ## 격자에 설치 가능한 아이템(INBOX #119가 나무벽, #120이 나무문으로 프레임워크를 검증,
 ## #121이 나머지 5종 — 석제벽/강철벽/강철문/창문 — 을 아이템 키만 추가해 연결). 아이콘은
 ## 이미 있는 아이템 아이콘(INBOX #101/#109)을 격자 칸 크기로 확대해서 재사용한다.
@@ -305,8 +316,9 @@ const AXE_CHOP_FLASH_DURATION := 0.25
 ## 패킷이 빠져도 다음 것으로 자연히 보정된다.
 const STATE_BROADCAST_INTERVAL := 0.1
 
-@onready var player_sprite: AnimatedSprite2D = $Player
-@onready var remote_players_root: Node2D = $RemotePlayers
+@onready var ysort_layer: Node2D = $YSort
+@onready var player_sprite: AnimatedSprite2D = $YSort/Player
+@onready var remote_players_root: Node2D = $YSort/RemotePlayers
 @onready var camera: Camera2D = $Camera2D
 @onready var pause_menu: Control = $UI/PauseMenu
 @onready var ammo_panel: PanelContainer = $UI/HUD/AmmoPanel
@@ -677,7 +689,7 @@ func _spawn_deer() -> void:
 		deer.global_position = pos
 		deer.player_ref = player_sprite
 		deer.world_ref = self
-		add_child(deer)
+		ysort_layer.add_child(deer)
 
 
 ## 필드에 채집 포인트(곡괭이낫 → 벼 씨앗), 채광 포인트(곡괭이낫 → 철), 벌목 포인트
@@ -764,7 +776,7 @@ func _spawn_processing_table() -> void:
 	table.global_position = player_sprite.position + PROCESSING_TABLE_ORIGIN
 	table.player_ref = player_sprite
 	table.world_ref = self
-	add_child(table)
+	ysort_layer.add_child(table)
 
 
 ## 스폰 지점에서 고정된 오프셋에 제련로를 배치한다 (INBOX #88).
@@ -773,7 +785,7 @@ func _spawn_smelting_furnace() -> void:
 	furnace.global_position = player_sprite.position + SMELTING_FURNACE_ORIGIN
 	furnace.player_ref = player_sprite
 	furnace.world_ref = self
-	add_child(furnace)
+	ysort_layer.add_child(furnace)
 
 
 ## 스폰 지점에서 고정된 오프셋에 조리대를 배치한다 (INBOX #90).
@@ -782,7 +794,7 @@ func _spawn_cooking_table() -> void:
 	table.global_position = player_sprite.position + COOKING_TABLE_ORIGIN
 	table.player_ref = player_sprite
 	table.world_ref = self
-	add_child(table)
+	ysort_layer.add_child(table)
 
 
 ## 스폰 지점에서 고정된 오프셋에 조리용 화로를 배치한다 (INBOX #90).
@@ -791,7 +803,7 @@ func _spawn_cooking_stove() -> void:
 	stove.global_position = player_sprite.position + COOKING_STOVE_ORIGIN
 	stove.player_ref = player_sprite
 	stove.world_ref = self
-	add_child(stove)
+	ysort_layer.add_child(stove)
 
 
 ## ⚠️ 테스트/개발 편의용 — 정식 게임 밸런스가 아니다 (INBOX #97/#117, 사용자 지시
@@ -833,7 +845,7 @@ func _spawn_storage_chest() -> void:
 	chest.player_ref = player_sprite
 	chest.world_ref = self
 	chest.unlimited = true  # 테스트용 상자 전용 (INBOX #116) — 일반 상자는 기본값 false로 고정 슬롯 유지
-	add_child(chest)
+	ysort_layer.add_child(chest)
 	for item_name in DEBUG_STARTER_CHEST_ITEMS:
 		chest.add_item(item_name, DEBUG_STARTER_CHEST_AMOUNT)
 
@@ -997,6 +1009,7 @@ func _spawn_structure(item: String, cell: Vector2i) -> Node2D:
 	if tex_size.x > 0.0 and tex_size.y > 0.0:
 		sprite.scale = Vector2(BUILD_GRID_SIZE, BUILD_GRID_SIZE) / tex_size
 	body.add_child(sprite)
+	body.z_index = STRUCTURE_Z_INDEX
 	add_child(body)
 	if is_door:
 		var door := body as Door
