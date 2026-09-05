@@ -27,19 +27,19 @@
 </head>
 <body>
   <h1>auto-loop 진행 상황</h1>
-  <p class="updated">마지막 갱신: 2026-09-05 12:51:49</p>
+  <p class="updated">마지막 갱신: 2026-09-05 13:02:12</p>
   
   <div class="row">
-    <div class="card"><div class="label">남은 항목</div><div class="num">1</div></div>
-    <div class="card"><div class="label">완료된 항목</div><div class="num">135</div></div>
+    <div class="card"><div class="label">남은 항목</div><div class="num">2</div></div>
+    <div class="card"><div class="label">완료된 항목</div><div class="num">136</div></div>
   </div>
   <div class="card">
     <div class="label">지금 처리 중 / 다음으로 처리할 항목</div>
-    <div>#137 [QA] 전체 스윕: 메인 메뉴부터 모든 시스템을 실제로 플레이해보며 문제를 찾는다. (BUILD/DESIGN 완료 카운터가 #132~#136(5개)로 5가 되어 자동 등록됨 — `loop/PROMPT_BUILD.md`③ 상시 규칙.)</div>
+    <div>#138 [BUILD] (버그 리포트, #137 QA 전체 스윕에서 발견, 스크린샷으로 확인) 방(Room) 안에 가공대 같은 큰 오브젝트를 놓으면, 그 오브젝트 스프라이트가 사방 벽까지 완전히 뒤덮어버려서 "벽으로 둘러싸인 방"처럼 안 보이고 벽/캐릭터/오브젝트가 하나로 뭉개진 알아볼 수 없는 덩어리로 보인다. 원인 추정: `world.gd`가 벽/문(`_spawn_structure()`)이든 제작대류(가공대 등)든 전부 World 노드에 `add_child()`로 평평하게 추가할 뿐, YSort나 z_index로 그리기 순서를 나누지 않는다 — Godot 기본 규칙상 나중에 `add_child()`된 노드가 항상 위에 그려지므로, 벽을 먼저 놓고 나중에 가공대를 추가하면 가공대가 벽 위에 그려진다. 문제는 `BUILD_GRID_SIZE`(#133이 확정한 32px, 벽 1칸 크기)에 비해 가공대 스프라이트(`processing_table.png`, 140×116px)가 훨씬 커서, 방 안(칸 하나짜리 최소 방이 특히 심함)에 놓인 가공대가 인접한 벽 4개의 시각적 영역을 전부 덮어버린다. 재현: `game/qa/full_sweep.gd`의 `room_with_table` 스텝(벽 4개로 최소 크기 방을 만들고 중앙에 가공대를 놓음), 캡처 `45_room_with_table.png` — 벽이 안 보이고 플레이어+가공대+벽 파편이 뒤섞인 그림 하나만 보임(재현: `docs/STATUS.md` 바퀴189+1 QA 기록의 크롭 이미지 설명 참고, 화면에는 위/아래로 삐져나온 널빤지 조각만 보이고 좌우 벽 라인은 아예 안 보임). 이 문제는 #132(벽이 너무 작아 안 보임)와 원인이 다르다 — #132/#133/#134가 벽 자체의 시각 크기와 격자 정합은 고쳤지만, 벽보다 훨씬 큰 오브젝트가 인접 칸에 있을 때의 그리기 순서(depth/레이어) 문제는 다루지 않았다. 고칠 방향(택1 또는 조합, 실제로 스크린샷 비교하며 결정): (a) World 씬에 YSort 컨테이너를 도입해 플레이어/동물/벽/오브젝트를 Y좌표 기준으로 자동 정렬하거나, (b) 벽/문은 항상 낮은 z_index, 제작대류/저장상자 등 "서 있는 오브젝트"는 플레이어와 같은 방식으로 Y 기반 z_index를 부여하되 벽보다는 항상 위(발밑에서 자연스럽게 겹치도록)로 그리는 규칙을 도입. 이동 충돌이나 방 감지(#122) 판정 로직은 건드리지 않는다(순수 렌더링 순서 문제). 고친 뒤 `room_with_table` 스텝을 다시 캡처해서 방의 벽 4개가 오브젝트와 무관하게 항상 식별 가능한 사각형 테두리로 보이는지 확인한다.</div>
   </div>
   <div class="card">
     <div class="label">마지막 작업 커밋</div>
-    <div><code>6938f38 [INBOX #136] 시야 안개를 덕코프 스타일로 순화(알파 낮춤 + 벽 예외 + 동물 완전 숨김/힌트)</code></div>
+    <div><code>d14e755 [INBOX #137] QA: 전체 스윕(메인 메뉴~사냥/낮밤) — 결함 2건 발견</code></div>
   </div>
   <div class="card">
     <div class="label">디자인 개선 후보 (확인 후 지우기를 누르면 이 브라우저에서 안 보입니다)</div>
