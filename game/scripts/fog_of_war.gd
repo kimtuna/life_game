@@ -3,7 +3,11 @@ class_name FogOfWar
 ## 시야/전장의 안개(Fog of War, INBOX #135, 코어키퍼 참고). DESIGN.md "시야 / 전장의
 ## 안개" 절 그대로: 플레이어 위치를 꼭짓점으로, 조준 방향(기존 총 조준 계산과 동일한
 ## world_ref.get_aim_direction())을 중심으로 한 부채꼴(콘) 밖은 안 보이고, 콘 안이라도
-## 벽/닫힌 문에 가로막힌 칸은 안 보인다. 안 보이는 칸은 완전한 검은색(불투명)으로 덮는다.
+## 벽/닫힌 문에 가로막힌 칸은 안 보인다. (INBOX #136부터) 안 보이는 칸은 완전한 검은색이
+## 아니라 거의 티가 안 날 정도의 낮은 알파로만 덮는다 — 덕코프 참고, "여기는 지금 내
+## 시야가 아니다"만 은은하게 인지시키는 용도지 실제로 가리는 용도가 아니다. 벽/문/창문
+## (world_ref.has_structure_at())이 있는 칸은 이 안개 자체를 그리지 않아 시야 콘/가림과
+## 무관하게 항상 정상적으로 보인다.
 ## room_overlay.gd(반투명, 토글식 방 표시)와는 목적이 다른 별개의 레이어이고, 토글 없이
 ## 항상 켜져 있다. room_overlay.gd와 같은 패턴으로 world_ref의 공개 접근자만 쓰고 내부
 ## 상태(_grid_occupancy 등)를 직접 건드리지 않는다.
@@ -16,7 +20,11 @@ class_name FogOfWar
 const FOG_RADIUS := 820.0
 ## 총 110도 콘(좌우 55도씩) — DESIGN.md가 예시로 든 100~120도 범위 안에서 임의로 정함.
 const FOG_HALF_ANGLE_DEG := 55.0
-const FOG_COLOR := Color(0.0, 0.0, 0.0, 1.0)
+## (INBOX #136, 2026-09-05 수정) 원래 완전 불투명(alpha 1.0)이었는데 덕코프 대비 너무
+## 답답하다는 피드백(스크린샷 비교)으로 0.22로 낮췄다 — DESIGN.md가 예시로 든 0.15~0.3
+## 범위 중간값. 바닥/지형이 은은하게 비쳐 보이면서도 "지금 내 시야가 아니다"는 티는 나야
+## 하므로 범위의 아주 낮은 쪽(0.15에 가까운 값)까지는 내리지 않았다.
+const FOG_COLOR := Color(0.0, 0.0, 0.0, 0.22)
 
 var world_ref: Node2D = null
 var _grid_size: float = 32.0
@@ -55,10 +63,32 @@ func _draw() -> void:
 	for gx in range(min_cell.x, max_cell.x + 1):
 		for gy in range(min_cell.y, max_cell.y + 1):
 			var cell := Vector2i(gx, gy)
+			## 벽/문/창문 칸은 시야 콘/가림 판정과 무관하게 항상 정상적으로 보여야 하므로
+			## (DESIGN.md 2026-09-05 확정) 안개 자체를 그리지 않고 건너뛴다.
+			if world_ref.has_structure_at(cell):
+				continue
 			var cell_center := Vector2((gx + 0.5) * _grid_size, (gy + 0.5) * _grid_size)
 			if not _is_cell_visible(cell, cell_center, player_pos, player_cell, aim_angle, half_angle):
 				var rect := Rect2(Vector2(gx, gy) * _grid_size, Vector2(_grid_size, _grid_size))
 				draw_rect(rect, FOG_COLOR, true)
+
+
+## 임의의 월드 좌표가 지금 플레이어 시야(콘+반경+가림)에 들어와 있는지 밖에서 물어볼 수
+## 있는 공개 함수(INBOX #136, deer.gd가 사용) — 동물처럼 움직이는 대상은 안개가 옅어져도
+## 시야 밖이면 완전히 숨겨야 하므로(DESIGN.md 2026-09-05), _draw()가 칸 단위로 쓰는 것과
+## 같은 콘/가림 판정을 좌표 하나에 대해 그대로 재사용한다.
+func is_position_visible(world_pos: Vector2) -> bool:
+	if world_ref == null:
+		return true
+	var player: Node2D = world_ref.player_sprite
+	if player == null:
+		return true
+	var player_pos: Vector2 = player.global_position
+	var aim_angle: float = world_ref.get_aim_direction().angle()
+	var half_angle := deg_to_rad(FOG_HALF_ANGLE_DEG)
+	var player_cell := Vector2i(floori(player_pos.x / _grid_size), floori(player_pos.y / _grid_size))
+	var target_cell := Vector2i(floori(world_pos.x / _grid_size), floori(world_pos.y / _grid_size))
+	return _is_cell_visible(target_cell, world_pos, player_pos, player_cell, aim_angle, half_angle)
 
 
 ## 콘(방향+각도)과 반경 안에 있고, 벽/닫힌 문에 가로막히지 않았는지를 함께 판정한다.

@@ -318,6 +318,7 @@ const STATE_BROADCAST_INTERVAL := 0.1
 @onready var deconstruct_mode_panel: PanelContainer = $UI/HUD/DeconstructModePanel
 @onready var room_overlay: RoomOverlay = $RoomOverlay
 @onready var fog_of_war: FogOfWar = $FogOfWar
+@onready var noise_hint_overlay: NoiseHintOverlay = $UI/NoiseHintOverlay
 @onready var day_night_modulate: CanvasModulate = $DayNightModulate
 @onready var rain_overlay: ColorRect = $UI/RainOverlay
 @onready var ui_layer: CanvasLayer = $UI
@@ -1332,6 +1333,21 @@ func is_cell_sight_blocked(cell: Vector2i) -> bool:
 	if node is Door and node.is_open:
 		return false
 	return true
+
+
+## 격자 칸에 벽/문/창문(건축물)이 놓여 있는지 밖에서 조회하는 공개 접근자(INBOX #136,
+## fog_of_war.gd가 사용) — 열림/닫힘과 무관하게 "설치돼 있다"는 사실만 본다(문이 열려
+## 있어도 건축물 자체는 여전히 존재하므로 안개 예외 대상이다). is_cell_sight_blocked()
+## 처럼 _grid_occupancy를 직접 노출하지 않고 존재 여부만 반환한다.
+func has_structure_at(cell: Vector2i) -> bool:
+	return _grid_occupancy.has(cell)
+
+
+## 시야 밖에서 숨겨진 동물이 움직이고 있을 때 화면에 대략적인 방향 힌트를 잠깐 띄운다
+## (INBOX #136, DESIGN.md "시야 / 전장의 안개" — 정확한 위치가 아니라 방향 힌트 수준).
+## deer.gd가 안 보이면서 배회/도주 중일 때 매 프레임 호출한다.
+func notify_hidden_noise(world_pos: Vector2) -> void:
+	noise_hint_overlay.notify(world_pos, player_sprite.global_position)
 
 
 ## world_pos가 속한, 잡실이 아닌 정상 인식된 방 안에 있는 저장 상자 목록을 반환한다

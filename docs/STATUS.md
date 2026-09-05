@@ -5,6 +5,74 @@
 
 ## 마지막 갱신
 
+바퀴 189 / 2026-09-05 ([BUILD] **INBOX #136 완료 — #135가 만든 시야 안개를 덕코프
+스타일로 순화(알파 낮춤 + 벽/문/창문 예외 + 동물 완전 숨김·방향 힌트).**)
+1) **표현 순화**: `game/scripts/fog_of_war.gd`의 `FOG_COLOR`를 `Color(0,0,0,1.0)`
+   (완전 불투명)에서 `Color(0,0,0,0.22)`로 낮췄다 — DESIGN.md가 제시한 0.15~0.3
+   범위의 중간값. 스크린샷으로 비교해보니 안 보이는 영역도 잔디 색이 은은하게
+   비치면서 "지금 시야가 아니다"는 티는 나는 수준으로 나왔다(값 자체를 더 정밀하게
+   튜닝해달라는 요청은 없었고 범위 안이면 충분하다고 판단).
+2) **벽/문/창문 예외**: `world.gd`에 `has_structure_at(cell) -> bool`(`_grid_occupancy.
+   has(cell)`만 반환, `is_cell_sight_blocked()`와 같은 "내부 상태 직접 노출 안 함"
+   패턴)을 새 공개 접근자로 추가했다. `fog_of_war.gd`의 `_draw()`가 칸을 순회할 때
+   `has_structure_at(cell)`이 true면 안개 사각형 자체를 그리지 않고 건너뛴다 — 열림/
+   닫힘과 무관하게(문이 열려 있어도 문 자체는 존재하므로) 항상 정상 노출된다.
+3) **동물 완전 숨김 + 방향 힌트**: `fog_of_war.gd`에 `is_position_visible(world_pos) ->
+   bool`을 추가했다 — `_draw()`가 칸 단위로 쓰는 콘/반경/가림 판정(`_is_cell_visible()`)
+   을 좌표 하나에 대해 그대로 재사용한다(코드 중복 없이 판정 로직 하나만 유지).
+   `deer.gd`에 `_update_fog_visibility()`를 추가해 매 물리 프레임 호출한다 —
+   `is_ranched`(목장 사슴)이거나 `world_ref`/`fog_of_war`가 없으면(ranch_zone.gd가
+   현재 스폰 시 `world_ref`를 안 채워줌 — 기존부터 있던 상태, 이번에 손대지 않음)
+   항상 보이는 기존 동작을 유지하고, 그 외에는 `is_position_visible()` 결과로
+   `sprite.visible`/`health_bar.visible`을 갱신한다. 숨겨진 채로 `_state != "idle"`
+   (배회/도주 중)이면 `world.notify_hidden_noise(global_position)`을 호출한다.
+4) **방향 힌트 UI**: 새 파일 `game/scripts/noise_hint_overlay.gd`(`Control`,
+   `world.tscn`의 `UI` CanvasLayer 맨 마지막 자식으로 추가, 항상 최상단에 그려짐)를
+   만들어 `world.gd`의 `notify_hidden_noise()`가 플레이어→동물 방향을 넘기면 화면
+   가장자리(여백 48px)에 그 방향을 가리키는 작은 노란 삼각형을 0.6초간 띄운다.
+   DESIGN.md/INBOX 원문이 "간단한 도형으로 임시 처리해도 됨"이라고 명시해서 새 그림을
+   만들지 않고 `draw_polygon()`으로 처리했다 — 정교한 아이콘은 [DESIGN] 몫으로 남겨둠
+   (새 INBOX 항목을 만들지는 않았다, 원문이 "이번 범위 밖"이라고만 했지 별도 티켓을
+   요구하지 않았음).
+5) **검증**: `game/qa/inbox136_check.gd`를 새로 만들어 (a) `FogOfWar.FOG_COLOR.a`가
+   0.15~0.3 안이고 1.0이 아님을 코드로 직접 확인, (b) `has_structure_at()`이 벽 칸/빈
+   칸을 정확히 구분하는지, (c) 5×5 돌벽 방을 짓고 기존 필드 사슴 하나를 방 안(플레이어
+   등 뒤, 콘 밖)으로 옮겨 `_update_fog_visibility()`를 직접 호출해 `sprite.visible`/
+   `_fog_visible`이 false가 되는지, (d) `_state="idle"`이면 힌트가 안 뜨고
+   `_state="wander"`면 `noise_hint_overlay._timer`가 켜지는지, (e) 사슴을 다시 시야
+   콘 안으로 옮기면 `sprite.visible`이 true로 돌아오는지까지 전부 코드로 단언했다.
+   `project.godot` `[autoload]`에 임시 등록 → `godot --headless --path . --import`
+   (새 `class_name NoiseHintOverlay`를 전역 클래스 캐시에 등록 — 처음엔 이걸 안 해서
+   "Could not find type NoiseHintOverlay" 파싱 에러가 났었다) → `godot --path .`(실제
+   렌더러)로 `QA_INBOX136_CHECK_PASS` 확인 → `project.godot` 원상복구(`diff` 빈 결과
+   재확인)까지 마쳤다. 스크린샷 4장(`/tmp/qa136/*.png`)도 Read로 직접 열어봤다: 방
+   한가운데서 남/북 어느 쪽을 봐도 벽은 항상 밝게 보이고 등 뒤 잔디만 옅게 어두워짐,
+   사슴이 숨은 상태에서 화면 위쪽에 방향 삼각형이 뜨고 사슴 자체는 완전히 안 보임,
+   시야 콘 안으로 돌아오면 삼각형 없이 사슴이 다시 보임 — 세 가지 변경 전부 기대한
+   그림과 일치했다.
+6) **처음에 테스트 스크립트 자체의 좌표 버그로 한 번 실패했다**: "사슴이 다시 보여야
+   한다" 단계에서 좌표를 방 남쪽 벽 밖(중심에서 150유닛, 벽까지는 64유닛)으로 잡아서
+   벽에 가로막혀 실패로 나왔다 — 게임 코드 결함이 아니라 QA 스크립트의 좌표가 방
+   반경(2칸×32=64)을 넘어선 것이었다. 좌표를 40유닛(방 안)으로 줄이자 통과했다.
+   **다음 바퀴가 참고할 점**: 이 방 구성(5×5, `BUILD_GRID_SIZE=32`)에서 중심~벽까지
+   거리는 정확히 64유닛이므로, 방 안쪽 좌표를 테스트에 쓸 때는 이 값보다 작게 잡을 것.
+7) 이동 충돌/방 감지/총알 물리는 건드리지 않았다(요구사항대로 렌더링 전용) —
+   `_grid_occupancy`/`_recompute_rooms()`/`_is_position_blocked()`는 그대로 두고
+   새 공개 접근자(`has_structure_at`)와 `fog_of_war.gd`의 새 공개 함수
+   (`is_position_visible`)만 추가했다.
+8) `docs/feedback/INBOX.md`의 `#136`을 `[x]`로 갱신했다. **BUILD/DESIGN 완료
+   카운터**: 직전 `#135`(BUILD)로 카운터가 4였으므로, 이번 `#136`(BUILD)로 **5**가
+   됐다 — `loop/PROMPT_BUILD.md`③ 상시 규칙대로 `#137 [QA] 전체 스윕`을 큐에 새로
+   추가하고 카운터를 **0**으로 리셋했다(이번 스윕 대상 구간: `#132`~`#136`).
+
+**다음에 할 것**: `docs/feedback/INBOX.md` "처리 대기"에 `#137 [QA] 전체 스윕`이
+번호가 가장 작은 미완료 항목이다 — QA 하네스(`PROMPT_QA.md`)가 메인 메뉴부터 실제로
+플레이하며 `#132`~`#136`(벽/문/창문 격자 정합, 벽 그래픽 리메이크, 시야 안개 신규 +
+이번 순화)을 포함한 전체 시스템에 문제가 없는지 확인할 차례다. BUILD/DESIGN 카운터는
+방금 0으로 리셋됐다.
+
+## 지난 바퀴 기록 (바퀴 188, 그대로 보존)
+
 바퀴 188 / 2026-09-05 ([BUILD] **INBOX #135 완료 — 시야/전장의 안개(Fog of War)
 시스템을 새로 만듦(코어키퍼 참고, 렌더링 전용, DESIGN.md "시야 / 전장의 안개" 절
 그대로).**)

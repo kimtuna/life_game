@@ -59,6 +59,10 @@ var zone_center: Vector2 = Vector2.ZERO
 var zone_radius: float = 0.0
 
 var health: int = MAX_HEALTH
+## 시야/전장의 안개(INBOX #136, DESIGN.md 2026-09-05) — 동물은 정적 지형과 달리 안개가
+## 옅어져도 시야 밖/가림 상태면 완전히 숨긴다. world_ref/fog_of_war가 없으면(목장 사슴,
+## ranch_zone.gd가 world_ref를 안 채워줌) 항상 보이는 기존 동작을 유지한다.
+var _fog_visible: bool = true
 var _facing: String = "south"
 var _state: String = "idle"  # idle, wander, flee
 var _state_timer: float = 0.0
@@ -112,6 +116,8 @@ func _physics_process(delta: float) -> void:
 			if _state_timer <= 0.0:
 				_pick_wander()
 
+	_update_fog_visibility()
+
 
 ## 총알에 맞았을 때 world.gd/bullet.gd가 호출한다.
 ## 목장에 풀어놓은 사슴은 이미 길들여진 가축이므로 다시 사냥/포획 대상이 되지 않는다.
@@ -132,8 +138,9 @@ func take_hit(damage: int, ammo_type: String) -> void:
 
 ## 체력바는 만피(다치지 않은 상태)일 때는 숨기고, 한 번이라도 맞으면 보여준다 (INBOX #19).
 ## 포획 가능 구간(체력 10% 이하)에서는 색을 바꿔 마취탄 포획 타이밍을 강조한다.
+## (INBOX #136) 안개 시야 밖으로 완전히 숨겨진 상태면 체력바도 함께 숨긴다.
 func _update_health_bar() -> void:
-	health_bar.visible = health < MAX_HEALTH
+	health_bar.visible = _fog_visible and health < MAX_HEALTH
 	var ratio := float(health) / float(MAX_HEALTH)
 	health_bar_fill.offset_right = health_bar_fill.offset_left + HEALTH_BAR_WIDTH * ratio
 	if health <= CAPTURE_HEALTH_THRESHOLD:
@@ -189,6 +196,26 @@ func _facing_from_direction(direction: Vector2) -> String:
 		return "north"
 	else:
 		return "west"
+
+
+## 시야/전장의 안개 판정을 반영해 스프라이트를 완전히 숨기거나 다시 보여준다(INBOX #136).
+## 목장 사슴(is_ranched)이나 world_ref/fog_of_war가 없는 경우는 안개 개념이 적용되지
+## 않으므로 항상 보이는 기존 동작을 유지한다. 숨겨진 채로 배회/도주 중이면(정지 상태가
+## 아니면) 화면에 대략적인 방향 힌트를 띄운다.
+func _update_fog_visibility() -> void:
+	if is_ranched or world_ref == null or world_ref.fog_of_war == null:
+		if not _fog_visible:
+			_fog_visible = true
+			sprite.visible = true
+			_update_health_bar()
+		return
+	var now_visible: bool = world_ref.fog_of_war.is_position_visible(global_position)
+	if now_visible != _fog_visible:
+		_fog_visible = now_visible
+		sprite.visible = now_visible
+		_update_health_bar()
+	if not now_visible and _state != "idle":
+		world_ref.notify_hidden_noise(global_position)
 
 
 ## west 스프라이트는 따로 생성하지 않고 east를 좌우 반전해서 쓴다 (사슴은 좌우 대칭 실루엣).
